@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::{collections::VecDeque, time::Instant};
 
 const API: &str = "https://discord.com/api/v10";
+const ACCOUNT_ORIGIN: &str = "https://vozen.org";
+const ACCOUNT_CLIENT_ID: &str = "1537738930722443364";
 const SESSION_COOKIE: &str = "__Secure-vozen_music";
 const STATE_COOKIE: &str = "__Secure-vozen_music_oauth";
 const SESSION_TTL: Duration = Duration::from_secs(3600);
@@ -39,6 +41,7 @@ struct Login {
     token: String,
     csrf: String,
     expires: Instant,
+    revoke_token: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -416,6 +419,7 @@ async fn callback(
                 token: token.access_token,
                 csrf: nonce(),
                 expires: Instant::now() + ttl,
+                revoke_token: true,
             },
         );
     }
@@ -431,14 +435,144 @@ async fn logout(State(state): State<Arc<Dashboard>>, headers: HeaderMap) -> WebR
         state.auth.lock().await.sessions.remove(key);
     }
     // Local logout is immediate, even when Discord's revocation endpoint is unavailable.
-    let _ = state
-        .client
-        .post("https://discord.com/api/oauth2/token/revoke")
-        .basic_auth(&state.client_id, Some(&state.secret))
-        .form(&[("token", login.token)])
-        .send()
-        .await;
+    if login.revoke_token {
+        let _ = state
+            .client
+            .post("https://discord.com/api/oauth2/token/revoke")
+            .basic_auth(&state.client_id, Some(&state.secret))
+            .form(&[("token", login.token)])
+            .send()
+            .await;
+    }
     let mut response = StatusCode::NO_CONTENT.into_response();
+    set_cookie(&mut response, SESSION_COOKIE, "", 0);
+    Ok(response)
+}
+
+fn account_cors(headers: &HeaderMap) -> WebResult<HeaderMap> {
+    if headers
+        .get(header::ORIGIN)
+        .and_then(|value| value.to_str().ok())
+        != Some(ACCOUNT_ORIGIN)
+    {
+        return Err(WebError(StatusCode::FORBIDDEN, "Untrusted account origin."));
+    }
+    let mut result = HeaderMap::new();
+    result.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        HeaderValue::from_static(ACCOUNT_ORIGIN),
+    );
+    result.insert(
+        header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        HeaderValue::from_static("true"),
+    );
+    result.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        HeaderValue::from_static("POST, OPTIONS"),
+    );
+    result.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        HeaderValue::from_static("content-type"),
+    );
+    result.insert(header::VARY, HeaderValue::from_static("Origin"));
+    Ok(result)
+}
+
+async fn account_preflight(headers: HeaderMap) -> WebResult<Response> {
+    Ok((account_cors(&headers)?, StatusCode::NO_CONTENT).into_response())
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AccountToken {
+    token: String,
+}
+
+fn account_authorized(value: &serde_json::Value) -> Option<Duration> {
+    if value.pointer("/application/id")?.as_str()? != ACCOUNT_CLIENT_ID {
+        return None;
+    }
+    let scopes = value.get("scopes")?.as_array()?;
+    if !["identify", "guilds"]
+        .iter()
+        .all(|scope| scopes.iter().any(|value| value.as_str() == Some(scope)))
+    {
+        return None;
+    }
+    let expires = chrono::DateTime::parse_from_rfc3339(value.get("expires")?.as_str()?).ok()?;
+    let seconds = (expires.timestamp() - chrono::Utc::now().timestamp())
+        .try_into()
+        .ok()?;
+    let ttl = SESSION_TTL.min(Duration::from_secs(seconds));
+    (!ttl.is_zero()).then_some(ttl)
+}
+
+async fn account_bridge(
+    State(state): State<Arc<Dashboard>>,
+    headers: HeaderMap,
+    Json(body): Json<AccountToken>,
+) -> WebResult<Response> {
+    let cors = account_cors(&headers)?;
+    if body.token.len() < 20
+        || body.token.len() > 4096
+        || body.token.chars().any(char::is_whitespace)
+    {
+        return Err(WebError(
+            StatusCode::UNAUTHORIZED,
+            "Invalid account session.",
+        ));
+    }
+    let oauth: serde_json::Value = state.fetch("/oauth2/@me", &body.token).await?;
+    let ttl = account_authorized(&oauth).ok_or(WebError(
+        StatusCode::UNAUTHORIZED,
+        "Account authorization is not valid for Vozen.",
+    ))?;
+    let user: UserInfo = state.fetch("/users/@me", &body.token).await?;
+    if oauth.pointer("/user/id").and_then(|id| id.as_str()) != Some(user.id.as_str()) {
+        return Err(WebError(
+            StatusCode::UNAUTHORIZED,
+            "Account identity could not be verified.",
+        ));
+    }
+    let key = nonce();
+    {
+        let mut auth = state.auth.lock().await;
+        auth.prune(Instant::now());
+        if auth.sessions.len() >= 1000 {
+            return Err(WebError(
+                StatusCode::TOO_MANY_REQUESTS,
+                "Sign-in is busy. Try again later.",
+            ));
+        }
+        if let Some(old) = cookie(&headers, SESSION_COOKIE) {
+            auth.sessions.remove(old);
+        }
+        auth.sessions.insert(
+            key.clone(),
+            Login {
+                user,
+                token: body.token,
+                csrf: nonce(),
+                expires: Instant::now() + ttl,
+                revoke_token: false,
+            },
+        );
+    }
+    let mut response = (cors, StatusCode::NO_CONTENT).into_response();
+    set_cookie(&mut response, SESSION_COOKIE, &key, ttl.as_secs());
+    Ok(response)
+}
+
+async fn account_logout(
+    State(state): State<Arc<Dashboard>>,
+    headers: HeaderMap,
+    Json(_body): Json<serde_json::Value>,
+) -> WebResult<Response> {
+    let cors = account_cors(&headers)?;
+    if let Some(key) = cookie(&headers, SESSION_COOKIE) {
+        state.auth.lock().await.sessions.remove(key);
+    }
+    let mut response = (cors, StatusCode::NO_CONTENT).into_response();
     set_cookie(&mut response, SESSION_COOKIE, "", 0);
     Ok(response)
 }
@@ -687,6 +821,14 @@ fn router(state: Arc<Dashboard>) -> Router {
         .route("/music/auth/login", get(authorize))
         .route("/music/auth/callback", get(callback))
         .route("/music/auth/logout", post(logout))
+        .route(
+            "/music/auth/vozen",
+            post(account_bridge).options(account_preflight),
+        )
+        .route(
+            "/music/auth/vozen/logout",
+            post(account_logout).options(account_preflight),
+        )
         .route("/music/api/me", get(me))
         .route("/music/api/guilds", get(guilds))
         .route(
@@ -752,6 +894,97 @@ mod tests {
     use super::*;
     use tower::ServiceExt;
 
+    #[test]
+    fn account_token_requires_the_expected_application_scopes_and_expiry() {
+        let expires = (chrono::Utc::now() + chrono::Duration::minutes(10)).to_rfc3339();
+        let mut oauth = serde_json::json!({"application":{"id":ACCOUNT_CLIENT_ID},"scopes":["identify","guilds"],"expires":expires});
+        assert!(account_authorized(&oauth).is_some());
+        oauth["application"]["id"] = "other-app".into();
+        assert!(account_authorized(&oauth).is_none());
+        oauth["application"]["id"] = ACCOUNT_CLIENT_ID.into();
+        oauth["scopes"] = serde_json::json!(["identify"]);
+        assert!(account_authorized(&oauth).is_none());
+        oauth["scopes"] = serde_json::json!(["identify", "guilds"]);
+        oauth["expires"] = "2020-01-01T00:00:00Z".into();
+        assert!(account_authorized(&oauth).is_none());
+    }
+
+    #[tokio::test]
+    async fn account_bridge_cors_and_logout_are_scoped_to_the_vozen_origin() {
+        use axum::{body::Body, http::Request};
+        let state = fixture();
+        let app = router(state.clone());
+        let path = "/music/auth/vozen/logout";
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .method("OPTIONS")
+                    .header("origin", ACCOUNT_ORIGIN)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            response.headers()["access-control-allow-origin"],
+            ACCOUNT_ORIGIN
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .method("POST")
+                    .header("origin", "https://evil.example")
+                    .header("content-type", "application/json")
+                    .header("cookie", "__Secure-vozen_music=test-session")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert!(
+            state
+                .auth
+                .lock()
+                .await
+                .sessions
+                .contains_key("test-session")
+        );
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .method("POST")
+                    .header("origin", ACCOUNT_ORIGIN)
+                    .header("content-type", "application/json")
+                    .header("cookie", "__Secure-vozen_music=test-session")
+                    .body(Body::from("{}"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(
+            !state
+                .auth
+                .lock()
+                .await
+                .sessions
+                .contains_key("test-session")
+        );
+        assert!(
+            response.headers()["set-cookie"]
+                .to_str()
+                .unwrap()
+                .contains("Max-Age=0")
+        );
+    }
+
     fn fixture() -> Arc<Dashboard> {
         let mut auth = AuthStore::default();
         auth.sessions.insert(
@@ -764,6 +997,7 @@ mod tests {
                 token: "never-expose-this-token".into(),
                 csrf: "test-csrf".into(),
                 expires: Instant::now() + SESSION_TTL,
+                revoke_token: true,
             },
         );
         Arc::new(Dashboard {
