@@ -33,3 +33,15 @@ The pages link to [CC0 1.0 Universal](https://creativecommons.org/publicdomain/z
 These two recordings are included in the repository; other local media files are ignored. If recovery is needed, download from the original URLs to the paths above and compare SHA256 before use. Future source availability has not been tested.
 
 Both files passed full FFmpeg decoding on 2026-10-27. This establishes FFmpeg readability; that check alone does not establish Songbird playback or Discord audibility. Live development-server playback was separately confirmed by the owner.
+
+## Expanded instrumental selection — 2026-10-27
+
+The active catalog now includes 21 recordings in seven editorial categories. Twenty imported recordings are documented individually in [catalog-sources.json](catalog-sources.json), with published license, source URL, original download URL, original and included-file hashes, duration, and the evidence used for instrumental classification. Lofi again remains covered by its record above; its source describes instrumental tracks.
+
+The six HoliznaCC0 recordings come from the author's [Chillout Instrumentals collection](https://opengameart.org/content/chillout-instrumentals-collection), whose individual upload page publishes CC0 and an Instrumental tag. The uploaded ZIP is an author-published asset pack with its own license, rather than a third-party collection of unrelated links. Its member filenames and archive hash are recorded for recovery.
+
+WAV versions of Echoes of the Past, Col Legno, and Love Song were converted to Ogg Vorbis using FFmpeg with quality 5; original hashes and transformation details are recorded. Other recordings were not transformed. All 20 imported files passed complete FFmpeg decoding.
+
+Sources with explicit Instrumental labels were preferred. Solo-piano descriptions and synthesis-only creation descriptions were also accepted as documented curation inferences. No independent full listening review or vocal detection was performed. These source labels do not prove absence of sung/spoken samples, vocal chops, or synthetic choirs. The choir-tagged Heavenly Loop candidate was excluded; Chills was removed from active playback for insufficient instrumental evidence and remains only as a legacy source record/file.
+
+Osare (Unrest Theme) offers both OGA-BY 3.0 and CC0 on its source page; the CC0 option was selected. The catalog retains the named composer credit. Genre assignments are editorial, not a claim that every piece is a pure example of one genre.

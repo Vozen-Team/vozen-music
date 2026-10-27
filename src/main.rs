@@ -454,6 +454,10 @@ mod tests {
                 assert_eq!(option["description"], "Choose a station");
                 assert_eq!(option["required"], true);
                 assert!(!option["choices"].as_array().unwrap().is_empty());
+                assert_eq!(
+                    option["choices"].as_array().unwrap().len(),
+                    bot.catalog.stations.len()
+                );
             }
         }
     }

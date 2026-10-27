@@ -1,6 +1,6 @@
 # Vozen Music
 
-Station-based radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). Includes two development tracks published as CC0. Running locally in Docker; development-server playback was audibly confirmed by the owner on 2026-10-27. Not deployed to a VPS.
+Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 21 tracks across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running locally in Docker; the original development playback was audibly confirmed by the owner on 2026-10-27. The expanded catalog has not been independently listened to in full. Not deployed to a VPS.
 
 Visual identity: [brand guide](assets/brand/README.md), the selected vinyl-and-V concept adapted to Vozen's rounded outlines, cream, violet, blue, and cyan. The avatar has been applied to the Discord application.
 
@@ -27,7 +27,21 @@ Command replies are private; playback errors are posted in the command's text ch
 
 ## Catalog
 
-The `Vozen Lofi` station contains Chills (Holizna) and Lofi again (omfgdude), published as CC0 on their individual source pages. These two approved recordings are included in the repository. Sources, hashes, and verification limits are recorded in [licenses/README.md](licenses/README.md). Other local audio files are ignored by Git. The bot refuses to start if any station has no approved tracks. Only the operator edits the catalog.
+| Station option | Display name | Active tracks |
+| --- | --- | --- |
+| `lofi` | Vozen Lofi | 7 |
+| `ambient` | Vozen Ambient | 2 |
+| `jazz` | Vozen Jazz | 3 |
+| `electronic` | Vozen Electronic | 3 |
+| `piano` | Vozen Piano | 2 |
+| `cinematic` | Vozen Cinematic | 2 |
+| `rock` | Vozen Rock | 2 |
+
+Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Total active playback before repetition is approximately 45 minutes across all seven stations, not 45 minutes per station.
+
+Sources, hashes, durations, transformations, and instrumental evidence are recorded in [licenses/README.md](licenses/README.md) and [catalog-sources.json](licenses/catalog-sources.json). The approved recordings are included in the repository; other local audio files are ignored. The bot refuses to start if a station is empty or a track lacks explicit instrumental approval and evidence. Only the operator edits the catalog. This validates the operator's declaration, not the contents of an audio waveform.
+
+Source evidence includes explicit Instrumental labels, solo-piano descriptions, and documented synthesis-only creation. The latter two are curation inferences, not independent listening results. No full listening audit or automated vocal detector was used. The desired policy excludes singing, speech, vocal chops, and choirs; flag and remove any recording found to contain these, even if its source labels it instrumental. A choir-tagged candidate was excluded during selection. Chills is retained only as a legacy recording and removed from active playback because its instrumental evidence was insufficient.
 
 Place audio in `media/` and register tracks in `catalog.json`. Example schema, **not a real track or proof of a license**:
 
@@ -39,6 +53,8 @@ Place audio in `media/` and register tracks in `catalog.json`. Example schema, *
   "source_url": "https://original-artist.example/track",
   "license": "CC0-1.0",
   "license_evidence": "Archived license evidence for this recording, with date",
+  "instrumental": true,
+  "instrumental_evidence": "Source declaration or documented listening review supporting no vocals",
   "approved": false
 }
 ```
@@ -102,6 +118,6 @@ The native Windows build was blocked by Application Control, error 4551, when ru
 
 The Music connected to the development server, and Discord's API confirmed all seven English guild commands. The owner confirmed that it joined the voice channel and played audible music on 2026-10-27. Natural track endings, station changes, pause, skip, stop, errors, and wrong-channel permissions still need real Discord checks. Unit tests include synthetic fixtures; they do not prove audibility. No VPS deployment has been performed. The bot currently depends on this computer and Docker Desktop remaining available.
 
-The Docker release image compiled on 2026-10-27 and passed its offline catalog check as user `10001:10001` with a read-only filesystem and no network. Nine unit tests, Clippy with warnings denied, and formatting passed after adding the application-identity guard. These checks do not prove live Discord behavior.
+The initial Docker release image compiled on 2026-10-27 and passed its offline catalog check as user `10001:10001` with a read-only filesystem and no network. The expanded-catalog revision has 11 unit tests, including rejection of undocumented/non-instrumental tracks and validation of all bundled paths. These checks do not prove the absence of vocals or live Discord audibility.
 
 No Spotify/YouTube search, member-supplied URLs, web panel, payments, central entitlements, personalization, rain mixing, crossfade, or 24/7 restart recovery. One voice connection per server.

@@ -5,21 +5,270 @@
       "name": "Vozen Lofi",
       "tracks": [
         {
-          "title": "Chills",
-          "artist": "Holizna",
-          "file": "chills.mp3",
-          "source_url": "https://opengameart.org/content/chills",
-          "license": "CC0-1.0",
-          "license_evidence": "licenses/README.md#chills; source page checked 2026-10-27",
-          "approved": true
-        },
-        {
           "title": "Lofi again",
           "artist": "omfgdude",
           "file": "lofi-again.ogg",
           "source_url": "https://opengameart.org/content/lofi-again",
           "license": "CC0-1.0",
           "license_evidence": "licenses/README.md#lofi-again; source page checked 2026-10-27",
+          "approved": true,
+          "instrumental": true,
+          "instrumental_evidence": "Author describes four instrumental tracks and ambience on the individual source page."
+        },
+        {
+          "title": "Dreams",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-dreams.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-dreams",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        },
+        {
+          "title": "Day Jobs",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-day-jobs.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-day-jobs",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        },
+        {
+          "title": "Deja Vu",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-deja-vu.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-deja-vu",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        },
+        {
+          "title": "Childhood",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-childhood.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-childhood",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        },
+        {
+          "title": "Dancing",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-dancing.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-dancing",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        },
+        {
+          "title": "Advertisements",
+          "artist": "HoliznaCC0",
+          "file": "instrumental/holizna-advertisements.mp3",
+          "source_url": "https://opengameart.org/content/chillout-instrumentals-collection",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#holizna-advertisements",
+          "instrumental": true,
+          "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "ambient",
+      "name": "Vozen Ambient",
+      "tracks": [
+        {
+          "title": "Echoes of the Past",
+          "artist": "isaiah658",
+          "file": "instrumental/echoes-of-the-past.ogg",
+          "source_url": "https://opengameart.org/content/echoes-of-the-past",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#echoes-of-the-past",
+          "instrumental": true,
+          "instrumental_evidence": "Author states all sounds were made using the ZynAddSubFX synthesizer in LMMS; no voice source declared. Instrumental classification is a curation inference.",
+          "approved": true
+        },
+        {
+          "title": "Osare - Unrest Theme",
+          "artist": "Augmentality (Brandon Morris)",
+          "file": "instrumental/osare-unrest-theme.ogg",
+          "source_url": "https://opengameart.org/content/osare-unrest-theme",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#osare-unrest-theme",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has an Instrumental tag.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "jazz",
+      "name": "Vozen Jazz",
+      "tracks": [
+        {
+          "title": "Classical Pop (Instrumental)",
+          "artist": "Alex McCulloch (Pro Sensory)",
+          "file": "instrumental/classical-pop-instrumental.mp3",
+          "source_url": "https://opengameart.org/content/classical-pop-instrumental",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#classical-pop-instrumental",
+          "instrumental": true,
+          "instrumental_evidence": "The author explicitly identifies the recording as Instrumental in its title; Jazz is among its source tags.",
+          "approved": true
+        },
+        {
+          "title": "Banana Track",
+          "artist": "skrjablin",
+          "file": "instrumental/banana-track.ogg",
+          "source_url": "https://opengameart.org/content/banana-track",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#banana-track",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and Jazz tags.",
+          "approved": true
+        },
+        {
+          "title": "FreeJazz Medley Loop",
+          "artist": "sauer2",
+          "file": "instrumental/freejazz-medley-loop.flac",
+          "source_url": "https://opengameart.org/content/freejazz-medley-loop",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#freejazz-medley-loop",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and Jazz tags.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "electronic",
+      "name": "Vozen Electronic",
+      "tracks": [
+        {
+          "title": "Safety",
+          "artist": "Fupi",
+          "file": "instrumental/safety-2-versions.ogg",
+          "source_url": "https://opengameart.org/content/safety-2-versions",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#safety-2-versions",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and electronic tags.",
+          "approved": true
+        },
+        {
+          "title": "Glitch Stairs",
+          "artist": "Fupi",
+          "file": "instrumental/glitch-stairs.ogg",
+          "source_url": "https://opengameart.org/content/glitch-stairs",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#glitch-stairs",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and electronic tags.",
+          "approved": true
+        },
+        {
+          "title": "Swept Up",
+          "artist": "Indieteur",
+          "file": "instrumental/swept-up.mp3",
+          "source_url": "https://opengameart.org/content/swept-up",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#swept-up",
+          "instrumental": true,
+          "instrumental_evidence": "The author describes it as instrumental music; source tags include edm and electronic.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "piano",
+      "name": "Vozen Piano",
+      "tracks": [
+        {
+          "title": "Emotional Piano - Solo",
+          "artist": "Centurion_of_war",
+          "file": "instrumental/emotional-piano-0.ogg",
+          "source_url": "https://opengameart.org/content/emotional-piano-0",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#emotional-piano-0",
+          "instrumental": true,
+          "instrumental_evidence": "Selected the piano_solo recording, explicitly identified as the added piano solo in the source author comments.",
+          "approved": true
+        },
+        {
+          "title": "Regret - Short Emotional Piano",
+          "artist": "Wolfgang_",
+          "file": "instrumental/regret-short-emotional-piano.mp3",
+          "source_url": "https://opengameart.org/content/regret-short-emotional-piano",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#regret-short-emotional-piano",
+          "instrumental": true,
+          "instrumental_evidence": "Source title and description identify a piano piece, without any voice source declared. Instrumental classification is a curation inference.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "cinematic",
+      "name": "Vozen Cinematic",
+      "tracks": [
+        {
+          "title": "The Final Battle",
+          "artist": "skrjablin",
+          "file": "instrumental/the-final-battle.ogg",
+          "source_url": "https://opengameart.org/content/the-final-battle",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#the-final-battle",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and orchestral tags.",
+          "approved": true
+        },
+        {
+          "title": "Col Legno",
+          "artist": "Vehicle",
+          "file": "instrumental/col-legno.ogg",
+          "source_url": "https://opengameart.org/content/col-legno",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#col-legno",
+          "instrumental": true,
+          "instrumental_evidence": "Individual source page has Instrumental and orchestral tags.",
+          "approved": true
+        }
+      ]
+    },
+    {
+      "id": "rock",
+      "name": "Vozen Rock",
+      "tracks": [
+        {
+          "title": "Across the Stars",
+          "artist": "Indieteur",
+          "file": "instrumental/across-the-stars.mp3",
+          "source_url": "https://opengameart.org/content/across-the-stars",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#across-the-stars",
+          "instrumental": true,
+          "instrumental_evidence": "The author explicitly describes original instrumental music with pop rock undertones.",
+          "approved": true
+        },
+        {
+          "title": "Love Song (Instrumental)",
+          "artist": "nene",
+          "file": "instrumental/love-song-instrumental.ogg",
+          "source_url": "https://opengameart.org/content/love-song-instrumental",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/catalog-sources.json#love-song-instrumental",
+          "instrumental": true,
+          "instrumental_evidence": "The author explicitly identifies the recording as instrumental in the title; Guitar and drums are source tags. Rock station placement is a curation choice.",
           "approved": true
         }
       ]

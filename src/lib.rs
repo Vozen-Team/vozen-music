@@ -37,6 +37,8 @@ pub struct Track {
     pub source_url: String,
     pub license: String,
     pub license_evidence: String,
+    pub instrumental: bool,
+    pub instrumental_evidence: String,
     pub approved: bool,
 }
 
@@ -76,6 +78,12 @@ impl Catalog {
                 {
                     return Err(
                         "Invalid track: metadata or approval of its source and CC0 license is missing."
+                            .into(),
+                    );
+                }
+                if !track.instrumental || track.instrumental_evidence.trim().is_empty() {
+                    return Err(
+                        "Only approved instrumental tracks with source evidence are allowed."
                             .into(),
                     );
                 }
@@ -130,6 +138,24 @@ mod tests {
         assert!(check_application_identity(0, 0).is_err());
     }
 
+    #[test]
+    fn bundled_stations_have_playable_paths_and_instrumental_evidence() {
+        let catalog = Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        catalog.require_audio().unwrap();
+        for station in &catalog.stations {
+            assert!(
+                station.tracks.len() >= 2,
+                "Station {} needs variety",
+                station.id
+            );
+            for track in &station.tracks {
+                assert!(track.instrumental);
+                assert!(!track.instrumental_evidence.trim().is_empty());
+                assert!(track.file.is_file());
+            }
+        }
+    }
+
     struct Fixture(PathBuf);
     impl Fixture {
         fn new() -> Self {
@@ -165,7 +191,8 @@ mod tests {
         json!({"stations":[{"id":"lofi","name":"Vozen Lofi","tracks":[{
             "title":"Test", "artist":"Fixture", "file":"test.wav",
             "source_url":"https://example.com/test", "license":"CC0-1.0",
-            "license_evidence":"Synthetic test metadata, no rights claim", "approved":true
+            "license_evidence":"Synthetic test metadata, no rights claim", "approved":true,
+            "instrumental":true, "instrumental_evidence":"Synthetic instrumental test fixture"
         }]}]})
     }
     #[test]
@@ -191,6 +218,24 @@ mod tests {
             input["stations"][0]["tracks"][0][key] = value;
             assert!(fixture.load(input).is_err());
         }
+    }
+    #[test]
+    fn rejects_vocal_or_undocumented_tracks() {
+        let fixture = Fixture::new();
+        for (key, value) in [
+            ("instrumental", json!(false)),
+            ("instrumental_evidence", json!("")),
+        ] {
+            let mut input = catalog();
+            input["stations"][0]["tracks"][0][key] = value;
+            assert!(fixture.load(input).is_err());
+        }
+        let mut input = catalog();
+        input["stations"][0]["tracks"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("instrumental");
+        assert!(fixture.load(input).is_err());
     }
     #[test]
     fn rejects_escape_missing_audio_and_duplicate_stations() {
