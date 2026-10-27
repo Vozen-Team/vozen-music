@@ -127,10 +127,10 @@ $('settings-form').addEventListener('submit', async (event) => {
   const controls = [...$('settings-form').querySelectorAll('input, select')];
   controls.forEach((control) => { control.disabled = true; });
   try {
-    const data = await api(`/api/guilds/${encodeURIComponent(current)}/settings`, {
+    await api(`/api/guilds/${encodeURIComponent(current)}/settings`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(selected)
     });
-    data.settings.moderator_roles.sort(); baseline = JSON.stringify(data.settings);
+    baseline = JSON.stringify(selected);
     notice('Settings saved. Current skip votes have been cleared.', 'success');
   } catch (error) { notice(error.message, 'error'); }
   finally {

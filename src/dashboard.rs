@@ -476,12 +476,12 @@ async fn guilds(
     let mut managed = Vec::new();
     let mut after = String::new();
     for _ in 0..10 {
-        let page: Vec<GuildInfo> = state
-            .fetch(
-                &format!("/users/@me/guilds?limit=200&after={after}"),
-                &login.token,
-            )
-            .await?;
+        let path = if after.is_empty() {
+            "/users/@me/guilds?limit=200".to_owned()
+        } else {
+            format!("/users/@me/guilds?limit=200&after={after}")
+        };
+        let page: Vec<GuildInfo> = state.fetch(&path, &login.token).await?;
         let last = page.last().map(|guild| guild.id.clone());
         let complete = page.len() < 200;
         managed.extend(
