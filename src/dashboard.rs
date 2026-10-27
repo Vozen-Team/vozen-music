@@ -48,6 +48,8 @@ struct Login {
 struct UserInfo {
     id: String,
     username: String,
+    global_name: Option<String>,
+    avatar: Option<String>,
 }
 
 #[derive(Default)]
@@ -176,7 +178,7 @@ async fn guarded(
         ("x-frame-options", "DENY"),
         (
             "content-security-policy",
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         ),
     ] {
         headers.insert(
@@ -810,6 +812,33 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
+            "/music/vozen.svg",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/vozen.svg"),
+                )
+            }),
+        )
+        .route(
+            "/music/english.svg",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/english.svg"),
+                )
+            }),
+        )
+        .route(
+            "/music/header-font.woff2",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "font/woff2")],
+                    include_bytes!("../web/header-font.woff2").as_slice(),
+                )
+            }),
+        )
+        .route(
             "/music/outfit.woff2",
             get(|| async {
                 (
@@ -993,6 +1022,8 @@ mod tests {
                 user: UserInfo {
                     id: "123".into(),
                     username: "Test manager".into(),
+                    global_name: None,
+                    avatar: None,
                 },
                 token: "never-expose-this-token".into(),
                 csrf: "test-csrf".into(),

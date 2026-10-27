@@ -25,7 +25,7 @@ async function api(path, options = {}) {
 function signedOut() {
   csrf = ''; current = ''; baseline = ''; sequence++;
   for (const id of ['editor', 'sidebar', 'account', 'loading', 'empty']) $(id).hidden = true;
-  $('welcome').hidden = false;
+  $('welcome').hidden = false; $('account-login').hidden = false;
 }
 
 function policy() {
@@ -151,7 +151,12 @@ window.addEventListener('beforeunload', (event) => { if (changed() || saving) { 
 (async () => {
   try {
     const data = await api('/api/me'); csrf = data.csrf;
-    $('username').textContent = data.user.username;
+    $('username').textContent = data.user.global_name || data.user.username;
+    if (/^\d+$/.test(data.user.id) && /^[a-f0-9]{32}$/.test(data.user.avatar || '')) {
+      $('user-avatar').src = `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png?size=64`;
+      $('user-avatar').hidden = false;
+    }
+    $('account-login').hidden = true;
     $('account').hidden = false; $('sidebar').hidden = false;
     await refreshServers();
   } catch (error) {
@@ -160,3 +165,10 @@ window.addEventListener('beforeunload', (event) => { if (changed() || saving) { 
     else if (!error.message.includes('Sign in') && !error.message.includes('session expired')) notice(error.message, 'error');
   }
 })();
+
+$('nav-toggle').addEventListener('click', () => {
+  const toggle = $('nav-toggle');
+  const open = toggle.getAttribute('aria-expanded') !== 'true';
+  toggle.setAttribute('aria-expanded', String(open));
+  $('primary-links').classList.toggle('is-open', open);
+});
