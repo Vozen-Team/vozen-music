@@ -50,6 +50,12 @@ struct UserInfo {
     username: String,
     global_name: Option<String>,
     avatar: Option<String>,
+    avatar_decoration_data: Option<AvatarDecoration>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+struct AvatarDecoration {
+    asset: String,
 }
 
 #[derive(Default)]
@@ -178,7 +184,7 @@ async fn guarded(
         ("x-frame-options", "DENY"),
         (
             "content-security-policy",
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' https://cdn.discordapp.com; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://vozen.org https://cdn.discordapp.com; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         ),
     ] {
         headers.insert(
@@ -812,25 +818,25 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
-            "/music/vozen.svg",
+            "/music/css/global-nav-v1.css",
             get(|| async {
                 (
-                    [(header::CONTENT_TYPE, "image/svg+xml")],
-                    include_str!("../web/vozen.svg"),
+                    [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                    include_str!("../web/global-nav-v1.css"),
                 )
             }),
         )
         .route(
-            "/music/english.svg",
+            "/music/assets/fonts/outfit-400-latin.woff2",
             get(|| async {
                 (
-                    [(header::CONTENT_TYPE, "image/svg+xml")],
-                    include_str!("../web/english.svg"),
+                    [(header::CONTENT_TYPE, "font/woff2")],
+                    include_bytes!("../web/outfit.woff2").as_slice(),
                 )
             }),
         )
         .route(
-            "/music/header-font.woff2",
+            "/music/assets/fonts/unbounded-brand-latin.woff2",
             get(|| async {
                 (
                     [(header::CONTENT_TYPE, "font/woff2")],
@@ -1024,6 +1030,7 @@ mod tests {
                     username: "Test manager".into(),
                     global_name: None,
                     avatar: None,
+                    avatar_decoration_data: None,
                 },
                 token: "never-expose-this-token".into(),
                 csrf: "test-csrf".into(),

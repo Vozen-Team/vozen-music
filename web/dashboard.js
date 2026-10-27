@@ -24,8 +24,8 @@ async function api(path, options = {}) {
 
 function signedOut() {
   csrf = ''; current = ''; baseline = ''; sequence++;
-  for (const id of ['editor', 'sidebar', 'account', 'loading', 'empty']) $(id).hidden = true;
-  $('welcome').hidden = false; $('account-login').hidden = false;
+  for (const id of ['editor', 'sidebar', 'loading', 'empty']) $(id).hidden = true;
+  $('welcome').hidden = false; renderAccount(null);
 }
 
 function policy() {
@@ -151,13 +151,8 @@ window.addEventListener('beforeunload', (event) => { if (changed() || saving) { 
 (async () => {
   try {
     const data = await api('/api/me'); csrf = data.csrf;
-    $('username').textContent = data.user.global_name || data.user.username;
-    if (/^\d+$/.test(data.user.id) && /^[a-f0-9]{32}$/.test(data.user.avatar || '')) {
-      $('user-avatar').src = `https://cdn.discordapp.com/avatars/${data.user.id}/${data.user.avatar}.png?size=64`;
-      $('user-avatar').hidden = false;
-    }
-    $('account-login').hidden = true;
-    $('account').hidden = false; $('sidebar').hidden = false;
+    renderAccount(data.user);
+    $('sidebar').hidden = false;
     await refreshServers();
   } catch (error) {
     signedOut();
@@ -166,9 +161,74 @@ window.addEventListener('beforeunload', (event) => { if (changed() || saving) { 
   }
 })();
 
-$('nav-toggle').addEventListener('click', () => {
-  const toggle = $('nav-toggle');
-  const open = toggle.getAttribute('aria-expanded') !== 'true';
-  toggle.setAttribute('aria-expanded', String(open));
-  $('primary-links').classList.toggle('is-open', open);
+function renderAccount(user) {
+  const link = $('navLogin');
+  link.replaceChildren();
+  link.classList.toggle('nav__login--account', !!user);
+  if (!user) { link.textContent = 'Log in'; link.removeAttribute('aria-label'); return; }
+  const name = user.global_name || user.username;
+  link.setAttribute('aria-label', `Discord account: ${name}`);
+  const avatar = document.createElement('span');
+  avatar.className = 'discord-avatar nav__login-av-wrap';
+  const image = document.createElement('img');
+  image.className = 'nav__login-av'; image.width = 24; image.height = 24;
+  image.alt = `${name} avatar`; image.referrerPolicy = 'no-referrer';
+  const initial = document.createElement('span');
+  initial.className = 'nav__login-av nav__login-av--none';
+  initial.textContent = name.slice(0, 1).toUpperCase();
+  if (/^\d{16,22}$/.test(user.id) && /^(?:a_)?[a-f0-9]{32}$/.test(user.avatar || '')) {
+    image.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?size=32`;
+    image.addEventListener('error', () => image.replaceWith(initial), {once:true});
+    avatar.append(image);
+  } else avatar.append(initial);
+  const asset = user.avatar_decoration_data?.asset;
+  if (/^[A-Za-z0-9_]{1,128}$/.test(asset || '')) {
+    const decoration = document.createElement('img');
+    decoration.className = 'discord-avatar__decoration'; decoration.alt = '';
+    decoration.setAttribute('aria-hidden', 'true'); decoration.width = 256; decoration.height = 256;
+    decoration.referrerPolicy = 'no-referrer';
+    decoration.src = `https://cdn.discordapp.com/avatar-decoration-presets/${asset}.png?size=256`;
+    decoration.addEventListener('error', () => decoration.remove(), {once:true});
+    avatar.append(decoration);
+  }
+  const label = document.createElement('span'); label.textContent = name;
+  link.append(avatar, label);
+}
+
+function closeNavigation() {
+  $('vozen-primary-links').classList.remove('is-open');
+  $('burger').setAttribute('aria-expanded', 'false');
+  $('langMenu').classList.remove('is-open');
+  $('langBtn').setAttribute('aria-expanded', 'false');
+}
+$('burger').addEventListener('click', () => {
+  const open = $('burger').getAttribute('aria-expanded') !== 'true';
+  closeNavigation();
+  $('vozen-primary-links').classList.toggle('is-open', open);
+  $('burger').setAttribute('aria-expanded', String(open));
 });
+$('langBtn').addEventListener('click', () => {
+  const open = $('langBtn').getAttribute('aria-expanded') !== 'true';
+  closeNavigation();
+  $('langMenu').classList.toggle('is-open', open);
+  $('langBtn').setAttribute('aria-expanded', String(open));
+  if (open) $('langPanel').querySelector('a')?.focus();
+});
+$('langPanel').addEventListener('keydown', event => {
+  const options = [...$('langPanel').querySelectorAll('a')];
+  const index = options.indexOf(document.activeElement);
+  let next;
+  if (event.key === 'ArrowDown') next = (index + 1) % options.length;
+  else if (event.key === 'ArrowUp') next = (index + options.length - 1) % options.length;
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = options.length - 1;
+  if (next !== undefined) { event.preventDefault(); options[next].focus(); }
+});
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || ($('langBtn').getAttribute('aria-expanded') !== 'true' && $('burger').getAttribute('aria-expanded') !== 'true')) return;
+  const button = $('langBtn').getAttribute('aria-expanded') === 'true' ? $('langBtn') : $('burger');
+  closeNavigation(); button.focus();
+});
+document.addEventListener('click', event => { if (!$('nav').contains(event.target)) closeNavigation(); });
+window.matchMedia('(min-width:1280px)').addEventListener('change', event => { if (event.matches) closeNavigation(); });
+window.addEventListener('scroll', () => $('nav').classList.toggle('is-stuck', scrollY > 12), {passive:true});
