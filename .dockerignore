@@ -1,0 +1,11 @@
+*
+!Cargo.toml
+!Cargo.lock
+!src
+!src/**
+!catalog.json
+!media
+!media/**
+!licenses
+!licenses/**
+!Dockerfile

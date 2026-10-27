@@ -1,0 +1,13 @@
+/target/
+/media/*
+!/media/.gitkeep
+!/media/chills.mp3
+!/media/lofi-again.ogg
+/assets/brand/v1/
+/assets/brand/v2/
+/assets/brand/v3/
+/assets/brand/**/IDENTIDADE.md
+/assets/brand/**/PROMPTS.md
+.env
+.env.*
+!.env.example

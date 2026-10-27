@@ -1,0 +1,28 @@
+{
+  "stations": [
+    {
+      "id": "lofi",
+      "name": "Vozen Lofi",
+      "tracks": [
+        {
+          "title": "Chills",
+          "artist": "Holizna",
+          "file": "chills.mp3",
+          "source_url": "https://opengameart.org/content/chills",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/README.md#chills; source page checked 2026-10-27",
+          "approved": true
+        },
+        {
+          "title": "Lofi again",
+          "artist": "omfgdude",
+          "file": "lofi-again.ogg",
+          "source_url": "https://opengameart.org/content/lofi-again",
+          "license": "CC0-1.0",
+          "license_evidence": "licenses/README.md#lofi-again; source page checked 2026-10-27",
+          "approved": true
+        }
+      ]
+    }
+  ]
+}
