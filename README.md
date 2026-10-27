@@ -21,7 +21,7 @@ Station names and track credits come from the operator-controlled catalog. Keep 
 | `/skip` | Skip to the next track. |
 | `/stop` | Stop playback and leave the voice channel. |
 
-Tracks play in catalog order and repeat at the end. An audio error stops the station and attempts to post a notice in the command's text channel. Controls require membership in the bot's voice channel. Before the initial connection, the member must join a voice channel. Only standard voice channels are supported, not Stage channels.
+Tracks play in catalog order and repeat at the end. A failed track is skipped automatically. If a whole station cycle fails consecutively, playback stops and attempts to post a notice in the command's text channel. Controls require membership in the bot's voice channel. Before the initial connection, the member must join a voice channel. Only standard voice channels are supported, not Stage channels.
 
 Command replies are private; playback errors are posted in the command's text channel with mentions disabled. This version is limited to one development server.
 
@@ -37,13 +37,23 @@ Command replies are private; playback errors are posted in the command's text ch
 | `cinematic` | Vozen Cinematic | 25 |
 | `rock` | Vozen Rock | 25 |
 
-Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Rock includes metal and synthetic game-rock arrangements. Some recordings are short loops or cues. Total active playback is approximately 404 minutes across all seven stations; individual stations contain approximately 46–74 minutes before repetition. The [full catalog](CATALOG.md) lists every recording, artist, source, duration, and type of instrumental evidence.
+Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Rock includes metal and synthetic game-rock arrangements. Some recordings are short loops or cues. Total active playback is approximately 396 minutes across all seven stations; individual stations contain approximately 43–74 minutes before repetition. The [full catalog](CATALOG.md) lists every recording, artist, source, duration, and type of instrumental evidence.
 
 Sources, hashes, durations, transformations, and instrumental evidence are recorded in [licenses/README.md](licenses/README.md) and [catalog-sources.json](licenses/catalog-sources.json). The approved recordings are included in the repository; other local audio files are ignored. The bot refuses to start if a station is empty or a track lacks explicit instrumental approval and evidence. Only the operator edits the catalog. This validates the operator's declaration, not the contents of an audio waveform.
 
 Source evidence includes explicit Instrumental labels, solo-instrument descriptions, and documented synthesized compositions. Classifications based on instrument titles, tags, and creation descriptions are recorded as curation inferences, not independent listening results. No full listening audit or automated vocal detector was used. The strict no-voice requirement is therefore not fully validated. The desired policy excludes singing, speech, vocal chops, and choirs; flag and remove any recording found to contain these, even if its source labels it instrumental. Candidates with declared vocals, choirs, chanting, vocoders, or unclear licensing were excluded. Chills is retained only as a legacy recording and removed from active playback because its instrumental evidence was insufficient.
 
 Run `python scripts/check_catalog.py` with FFmpeg available to check the minimum station size, complete provenance coverage, SHA256 hashes, full decoding, and duplicate decoded recordings. These checks do not detect voices. The expansion adds one selected encoding/arrangement per composition; alternative encodings and menu arrangements were not counted as additional tracks.
+
+## Audio quality and playback recovery
+
+Objective review on 2026-10-27 replaced seven recordings below 44.1 kHz and one with an anomalous decoded peak. All 175 active recordings are now at least 44.1 kHz. Thirty-six recordings had trailing silence of at least three seconds shortened, retaining 0.25 seconds after the measured silence start. Original source hashes, transformations, and credits remain in the source register. These measurements do not certify subjective sound quality or absence of vocals.
+
+[audio-quality.json](licenses/audio-quality.json) binds full-file EBU R128 measurements to each file's SHA256. The catalog's optional `gain_db` defaults to zero for older operator catalogs and is validated between -30 and +20 dB. Playback applies that gain before starting the track. Gains target approximately -18 LUFS, limited by a projected -2 dBFS true peak and a +20 dB boost cap. Projected levels are arithmetic estimates; Discord output has not been independently measured. The audio is not dynamically compressed at runtime.
+
+Failed tracks advance once through a single End callback, which also receives Songbird's error state. Generation checks ignore stale callbacks, and callbacks are attached before playback starts. One complete cycle of consecutive failures stops the station rather than spinning indefinitely; a completed healthy track resets the failure count. There is no watchdog for a silent network stall, and this version does not persist or restore stations across process restarts. PC availability, network loss, Discord outages, and resource contention can still interrupt playback.
+
+The codec integration test decodes every active recording using the same Symphonia version as Songbird and compares decoded duration to the source register. Run `cargo test --release --test audio_decode --locked` for the optimized full-catalog check. This is an offline codec test, not a Discord voice or long-running reliability test.
 
 Place audio in `media/` and register tracks in `catalog.json`. Example schema, **not a real track or proof of a license**:
 
@@ -114,7 +124,7 @@ The owner chooses the development server and authorizes the installation. The co
 
 ## Verification and limits
 
-Local Linux compilation, tests, Clippy with `-D warnings`, and formatting were checked on 2026-10-27. The catalog check rejected the empty station and passed with both tracks. Both files passed full FFmpeg decoding; this does not prove Songbird playback or Discord audibility.
+Local Linux release compilation, 15 unit tests, Clippy with `-D warnings`, and formatting passed on 2026-10-27. The optimized codec integration test also passed, decoding all 175 active recordings with Symphonia and checking their durations. The full FFmpeg/provenance/quality audit passed for all 175 files. These offline checks do not establish Discord audibility or interruption-free operation.
 
 The native Windows build was blocked by Application Control, error 4551, when running a dependency build script. The policy was not changed. Local tests used the existing `vozen-qa-toolchain:20260930` Docker image. Docker build caches are isolated in the `vozen-music-registry` and `vozen-music-build` volumes.
 

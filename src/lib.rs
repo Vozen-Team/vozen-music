@@ -40,6 +40,8 @@ pub struct Track {
     pub instrumental: bool,
     pub instrumental_evidence: String,
     pub approved: bool,
+    #[serde(default)]
+    pub gain_db: f32,
 }
 
 impl Catalog {
@@ -87,6 +89,9 @@ impl Catalog {
                             .into(),
                     );
                 }
+                if !track.gain_db.is_finite() || !(-30.0..=20.0).contains(&track.gain_db) {
+                    return Err("Track gain must be between -30 and 20 dB.".into());
+                }
                 let file = media.join(&track.file).canonicalize()?;
                 if !file.starts_with(&media)
                     || !file.is_file()
@@ -124,6 +129,23 @@ pub fn next_track(current: usize, count: usize) -> Option<usize> {
 
 pub fn same_voice_channel(member: Option<u64>, bot: Option<u64>) -> bool {
     member.is_some() && (bot.is_none() || member == bot)
+}
+
+pub fn next_after_playback(
+    current: usize,
+    count: usize,
+    consecutive_errors: usize,
+    failed: bool,
+) -> Option<(usize, usize)> {
+    let errors = if failed {
+        consecutive_errors.saturating_add(1)
+    } else {
+        0
+    };
+    if errors >= count {
+        return None;
+    }
+    next_track(current, count).map(|index| (index, errors))
 }
 
 #[cfg(test)]
@@ -236,6 +258,31 @@ mod tests {
             .unwrap()
             .remove("instrumental");
         assert!(fixture.load(input).is_err());
+    }
+
+    #[test]
+    fn skips_failed_tracks_but_stops_after_one_failed_station_cycle() {
+        assert_eq!(next_after_playback(0, 3, 0, true), Some((1, 1)));
+        assert_eq!(next_after_playback(1, 3, 1, true), Some((2, 2)));
+        assert_eq!(next_after_playback(2, 3, 2, true), None);
+        assert_eq!(next_after_playback(2, 3, 2, false), Some((0, 0)));
+        assert_eq!(next_after_playback(0, 1, 0, true), None);
+        assert_eq!(next_after_playback(0, 0, 0, false), None);
+        assert_eq!(next_after_playback(0, 3, usize::MAX, true), None);
+    }
+
+    #[test]
+    fn validates_playback_gain_and_keeps_legacy_catalogs_compatible() {
+        let fixture = Fixture::new();
+        assert_eq!(
+            fixture.load(catalog()).unwrap().stations[0].tracks[0].gain_db,
+            0.0
+        );
+        for gain in [-31.0, 20.1] {
+            let mut input = catalog();
+            input["stations"][0]["tracks"][0]["gain_db"] = json!(gain);
+            assert!(fixture.load(input).is_err());
+        }
     }
     #[test]
     fn rejects_escape_missing_audio_and_duplicate_stations() {

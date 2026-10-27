@@ -1,7 +1,9 @@
 use serenity::{all::*, async_trait};
 use songbird::{
     Call, Event, EventContext, EventHandler as AudioEventHandler, SerenityInit, TrackEvent,
-    input::File, tracks::TrackHandle,
+    events::EventData,
+    input::File,
+    tracks::{PlayMode, Track, TrackHandle},
 };
 use std::{
     collections::HashMap,
@@ -13,12 +15,16 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Mutex;
-use vozen_music::{Catalog, Error, check_application_identity, next_track, same_voice_channel};
+use vozen_music::{
+    Catalog, Error, check_application_identity, next_after_playback, next_track, same_voice_channel,
+};
 
 struct Session {
     station: usize,
     active: AtomicBool,
     current: AtomicUsize,
+    generation: AtomicUsize,
+    consecutive_errors: AtomicUsize,
     handle: SyncMutex<Option<TrackHandle>>,
 }
 
@@ -35,22 +41,21 @@ struct Advance {
     session: Arc<Session>,
     http: Arc<Http>,
     text_channel: ChannelId,
-    failed: bool,
+    generation: usize,
 }
 
-fn play_track(call: &mut Call, advance: Advance, index: usize) -> Result<(), Error> {
+fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(), Error> {
     let track = &advance.catalog.stations[advance.session.station].tracks[index];
-    let handle = call.play_only_input(File::new(track.file.clone()).into());
-    let mut on_error = advance.clone();
-    on_error.failed = true;
-    let result = handle
-        .add_event(Event::Track(TrackEvent::End), advance.clone())
-        .and_then(|_| handle.add_event(Event::Track(TrackEvent::Error), on_error));
-    if result.is_err() {
-        advance.session.active.store(false, Ordering::SeqCst);
-        call.stop();
-        return Err("Could not set up track controls.".into());
-    }
+    // Invalidate callbacks before replacing the previous track, including its stop event.
+    advance.generation = advance.session.generation.fetch_add(1, Ordering::SeqCst) + 1;
+    let mut audio =
+        Track::from(File::new(track.file.clone())).volume(10.0_f32.powf(track.gain_db / 20.0));
+    // Errored tracks also emit End; register a single callback before playback starts.
+    audio.events.add_event(
+        EventData::new(Event::Track(TrackEvent::End), advance.clone()),
+        Duration::ZERO,
+    );
+    let handle = call.play_only(audio);
     advance.session.current.store(index, Ordering::SeqCst);
     *advance
         .session
@@ -62,23 +67,39 @@ fn play_track(call: &mut Call, advance: Advance, index: usize) -> Result<(), Err
 
 #[async_trait]
 impl AudioEventHandler for Advance {
-    async fn act(&self, _: &EventContext<'_>) -> Option<Event> {
+    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         let Some(call) = self.call.upgrade() else {
             self.session.active.store(false, Ordering::SeqCst);
             return Some(Event::Cancel);
         };
         let failed = {
             let mut call = call.lock().await;
-            if !self.session.active.load(Ordering::SeqCst) {
+            if !self.session.active.load(Ordering::SeqCst)
+                || self.generation != self.session.generation.load(Ordering::SeqCst)
+            {
                 return Some(Event::Cancel);
             }
             let count = self.catalog.stations[self.session.station].tracks.len();
-            let next = next_track(self.session.current.load(Ordering::SeqCst), count);
-            let failed = self.failed
-                || match next {
-                    Some(index) => play_track(&mut call, self.clone(), index).is_err(),
-                    None => true,
-                };
+            let errored = matches!(ctx, EventContext::Track(tracks)
+                if tracks.iter().any(|(state, _)| matches!(state.playing, PlayMode::Errored(_))));
+            let next = next_after_playback(
+                self.session.current.load(Ordering::SeqCst),
+                count,
+                self.session.consecutive_errors.load(Ordering::SeqCst),
+                errored,
+            );
+            if errored {
+                eprintln!("An audio track failed; attempting the next station track.");
+            }
+            let failed = match next {
+                Some((index, errors)) => {
+                    self.session
+                        .consecutive_errors
+                        .store(errors, Ordering::SeqCst);
+                    play_track(&mut call, self.clone(), index).is_err()
+                }
+                None => true,
+            };
             if failed {
                 self.session.active.store(false, Ordering::SeqCst);
                 call.stop();
@@ -87,7 +108,9 @@ impl AudioEventHandler for Advance {
         };
         if failed {
             let message = CreateMessage::new()
-                .content("The station stopped because of an audio error. Use /play to try again.")
+                .content(
+                    "The station stopped after repeated audio failures. Use /play to try again.",
+                )
                 .allowed_mentions(CreateAllowedMentions::new());
             if self
                 .text_channel
@@ -225,6 +248,8 @@ impl Bot {
                 station: station_index,
                 active: AtomicBool::new(true),
                 current: AtomicUsize::new(0),
+                generation: AtomicUsize::new(0),
+                consecutive_errors: AtomicUsize::new(0),
                 handle: SyncMutex::new(None),
             });
             let advance = Advance {
@@ -233,7 +258,7 @@ impl Bot {
                 session: session.clone(),
                 http: ctx.http.clone(),
                 text_channel: command.channel_id,
-                failed: false,
+                generation: 0,
             };
             play_track(&mut locked, advance, 0)?;
             sessions.insert(guild_id, session);
@@ -288,6 +313,8 @@ impl Bot {
                     station: session.station,
                     active: AtomicBool::new(true),
                     current: AtomicUsize::new(next),
+                    generation: AtomicUsize::new(0),
+                    consecutive_errors: AtomicUsize::new(0),
                     handle: SyncMutex::new(None),
                 });
                 let advance = Advance {
@@ -296,7 +323,7 @@ impl Bot {
                     session: replacement.clone(),
                     http: ctx.http.clone(),
                     text_channel: command.channel_id,
-                    failed: false,
+                    generation: 0,
                 };
                 play_track(&mut locked, advance, next)?;
                 sessions.insert(guild_id, replacement);
@@ -470,11 +497,13 @@ mod tests {
                 station: 0,
                 active: AtomicBool::new(active),
                 current: AtomicUsize::new(0),
+                generation: AtomicUsize::new(0),
+                consecutive_errors: AtomicUsize::new(0),
                 handle: SyncMutex::new(None),
             }),
             http: Arc::new(Http::new("synthetic-test-token")),
             text_channel: ChannelId::new(1),
-            failed: false,
+            generation: 0,
         }
     }
 
@@ -490,6 +519,53 @@ mod tests {
             Some(Event::Cancel)
         ));
         assert!(handler.session.handle.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn stale_track_generation_cannot_advance_the_next_track() {
+        let call = Arc::new(Mutex::new(Call::standalone(
+            GuildId::new(1),
+            UserId::new(2),
+        )));
+        let handler = advance(Arc::downgrade(&call), true);
+        handler.session.generation.store(1, Ordering::SeqCst);
+        assert!(matches!(
+            handler.act(&EventContext::Track(&[])).await,
+            Some(Event::Cancel)
+        ));
+        assert!(handler.session.handle.lock().unwrap().is_none());
+        assert!(handler.session.active.load(Ordering::SeqCst));
+    }
+
+    #[tokio::test]
+    async fn a_decode_failure_advances_once() {
+        let call = Arc::new(Mutex::new(Call::standalone(
+            GuildId::new(1),
+            UserId::new(2),
+        )));
+        let mut handler = advance(Arc::downgrade(&call), true);
+        handler.catalog = Arc::new(Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap());
+        let old_handle = call
+            .lock()
+            .await
+            .play_only_input(File::new(handler.catalog.stations[0].tracks[0].file.clone()).into());
+        let state = songbird::tracks::TrackState {
+            playing: PlayMode::Errored(songbird::tracks::PlayError::Decode(Arc::new(
+                symphonia::core::errors::Error::DecodeError("synthetic decode failure"),
+            ))),
+            ..Default::default()
+        };
+        let tracks = [(&state, &old_handle)];
+        let context = EventContext::Track(&tracks);
+        assert!(matches!(handler.act(&context).await, Some(Event::Cancel)));
+        assert_eq!(handler.session.current.load(Ordering::SeqCst), 1);
+        assert_eq!(handler.session.consecutive_errors.load(Ordering::SeqCst), 1);
+        assert!(handler.session.active.load(Ordering::SeqCst));
+        // A second callback for the failed track must not skip a healthy track.
+        assert!(matches!(handler.act(&context).await, Some(Event::Cancel)));
+        assert_eq!(handler.session.current.load(Ordering::SeqCst), 1);
+        handler.session.active.store(false, Ordering::SeqCst);
+        call.lock().await.stop();
     }
 
     #[tokio::test]

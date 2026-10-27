@@ -13,7 +13,8 @@
           "license_evidence": "licenses/README.md#lofi-again; source page checked 2026-10-27",
           "approved": true,
           "instrumental": true,
-          "instrumental_evidence": "Author describes four instrumental tracks and ambience on the individual source page."
+          "instrumental_evidence": "Author describes four instrumental tracks and ambience on the individual source page.",
+          "gain_db": -1.42
         },
         {
           "title": "Dreams",
@@ -24,7 +25,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-dreams",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.73
         },
         {
           "title": "Day Jobs",
@@ -35,7 +37,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-day-jobs",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.49
         },
         {
           "title": "Deja Vu",
@@ -46,7 +49,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-deja-vu",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.01
         },
         {
           "title": "Childhood",
@@ -57,7 +61,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-childhood",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.6
         },
         {
           "title": "Dancing",
@@ -68,7 +73,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-dancing",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.470001
         },
         {
           "title": "Advertisements",
@@ -79,7 +85,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-advertisements",
           "instrumental": true,
           "instrumental_evidence": "The author labels the uploaded collection Chillout Instrumentals and gives it the Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": -8.19
         },
         {
           "title": "8 bit lofi - Ice Cave",
@@ -90,7 +97,8 @@
           "license_evidence": "licenses/catalog-sources.json#8-bit-lofi-ice-cave",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.6
         },
         {
           "title": "Autumn",
@@ -101,7 +109,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-autumn",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.140001
         },
         {
           "title": "Boredom",
@@ -112,7 +121,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-boredom",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.970001
         },
         {
           "title": "Chill lofi inspired",
@@ -123,7 +133,8 @@
           "license_evidence": "licenses/catalog-sources.json#chill-lofi-inspired",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.71
         },
         {
           "title": "City In The Rearview",
@@ -134,7 +145,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-city-in-the-rearview",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.25
         },
         {
           "title": "Dream Pop",
@@ -145,7 +157,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-dream-pop",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.25
         },
         {
           "title": "Families",
@@ -156,7 +169,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-families",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.65
         },
         {
           "title": "Funky Hip Hop Lofi Jam",
@@ -167,7 +181,8 @@
           "license_evidence": "licenses/catalog-sources.json#funky-hip-hop-lofi-jam",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.53
         },
         {
           "title": "lofi hip hop",
@@ -178,7 +193,8 @@
           "license_evidence": "licenses/catalog-sources.json#lofi-hip-hop",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.53
         },
         {
           "title": "Lost In Your Eyes",
@@ -189,7 +205,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-lost-in-your-eyes",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.300001
         },
         {
           "title": "Love",
@@ -200,7 +217,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-love",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.53
         },
         {
           "title": "Midsummer",
@@ -211,7 +229,8 @@
           "license_evidence": "licenses/catalog-sources.json#midsummer",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.550001
         },
         {
           "title": "Night Driving",
@@ -222,7 +241,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-night-driving",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.34
         },
         {
           "title": "Old Age",
@@ -233,7 +253,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-old-age",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.78
         },
         {
           "title": "Opinions",
@@ -244,7 +265,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-opinions",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.18
         },
         {
           "title": "Vintage Menu",
@@ -255,7 +277,8 @@
           "license_evidence": "licenses/catalog-sources.json#vintage-menu",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.890001
         },
         {
           "title": "WiFi Trasherino",
@@ -266,7 +289,8 @@
           "license_evidence": "licenses/catalog-sources.json#wifi-trasherino",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -11.95
         },
         {
           "title": "You Loved Me Once",
@@ -277,7 +301,8 @@
           "license_evidence": "licenses/catalog-sources.json#holizna-you-loved-me-once",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.32
         }
       ]
     },
@@ -294,7 +319,8 @@
           "license_evidence": "licenses/catalog-sources.json#echoes-of-the-past",
           "instrumental": true,
           "instrumental_evidence": "Author states all sounds were made using the ZynAddSubFX synthesizer in LMMS; no voice source declared. Instrumental classification is a curation inference.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.130001
         },
         {
           "title": "Osare - Unrest Theme",
@@ -305,7 +331,8 @@
           "license_evidence": "licenses/catalog-sources.json#osare-unrest-theme",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has an Instrumental tag.",
-          "approved": true
+          "approved": true,
+          "gain_db": 4.51
         },
         {
           "title": "Beautiful City",
@@ -316,7 +343,8 @@
           "license_evidence": "licenses/catalog-sources.json#beautiful-city",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.28
         },
         {
           "title": "Bleeding out",
@@ -327,7 +355,8 @@
           "license_evidence": "licenses/catalog-sources.json#bleeding-out",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.56
         },
         {
           "title": "Castle In The Darkness",
@@ -338,7 +367,8 @@
           "license_evidence": "licenses/catalog-sources.json#castle-in-the-darkness",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.910001
         },
         {
           "title": "Cave Theme",
@@ -349,7 +379,8 @@
           "license_evidence": "licenses/catalog-sources.json#cave-theme",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.61
         },
         {
           "title": "Chill Main Menu music",
@@ -360,7 +391,8 @@
           "license_evidence": "licenses/catalog-sources.json#chill-main-menu-music",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.48
         },
         {
           "title": "Die Kleine Glocke von Sotalop Iopatos",
@@ -371,7 +403,8 @@
           "license_evidence": "licenses/catalog-sources.json#die-kleine-glocke-von-sotalop-iopatos",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.0
         },
         {
           "title": "Dreamiano",
@@ -382,7 +415,8 @@
           "license_evidence": "licenses/catalog-sources.json#dreamiano",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.76
         },
         {
           "title": "Egyptian meditation music",
@@ -393,7 +427,8 @@
           "license_evidence": "licenses/catalog-sources.json#egyptian-meditation-music",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.570001
         },
         {
           "title": "Faraway",
@@ -404,7 +439,8 @@
           "license_evidence": "licenses/catalog-sources.json#faraway",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.06
         },
         {
           "title": "Forest",
@@ -415,7 +451,8 @@
           "license_evidence": "licenses/catalog-sources.json#forest-7",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.809999
         },
         {
           "title": "Frost in the Northern Winter",
@@ -426,7 +463,8 @@
           "license_evidence": "licenses/catalog-sources.json#frost-in-the-northern-winter",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.18
         },
         {
           "title": "Horror Cliche",
@@ -437,7 +475,8 @@
           "license_evidence": "licenses/catalog-sources.json#horror-cliche",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.060001
         },
         {
           "title": "I swear I saw it - background track",
@@ -448,7 +487,8 @@
           "license_evidence": "licenses/catalog-sources.json#i-swear-i-saw-it-background-track",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.41
         },
         {
           "title": "Krank - Industry",
@@ -459,7 +499,8 @@
           "license_evidence": "licenses/catalog-sources.json#krank-industry",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.79
         },
         {
           "title": "Krank - Space",
@@ -470,7 +511,8 @@
           "license_evidence": "licenses/catalog-sources.json#krank-space",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.7
         },
         {
           "title": "Krank - Summer",
@@ -481,18 +523,20 @@
           "license_evidence": "licenses/catalog-sources.json#krank-summer",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.769999
         },
         {
-          "title": "Krank - Water",
-          "artist": "legoluft",
-          "file": "instrumental/krank-water.ogg",
-          "source_url": "https://opengameart.org/content/atmospheric-puzzles",
+          "title": "Village of Snow",
+          "artist": "zesona",
+          "file": "instrumental/village-of-snow.ogg",
+          "source_url": "https://opengameart.org/content/village-of-snow",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#krank-water",
+          "license_evidence": "licenses/catalog-sources.json#village-of-snow",
           "instrumental": true,
-          "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
+          "approved": true,
+          "gain_db": -8.780001
         },
         {
           "title": "Life in corrupted binary",
@@ -503,7 +547,8 @@
           "license_evidence": "licenses/catalog-sources.json#life-corrupted-binary",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.65
         },
         {
           "title": "Loading screen loop",
@@ -514,7 +559,8 @@
           "license_evidence": "licenses/catalog-sources.json#loading-screen-loop",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.04
         },
         {
           "title": "Peace",
@@ -525,7 +571,8 @@
           "license_evidence": "licenses/catalog-sources.json#peace",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.77
         },
         {
           "title": "Pondering the Cosmos",
@@ -536,7 +583,8 @@
           "license_evidence": "licenses/catalog-sources.json#pondering-the-cosmos",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.47
         },
         {
           "title": "Skin cells touch",
@@ -547,7 +595,8 @@
           "license_evidence": "licenses/catalog-sources.json#skin-cells-touch",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.0
         },
         {
           "title": "Tragic ambient main menu",
@@ -558,7 +607,8 @@
           "license_evidence": "licenses/catalog-sources.json#tragic-ambient-main-menu",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.54
         }
       ]
     },
@@ -575,7 +625,8 @@
           "license_evidence": "licenses/catalog-sources.json#classical-pop-instrumental",
           "instrumental": true,
           "instrumental_evidence": "The author explicitly identifies the recording as Instrumental in its title; Jazz is among its source tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.640001
         },
         {
           "title": "Banana Track",
@@ -586,7 +637,8 @@
           "license_evidence": "licenses/catalog-sources.json#banana-track",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and Jazz tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.5
         },
         {
           "title": "FreeJazz Medley Loop",
@@ -597,7 +649,8 @@
           "license_evidence": "licenses/catalog-sources.json#freejazz-medley-loop",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and Jazz tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.94
         },
         {
           "title": "(Basically not) Fusion Jazz",
@@ -608,7 +661,8 @@
           "license_evidence": "licenses/catalog-sources.json#basically-not-fusion-jazz",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.6
         },
         {
           "title": "Ali Khan's Palace",
@@ -619,7 +673,8 @@
           "license_evidence": "licenses/catalog-sources.json#ali-khans-palace",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.17
         },
         {
           "title": "Bebop (Guitar)",
@@ -630,7 +685,8 @@
           "license_evidence": "licenses/catalog-sources.json#bebop-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.630001
         },
         {
           "title": "Boot (Guitar)",
@@ -641,7 +697,8 @@
           "license_evidence": "licenses/catalog-sources.json#boot-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.140001
         },
         {
           "title": "Catchy Swing",
@@ -652,7 +709,8 @@
           "license_evidence": "licenses/catalog-sources.json#catchy-swing",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.8
         },
         {
           "title": "Christmas Special 5 (Instrumental)",
@@ -663,7 +721,8 @@
           "license_evidence": "licenses/catalog-sources.json#christmas-special-5-instrumental",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.65
         },
         {
           "title": "Chromatic Instrumental",
@@ -674,7 +733,8 @@
           "license_evidence": "licenses/catalog-sources.json#chromatic-instrumental",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.71
         },
         {
           "title": "Flute and Guitar",
@@ -685,7 +745,8 @@
           "license_evidence": "licenses/catalog-sources.json#flute-and-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.640001
         },
         {
           "title": "Hello There",
@@ -696,7 +757,8 @@
           "license_evidence": "licenses/catalog-sources.json#hello-there",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.02
         },
         {
           "title": "Jazz",
@@ -707,7 +769,8 @@
           "license_evidence": "licenses/catalog-sources.json#jazz-0",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.6
         },
         {
           "title": "Jazz",
@@ -718,7 +781,8 @@
           "license_evidence": "licenses/catalog-sources.json#jazz-1",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.699999
         },
         {
           "title": "Just you and me Guitar",
@@ -729,7 +793,8 @@
           "license_evidence": "licenses/catalog-sources.json#just-you-and-me-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -8.36
         },
         {
           "title": "lydian synth jazz",
@@ -740,7 +805,8 @@
           "license_evidence": "licenses/catalog-sources.json#lydian-synth-jazz",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.390001
         },
         {
           "title": "Nielle de Wouffleur",
@@ -751,7 +817,8 @@
           "license_evidence": "licenses/catalog-sources.json#nielle-de-wouffleur",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.17
         },
         {
           "title": "Reflections Guitar",
@@ -762,7 +829,8 @@
           "license_evidence": "licenses/catalog-sources.json#reflections-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.25
         },
         {
           "title": "Serenade Guitar",
@@ -773,7 +841,8 @@
           "license_evidence": "licenses/catalog-sources.json#serenade-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.44
         },
         {
           "title": "Taking You To The Circus Guitar",
@@ -784,7 +853,8 @@
           "license_evidence": "licenses/catalog-sources.json#taking-you-to-the-circus-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.279999
         },
         {
           "title": "The Great Mixing of Second Dominants Guitar",
@@ -795,7 +865,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-great-mixing-of-second-dominants-guitar",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.04
         },
         {
           "title": "The led light show guitar",
@@ -806,7 +877,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-led-light-show-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.36
         },
         {
           "title": "The lonely route",
@@ -817,7 +889,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-lonely-route",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.83
         },
         {
           "title": "The love cycle (Guitar)",
@@ -828,7 +901,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-love-cycle-guitar",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.970001
         },
         {
           "title": "Wild Jazz",
@@ -839,7 +913,8 @@
           "license_evidence": "licenses/catalog-sources.json#wild-jazz",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.01
         }
       ]
     },
@@ -856,7 +931,8 @@
           "license_evidence": "licenses/catalog-sources.json#safety-2-versions",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and electronic tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.25
         },
         {
           "title": "Glitch Stairs",
@@ -867,7 +943,8 @@
           "license_evidence": "licenses/catalog-sources.json#glitch-stairs",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and electronic tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -10.23
         },
         {
           "title": "Swept Up",
@@ -878,7 +955,8 @@
           "license_evidence": "licenses/catalog-sources.json#swept-up",
           "instrumental": true,
           "instrumental_evidence": "The author describes it as instrumental music; source tags include edm and electronic.",
-          "approved": true
+          "approved": true,
+          "gain_db": 4.059999
         },
         {
           "title": "4.35",
@@ -889,7 +967,8 @@
           "license_evidence": "licenses/catalog-sources.json#435",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -10.18
         },
         {
           "title": "80s Mysterywave music",
@@ -900,7 +979,8 @@
           "license_evidence": "licenses/catalog-sources.json#80s-mysterywave-music",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.130001
         },
         {
           "title": "arbitrary",
@@ -911,7 +991,8 @@
           "license_evidence": "licenses/catalog-sources.json#arbitrary",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -8.85
         },
         {
           "title": "Danger Escape",
@@ -922,7 +1003,8 @@
           "license_evidence": "licenses/catalog-sources.json#danger-escape",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.75
         },
         {
           "title": "Dawn of the New Era",
@@ -933,7 +1015,8 @@
           "license_evidence": "licenses/catalog-sources.json#dawn-of-the-new-era",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.98
         },
         {
           "title": "Dreamtune",
@@ -944,7 +1027,8 @@
           "license_evidence": "licenses/catalog-sources.json#dreamtune",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.26
         },
         {
           "title": "Elevate (+ instrument tracks)",
@@ -955,7 +1039,8 @@
           "license_evidence": "licenses/catalog-sources.json#elevate-instrument-tracks",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.86
         },
         {
           "title": "First Steps",
@@ -966,7 +1051,8 @@
           "license_evidence": "licenses/catalog-sources.json#first-steps",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.39
         },
         {
           "title": "Four Sequence",
@@ -977,7 +1063,8 @@
           "license_evidence": "licenses/catalog-sources.json#four-sequence",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.890001
         },
         {
           "title": "Fun Bass Loop",
@@ -988,7 +1075,8 @@
           "license_evidence": "licenses/catalog-sources.json#fun-bass-loop",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.46
         },
         {
           "title": "Mad Man",
@@ -999,7 +1087,8 @@
           "license_evidence": "licenses/catalog-sources.json#mad-man",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.68
         },
         {
           "title": "Mess",
@@ -1010,7 +1099,8 @@
           "license_evidence": "licenses/catalog-sources.json#mess",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.510001
         },
         {
           "title": "MicroWave",
@@ -1021,7 +1111,8 @@
           "license_evidence": "licenses/catalog-sources.json#microwave-0",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.25
         },
         {
           "title": "Mythica",
@@ -1032,7 +1123,8 @@
           "license_evidence": "licenses/catalog-sources.json#mythica",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.09
         },
         {
           "title": "Piece of techno music",
@@ -1043,7 +1135,8 @@
           "license_evidence": "licenses/catalog-sources.json#piece-of-techno-music",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.78
         },
         {
           "title": "Sleepy Clouds",
@@ -1054,7 +1147,8 @@
           "license_evidence": "licenses/catalog-sources.json#sleepy-clouds",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.93
         },
         {
           "title": "Space Bass",
@@ -1065,7 +1159,8 @@
           "license_evidence": "licenses/catalog-sources.json#space-bass",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.99
         },
         {
           "title": "Space Music",
@@ -1076,7 +1171,8 @@
           "license_evidence": "licenses/catalog-sources.json#space-music",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.16
         },
         {
           "title": "Still",
@@ -1087,7 +1183,8 @@
           "license_evidence": "licenses/catalog-sources.json#still",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.57
         },
         {
           "title": "SZ Evil",
@@ -1098,7 +1195,8 @@
           "license_evidence": "licenses/catalog-sources.json#sz-evil",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.79
         },
         {
           "title": "tEcHNo gEeK",
@@ -1109,7 +1207,8 @@
           "license_evidence": "licenses/catalog-sources.json#techno-geek",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.640001
         },
         {
           "title": "Vaata",
@@ -1120,7 +1219,8 @@
           "license_evidence": "licenses/catalog-sources.json#vaata",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.470001
         }
       ]
     },
@@ -1137,7 +1237,8 @@
           "license_evidence": "licenses/catalog-sources.json#emotional-piano-0",
           "instrumental": true,
           "instrumental_evidence": "Selected the piano_solo recording, explicitly identified as the added piano solo in the source author comments.",
-          "approved": true
+          "approved": true,
+          "gain_db": 7.48
         },
         {
           "title": "Regret - Short Emotional Piano",
@@ -1148,7 +1249,8 @@
           "license_evidence": "licenses/catalog-sources.json#regret-short-emotional-piano",
           "instrumental": true,
           "instrumental_evidence": "Source title and description identify a piano piece, without any voice source declared. Instrumental classification is a curation inference.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.2
         },
         {
           "title": "A New Start - Short Solo Piano",
@@ -1159,18 +1261,20 @@
           "license_evidence": "licenses/catalog-sources.json#a-new-start-short-solo-piano",
           "instrumental": true,
           "instrumental_evidence": "The author identifies a solo-piano recording; instrumental classification follows that description. No independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.69
         },
         {
-          "title": "A Simple Trifle",
-          "artist": "jestar",
-          "file": "instrumental/a-simple-trifle.ogg",
-          "source_url": "https://opengameart.org/content/a-simple-trifle",
+          "title": "Bunny Dust",
+          "artist": "Kistol",
+          "file": "instrumental/bunny-dust.ogg",
+          "source_url": "https://opengameart.org/content/bunny-dust",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#a-simple-trifle",
+          "license_evidence": "licenses/catalog-sources.json#bunny-dust",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.390001
         },
         {
           "title": "At the end of hope",
@@ -1181,7 +1285,8 @@
           "license_evidence": "licenses/catalog-sources.json#at-the-end-of-hope",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.24
         },
         {
           "title": "Chasing despair",
@@ -1192,18 +1297,20 @@
           "license_evidence": "licenses/catalog-sources.json#chasing-despair",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.16
         },
         {
-          "title": "Diminished Piano",
-          "artist": "Tozan",
-          "file": "instrumental/diminished-piano.ogg",
-          "source_url": "https://opengameart.org/content/diminished-piano",
+          "title": "Juni",
+          "artist": "Kistol",
+          "file": "instrumental/juni.ogg",
+          "source_url": "https://opengameart.org/content/juni",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#diminished-piano",
+          "license_evidence": "licenses/catalog-sources.json#juni",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.15
         },
         {
           "title": "Emotional piano loop",
@@ -1214,7 +1321,8 @@
           "license_evidence": "licenses/catalog-sources.json#emotional-piano-loop",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 10.35
         },
         {
           "title": "Frustration",
@@ -1225,7 +1333,8 @@
           "license_evidence": "licenses/catalog-sources.json#frustration",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.47
         },
         {
           "title": "Haunting piano",
@@ -1236,7 +1345,8 @@
           "license_evidence": "licenses/catalog-sources.json#haunting-piano",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.99
         },
         {
           "title": "JRPG Piano",
@@ -1247,7 +1357,8 @@
           "license_evidence": "licenses/catalog-sources.json#jrpg-piano",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 5.149999
         },
         {
           "title": "JRPG2 Piano",
@@ -1258,7 +1369,8 @@
           "license_evidence": "licenses/catalog-sources.json#jrpg2-piano",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 4.03
         },
         {
           "title": "Lullaby Stories",
@@ -1269,7 +1381,8 @@
           "license_evidence": "licenses/catalog-sources.json#lullaby-stories",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.129999
         },
         {
           "title": "Mystical Piano",
@@ -1280,18 +1393,20 @@
           "license_evidence": "licenses/catalog-sources.json#mystical-piano",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 7.13
         },
         {
-          "title": "Piabi",
-          "artist": "Tozan",
-          "file": "instrumental/piabi.ogg",
-          "source_url": "https://opengameart.org/content/piabi",
+          "title": "Snowfall",
+          "artist": "Kistol",
+          "file": "instrumental/snowfall.ogg",
+          "source_url": "https://opengameart.org/content/snowfall",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#piabi",
+          "license_evidence": "licenses/catalog-sources.json#snowfall",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 2.269999
         },
         {
           "title": "Piano Emo 10",
@@ -1302,18 +1417,20 @@
           "license_evidence": "licenses/catalog-sources.json#piano-emo-10",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 20.0
         },
         {
-          "title": "Piano Emotional Solo 139",
-          "artist": "Tozan",
-          "file": "instrumental/piano-emotional-solo-139.ogg",
-          "source_url": "https://opengameart.org/content/piano-emotional-solo-139",
+          "title": "Waiting II",
+          "artist": "Kistol",
+          "file": "instrumental/waiting-ii.ogg",
+          "source_url": "https://opengameart.org/content/waiting-ii",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#piano-emotional-solo-139",
+          "license_evidence": "licenses/catalog-sources.json#waiting-ii",
           "instrumental": true,
-          "instrumental_evidence": "The author identifies a solo-piano recording; instrumental classification follows that description. No independent full listening review.",
-          "approved": true
+          "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
+          "approved": true,
+          "gain_db": 1.12
         },
         {
           "title": "Piano IIX",
@@ -1324,18 +1441,20 @@
           "license_evidence": "licenses/catalog-sources.json#piano-iix",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 8.98
         },
         {
-          "title": "Piano Melody 6",
-          "artist": "Tozan",
-          "file": "instrumental/piano-melody-6.ogg",
-          "source_url": "https://opengameart.org/content/piano-melody-6",
+          "title": "Esther",
+          "artist": "Kistol",
+          "file": "instrumental/esther.ogg",
+          "source_url": "https://opengameart.org/content/esther",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#piano-melody-6",
+          "license_evidence": "licenses/catalog-sources.json#esther",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.989999
         },
         {
           "title": "Pianosoft8",
@@ -1346,7 +1465,8 @@
           "license_evidence": "licenses/catalog-sources.json#pianosoft8",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 8.899999
         },
         {
           "title": "pianosola2",
@@ -1357,7 +1477,8 @@
           "license_evidence": "licenses/catalog-sources.json#pianosola2",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 17.18
         },
         {
           "title": "Simple piano chords",
@@ -1368,18 +1489,20 @@
           "license_evidence": "licenses/catalog-sources.json#simple-piano-chords",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.109999
         },
         {
-          "title": "Solo Piano 4",
-          "artist": "Tozan",
-          "file": "instrumental/solo-piano-4.ogg",
-          "source_url": "https://opengameart.org/content/solo-piano-4",
+          "title": "Calm Piano 1 (Vaporware)",
+          "artist": "cynicmusic",
+          "file": "instrumental/calm-piano-1-vaporware.ogg",
+          "source_url": "https://opengameart.org/content/calm-piano-1-vaporware",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#solo-piano-4",
+          "license_evidence": "licenses/catalog-sources.json#calm-piano-1-vaporware",
           "instrumental": true,
-          "instrumental_evidence": "The author identifies a solo-piano recording; instrumental classification follows that description. No independent full listening review.",
-          "approved": true
+          "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
+          "approved": true,
+          "gain_db": 0.469999
         },
         {
           "title": "Sunrise",
@@ -1390,18 +1513,20 @@
           "license_evidence": "licenses/catalog-sources.json#sunrise",
           "instrumental": true,
           "instrumental_evidence": "The author identifies a solo-piano recording; instrumental classification follows that description. No independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.25
         },
         {
-          "title": "Telos Emo1",
-          "artist": "Tozan",
-          "file": "instrumental/telos-emo1.ogg",
-          "source_url": "https://opengameart.org/content/telos-emo1",
+          "title": "Cursed Light",
+          "artist": "Cethiel",
+          "file": "instrumental/cursed-light.ogg",
+          "source_url": "https://opengameart.org/content/cursed-light",
           "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json#telos-emo1",
+          "license_evidence": "licenses/catalog-sources.json#cursed-light",
           "instrumental": true,
-          "instrumental_evidence": "The author identifies a solo-piano recording; instrumental classification follows that description. No independent full listening review.",
-          "approved": true
+          "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
+          "approved": true,
+          "gain_db": -2.51
         }
       ]
     },
@@ -1418,7 +1543,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-final-battle",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and orchestral tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.210001
         },
         {
           "title": "Col Legno",
@@ -1429,7 +1555,8 @@
           "license_evidence": "licenses/catalog-sources.json#col-legno",
           "instrumental": true,
           "instrumental_evidence": "Individual source page has Instrumental and orchestral tags.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.23
         },
         {
           "title": "(15 min ) Medieval Acid/weird strings",
@@ -1440,7 +1567,8 @@
           "license_evidence": "licenses/catalog-sources.json#15-min-medieval-acidweird-strings",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.28
         },
         {
           "title": "Action Man",
@@ -1451,7 +1579,8 @@
           "license_evidence": "licenses/catalog-sources.json#action-man",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -7.03
         },
         {
           "title": "Action Theme Song",
@@ -1462,7 +1591,8 @@
           "license_evidence": "licenses/catalog-sources.json#action-theme-song",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.02
         },
         {
           "title": "Adventure Time",
@@ -1473,7 +1603,8 @@
           "license_evidence": "licenses/catalog-sources.json#adventure-time",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.720001
         },
         {
           "title": "Covert Operations",
@@ -1484,7 +1615,8 @@
           "license_evidence": "licenses/catalog-sources.json#covert-operations",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.81
         },
         {
           "title": "Darkest Hour",
@@ -1495,7 +1627,8 @@
           "license_evidence": "licenses/catalog-sources.json#darkest-hour",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.570001
         },
         {
           "title": "Desert Theme",
@@ -1506,7 +1639,8 @@
           "license_evidence": "licenses/catalog-sources.json#desert-theme-0",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -6.67
         },
         {
           "title": "Emotional 7",
@@ -1517,7 +1651,8 @@
           "license_evidence": "licenses/catalog-sources.json#emotional-7",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 3.76
         },
         {
           "title": "Eternal Light",
@@ -1528,7 +1663,8 @@
           "license_evidence": "licenses/catalog-sources.json#eternal-light",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.77
         },
         {
           "title": "Feel good island",
@@ -1539,7 +1675,8 @@
           "license_evidence": "licenses/catalog-sources.json#feel-good-island",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.99
         },
         {
           "title": "Grip of Nature",
@@ -1550,7 +1687,8 @@
           "license_evidence": "licenses/catalog-sources.json#grip-nature",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.43
         },
         {
           "title": "Happy Days (Sad Loop Music)",
@@ -1561,7 +1699,8 @@
           "license_evidence": "licenses/catalog-sources.json#happy-days-sad-loop-music",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 4.66
         },
         {
           "title": "Intro Cue",
@@ -1572,7 +1711,8 @@
           "license_evidence": "licenses/catalog-sources.json#intro-cue",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.140001
         },
         {
           "title": "Last stand in space",
@@ -1583,7 +1723,8 @@
           "license_evidence": "licenses/catalog-sources.json#last-stand-in-space",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.079999
         },
         {
           "title": "Lost in the meadows",
@@ -1594,7 +1735,8 @@
           "license_evidence": "licenses/catalog-sources.json#lost-in-the-meadows",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 11.74
         },
         {
           "title": "Orchestra Loop",
@@ -1605,7 +1747,8 @@
           "license_evidence": "licenses/catalog-sources.json#orchestra-loop",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.230001
         },
         {
           "title": "Running from something",
@@ -1616,7 +1759,8 @@
           "license_evidence": "licenses/catalog-sources.json#running-from-something",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.68
         },
         {
           "title": "Siberian Intro",
@@ -1627,7 +1771,8 @@
           "license_evidence": "licenses/catalog-sources.json#siberian-intro",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -1.89
         },
         {
           "title": "Story Time",
@@ -1638,7 +1783,8 @@
           "license_evidence": "licenses/catalog-sources.json#story-time",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.28
         },
         {
           "title": "The Field Of Dreams",
@@ -1649,7 +1795,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-field-of-dreams",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 5.399999
         },
         {
           "title": "The Promise",
@@ -1660,7 +1807,8 @@
           "license_evidence": "licenses/catalog-sources.json#the-promise",
           "instrumental": true,
           "instrumental_evidence": "The source title or author description explicitly identifies the music as instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 5.16
         },
         {
           "title": "Town in ruins loop",
@@ -1671,7 +1819,8 @@
           "license_evidence": "licenses/catalog-sources.json#town-in-ruins-loop",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 10.989999
         },
         {
           "title": "Trouble in the Garden (+)",
@@ -1682,7 +1831,8 @@
           "license_evidence": "licenses/catalog-sources.json#trouble-in-the-garden",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 5.3
         }
       ]
     },
@@ -1693,13 +1843,14 @@
         {
           "title": "Across the Stars",
           "artist": "Indieteur",
-          "file": "instrumental/across-the-stars.mp3",
+          "file": "instrumental/across-the-stars.ogg",
           "source_url": "https://opengameart.org/content/across-the-stars",
           "license": "CC0-1.0",
           "license_evidence": "licenses/catalog-sources.json#across-the-stars",
           "instrumental": true,
           "instrumental_evidence": "The author explicitly describes original instrumental music with pop rock undertones.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.140001
         },
         {
           "title": "Love Song (Instrumental)",
@@ -1710,7 +1861,8 @@
           "license_evidence": "licenses/catalog-sources.json#love-song-instrumental",
           "instrumental": true,
           "instrumental_evidence": "The author explicitly identifies the recording as instrumental in the title; Guitar and drums are source tags. Rock station placement is a curation choice.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.210001
         },
         {
           "title": "Action Track",
@@ -1721,7 +1873,8 @@
           "license_evidence": "licenses/catalog-sources.json#action-track",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.86
         },
         {
           "title": "Airport Attack Remake",
@@ -1732,7 +1885,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-airport-attack-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.28
         },
         {
           "title": "Boss Battle #6 Metal",
@@ -1743,7 +1897,8 @@
           "license_evidence": "licenses/catalog-sources.json#boss-battle-6-metal",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.0
         },
         {
           "title": "Boss Battle 2 Remake",
@@ -1754,7 +1909,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-boss-battle-2-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.16
         },
         {
           "title": "Boss Battle 8 16-Bit Remake",
@@ -1765,7 +1921,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-boss-battle-8-16-bit-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 1.12
         },
         {
           "title": "Ending Scene",
@@ -1776,7 +1933,8 @@
           "license_evidence": "licenses/catalog-sources.json#ending-scene",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -0.140001
         },
         {
           "title": "Endless Pain Of Nightmares Remake",
@@ -1787,7 +1945,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-endless-pain-of-nightmares-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.390001
         },
         {
           "title": "Fight For A Better Future Remake",
@@ -1798,7 +1957,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-fight-for-a-better-future-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.390001
         },
         {
           "title": "History Remake",
@@ -1809,7 +1969,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-history-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": 0.949999
         },
         {
           "title": "Knockout Remake",
@@ -1820,7 +1981,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-knockout-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.0
         },
         {
           "title": "Pandemia",
@@ -1831,7 +1993,8 @@
           "license_evidence": "licenses/catalog-sources.json#pandemia",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.73
         },
         {
           "title": "Plomo",
@@ -1842,7 +2005,8 @@
           "license_evidence": "licenses/catalog-sources.json#plomo",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.630001
         },
         {
           "title": "Punch Your Way Through Remake",
@@ -1853,7 +2017,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-punch-your-way-through-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.03
         },
         {
           "title": "Railgun Rain Remake",
@@ -1864,7 +2029,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-railgun-rain-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.210001
         },
         {
           "title": "Rock theme",
@@ -1875,7 +2041,8 @@
           "license_evidence": "licenses/catalog-sources.json#rock-theme",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.37
         },
         {
           "title": "Savior Of Humanity Remake",
@@ -1886,7 +2053,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-savior-of-humanity-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.98
         },
         {
           "title": "Short Theme [Rock/Metal]",
@@ -1897,7 +2065,8 @@
           "license_evidence": "licenses/catalog-sources.json#short-theme-rockmetal",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.23
         },
         {
           "title": "Spy running theme",
@@ -1908,7 +2077,8 @@
           "license_evidence": "licenses/catalog-sources.json#spy-running-theme",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -9.92
         },
         {
           "title": "The Journey Continues Remake",
@@ -1919,7 +2089,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-the-journey-continues-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -5.220001
         },
         {
           "title": "The Ritual Remake",
@@ -1930,7 +2101,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-the-ritual-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -2.01
         },
         {
           "title": "Theme of Mini-Tank",
@@ -1941,7 +2113,8 @@
           "license_evidence": "licenses/catalog-sources.json#theme-of-mini-tank",
           "instrumental": true,
           "instrumental_evidence": "[Inference] The source identifies an instrument performance or synthesized composition through its title, instrument tags, or creation description. This is source-based curation, not verified absence of vocals; no independent full listening review.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.18
         },
         {
           "title": "Theme Song Remake",
@@ -1952,7 +2125,8 @@
           "license_evidence": "licenses/catalog-sources.json#umplix-theme-song-remake",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -3.51
         },
         {
           "title": "Wine Less Cry More",
@@ -1963,7 +2137,8 @@
           "license_evidence": "licenses/catalog-sources.json#wine-less-cry-more",
           "instrumental": true,
           "instrumental_evidence": "The source page explicitly tags this submission Instrumental.",
-          "approved": true
+          "approved": true,
+          "gain_db": -4.43
         }
       ]
     }

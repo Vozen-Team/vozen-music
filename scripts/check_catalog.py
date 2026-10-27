@@ -9,6 +9,8 @@ root = Path(__file__).resolve().parents[1]
 catalog = json.loads((root / "catalog.json").read_text(encoding="utf8"))
 records = json.loads((root / "licenses/catalog-sources.json").read_text(encoding="utf8"))["tracks"]
 by_file = {record["file"]: record for record in records}
+quality = json.loads((root / "licenses/audio-quality.json").read_text(encoding="utf8"))
+by_quality = {record["file"]: record for record in quality["tracks"]}
 assert len(by_file) == len(records), "Duplicate provenance records"
 assert {s["id"] for s in catalog["stations"]} == {
     "lofi", "ambient", "jazz", "electronic", "piano", "cinematic", "rock"
@@ -32,6 +34,12 @@ for station in catalog["stations"]:
         assert track["license"] == record["selected_license"] == "CC0-1.0", relative
         assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest(), relative
         assert record["bytes"] == path.stat().st_size, relative
+        measured = by_quality[track["file"]]
+        assert measured["sha256"] == record["sha256"], relative
+        assert measured["sample_rate"] >= 44100, relative
+        assert abs(measured["gain_db"] - track["gain_db"]) < 0.000001, relative
+        assert measured["projected_true_peak_dbfs"] <= -1.999999, relative
+        assert -30 <= track["gain_db"] <= 20, relative
         result = subprocess.check_output([
             "ffmpeg", "-v", "error", "-xerror", "-nostdin", "-i", str(path),
             "-map", "0:a:0", "-ac", "2", "-ar", "48000", "-f", "hash", "-hash", "sha256", "-"
@@ -43,4 +51,5 @@ for station in catalog["stations"]:
     total_seconds += duration
     print(f"{station['id']}: {len(station['tracks'])} tracks, {duration / 60:.2f} minutes", flush=True)
 assert seen_files == set(by_file), "Provenance and active catalog differ"
+assert {path.removeprefix("media/") for path in seen_files} == set(by_quality), "Quality coverage differs"
 print(f"Verified {len(seen_files)} files, {total_seconds / 60:.2f} minutes. Voice content was not audited.")
