@@ -1,6 +1,6 @@
 # Vozen Music
 
-Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 21 tracks across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running locally in Docker; the original development playback was audibly confirmed by the owner on 2026-10-27. The expanded catalog has not been independently listened to in full. Not deployed to a VPS.
+Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 175 recordings across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running locally in Docker; the original development playback was audibly confirmed by the owner on 2026-10-27. The expanded catalog has not been independently listened to in full. Not deployed to a VPS.
 
 Visual identity: [brand guide](assets/brand/README.md), the selected vinyl-and-V concept adapted to Vozen's rounded outlines, cream, violet, blue, and cyan. The avatar has been applied to the Discord application.
 
@@ -29,19 +29,21 @@ Command replies are private; playback errors are posted in the command's text ch
 
 | Station option | Display name | Active tracks |
 | --- | --- | --- |
-| `lofi` | Vozen Lofi | 7 |
-| `ambient` | Vozen Ambient | 2 |
-| `jazz` | Vozen Jazz | 3 |
-| `electronic` | Vozen Electronic | 3 |
-| `piano` | Vozen Piano | 2 |
-| `cinematic` | Vozen Cinematic | 2 |
-| `rock` | Vozen Rock | 2 |
+| `lofi` | Vozen Lofi | 25 |
+| `ambient` | Vozen Ambient | 25 |
+| `jazz` | Vozen Jazz | 25 |
+| `electronic` | Vozen Electronic | 25 |
+| `piano` | Vozen Piano | 25 |
+| `cinematic` | Vozen Cinematic | 25 |
+| `rock` | Vozen Rock | 25 |
 
-Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Total active playback before repetition is approximately 45 minutes across all seven stations, not 45 minutes per station.
+Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Rock includes metal and synthetic game-rock arrangements. Some recordings are short loops or cues. Total active playback is approximately 404 minutes across all seven stations; individual stations contain approximately 46–74 minutes before repetition. The [full catalog](CATALOG.md) lists every recording, artist, source, duration, and type of instrumental evidence.
 
 Sources, hashes, durations, transformations, and instrumental evidence are recorded in [licenses/README.md](licenses/README.md) and [catalog-sources.json](licenses/catalog-sources.json). The approved recordings are included in the repository; other local audio files are ignored. The bot refuses to start if a station is empty or a track lacks explicit instrumental approval and evidence. Only the operator edits the catalog. This validates the operator's declaration, not the contents of an audio waveform.
 
-Source evidence includes explicit Instrumental labels, solo-piano descriptions, and documented synthesis-only creation. The latter two are curation inferences, not independent listening results. No full listening audit or automated vocal detector was used. The desired policy excludes singing, speech, vocal chops, and choirs; flag and remove any recording found to contain these, even if its source labels it instrumental. A choir-tagged candidate was excluded during selection. Chills is retained only as a legacy recording and removed from active playback because its instrumental evidence was insufficient.
+Source evidence includes explicit Instrumental labels, solo-instrument descriptions, and documented synthesized compositions. Classifications based on instrument titles, tags, and creation descriptions are recorded as curation inferences, not independent listening results. No full listening audit or automated vocal detector was used. The strict no-voice requirement is therefore not fully validated. The desired policy excludes singing, speech, vocal chops, and choirs; flag and remove any recording found to contain these, even if its source labels it instrumental. Candidates with declared vocals, choirs, chanting, vocoders, or unclear licensing were excluded. Chills is retained only as a legacy recording and removed from active playback because its instrumental evidence was insufficient.
+
+Run `python scripts/check_catalog.py` with FFmpeg available to check the minimum station size, complete provenance coverage, SHA256 hashes, full decoding, and duplicate decoded recordings. These checks do not detect voices. The expansion adds one selected encoding/arrangement per composition; alternative encodings and menu arrangements were not counted as additional tracks.
 
 Place audio in `media/` and register tracks in `catalog.json`. Example schema, **not a real track or proof of a license**:
 

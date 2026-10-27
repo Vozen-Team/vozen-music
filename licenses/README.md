@@ -1,6 +1,6 @@
 # Development catalog: published sources and licenses
 
-Checked on 2026-10-27. Both individual source pages were opened and showed the author, a CC0 license field, and a download link. `approved` records approval for this development catalog based on those published statements, not independent certification of authorship or sample rights. No artist endorsement is implied.
+Checked on 2026-10-27. The active catalog has 175 recordings, 25 per station. Selected source pages showed a CC0 license field and download links. Every active recording is documented in [catalog-sources.json](catalog-sources.json), and the [catalog list](../CATALOG.md) links each recording to its source. `approved` records approval for this development catalog based on published statements, not independent certification of authorship or sample rights. No artist endorsement is implied.
 
 The pages link to [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Its terms and limitations apply. The references and hashes below identify the files and support recovery; hashes do not prove a license.
 
@@ -36,7 +36,7 @@ Both files passed full FFmpeg decoding on 2026-10-27. This establishes FFmpeg re
 
 ## Expanded instrumental selection — 2026-10-27
 
-The active catalog now includes 21 recordings in seven editorial categories. Twenty imported recordings are documented individually in [catalog-sources.json](catalog-sources.json), with published license, source URL, original download URL, original and included-file hashes, duration, and the evidence used for instrumental classification. Lofi again remains covered by its record above; its source describes instrumental tracks.
+The initial genre expansion contained 21 recordings in seven editorial categories. Twenty imported recordings were documented individually in [catalog-sources.json](catalog-sources.json), with published license, source URL, original download URL, original and included-file hashes, duration, and the evidence used for instrumental classification. Lofi again is now also included in that machine-readable register; its source describes instrumental tracks.
 
 The six HoliznaCC0 recordings come from the author's [Chillout Instrumentals collection](https://opengameart.org/content/chillout-instrumentals-collection), whose individual upload page publishes CC0 and an Instrumental tag. The uploaded ZIP is an author-published asset pack with its own license, rather than a third-party collection of unrelated links. Its member filenames and archive hash are recorded for recovery.
 
@@ -45,3 +45,15 @@ WAV versions of Echoes of the Past, Col Legno, and Love Song were converted to O
 Sources with explicit Instrumental labels were preferred. Solo-piano descriptions and synthesis-only creation descriptions were also accepted as documented curation inferences. No independent full listening review or vocal detection was performed. These source labels do not prove absence of sung/spoken samples, vocal chops, or synthetic choirs. The choir-tagged Heavenly Loop candidate was excluded; Chills was removed from active playback for insufficient instrumental evidence and remains only as a legacy source record/file.
 
 Osare (Unrest Theme) offers both OGA-BY 3.0 and CC0 on its source page; the CC0 option was selected. The catalog retains the named composer credit. Genre assignments are editorial, not a claim that every piece is a pure example of one genre.
+
+## Expansion to 25 recordings per station — 2026-10-27
+
+154 recordings were added, bringing the total to 175 recordings and approximately 404 minutes. Every selected source page offers CC0 1.0, including pages with multiple license options. No Spotify, YouTube, Lofi Bot audio, or music licensed only for noncommercial use was imported.
+
+Additional lofi recordings include the author's Chill Beats and Relaxing Instrumentals collections. Only the MP3 member of each composition was imported; the alternative OGG encoding was not counted again. The four distinct atmospheric recordings from Atmospheric Puzzles are credited to legoluft; their menu arrangements were excluded from the count. The Rock station includes distinct arrangements from Umplix's CC0 Remakes submission, whose source declares Instrumental and CC0 and credits its original contributors. The corresponding original versions were not added as additional recordings. Category placement remains editorial and includes game music, synthetic rock, metal, jazz fusion, and short loops/cues.
+
+New recordings were transcoded in full to Ogg Vorbis quality 5. Audio timestamps were regenerated from decoded sample order where necessary to avoid non-monotonic source timestamps. No trimming, repetition, stem extraction, or vocal removal was performed. The register retains the original recording hash, included-file hash, decoded stereo 48 kHz PCM hash, size, duration, download URL, archive/member details where applicable, published license links, source-page hash, source credits, and instrumental evidence. The original audio downloads and retrieved pages are retained in the local research directory outside this repository.
+
+**No independent full listening audit or vocal detection has been performed.** Explicit Instrumental labels were preferred; solo-instrument descriptions and other instrument/performance/synthesis metadata were also used. The latter are recorded as source descriptions or curation inferences. They do not certify absence of vocal chops, speech, singing, or synthetic choirs. Candidates with declared vocals, chanting, vocoders, choirs, or unclear licensing were excluded. A strict no-voice requirement remains incompletely validated until listening review. CC0 source statements do not independently establish that every uploader controlled all composition, recording, and sample rights.
+
+The local `scripts/check_catalog.py` checks all active files, minimum station counts, metadata/provenance agreement, file hashes, complete decoding, and duplicate decoded audio. It does not inspect vocal content or authenticate copyright ownership.

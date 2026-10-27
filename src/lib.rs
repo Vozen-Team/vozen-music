@@ -144,7 +144,7 @@ mod tests {
         catalog.require_audio().unwrap();
         for station in &catalog.stations {
             assert!(
-                station.tracks.len() >= 2,
+                station.tracks.len() >= 25,
                 "Station {} needs variety",
                 station.id
             );
