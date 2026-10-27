@@ -1,6 +1,8 @@
 # Vozen Music
 
-Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 175 recordings across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running locally in Docker; the original development playback was audibly confirmed by the owner on 2026-10-27. The expanded catalog has not been independently listened to in full. Not deployed to a VPS.
+Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 175 recordings across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running on the VPS since 2026-10-27, with the previous local gateway stopped. The original development playback was audibly confirmed by the owner; the expanded catalog has not been independently listened to in full.
+
+[Open the Music dashboard](https://api.vozen.org/music/dashboard) to configure skip rules through Discord login. There is no public Music marketing page in this release. See [dashboard behavior and security](web/README.md) and the [VPS operation guide](ops/README.md). Real user login and authenticated settings save are still pending validation.
 
 Visual identity: [brand guide](assets/brand/README.md), the selected vinyl-and-V concept adapted to Vozen's rounded outlines, cream, violet, blue, and cyan. The avatar has been applied to the Discord application.
 
@@ -24,7 +26,7 @@ Station names and track credits come from the operator-controlled catalog. Keep 
 
 Tracks play in catalog order and repeat at the end. A failed track is skipped automatically. If a whole station cycle fails consecutively, playback stops and attempts to post a notice in the command's text channel. Controls require membership in the bot's voice channel. Before the initial connection, the member must join a voice channel. Only standard voice channels are supported, not Stage channels.
 
-Command replies are private. `/play` and `/station` also post a shared station player with the current recording and a Skip button. The player updates on track changes and shows vote progress; old controls are rejected. `/nowplaying` includes a private copy of the current button. Playback errors are posted in the command's text channel with mentions disabled. This version is limited to one development server.
+Command replies are private. `/play` and `/station` also post a shared station player with the current recording and a Skip button. The player updates on track changes and shows vote progress; old controls are rejected. `/nowplaying` includes a private copy of the current button. Playback errors are posted in the command's text channel with mentions disabled. Production registers global commands and supports installed servers; the optional `DISCORD_GUILD_ID` restricts a development instance to one server.
 
 ## Skip buttons and votes
 
@@ -112,13 +114,13 @@ cargo run --locked -- --check
 
 `--check` does not read tokens or contact Discord. It fails if a station is empty or a referenced file is missing. It does not decode audio; actual playback needs a separate test.
 
-Set `DISCORD_TOKEN` for the **dedicated Music application**, its `DISCORD_APPLICATION_ID`, and a development `DISCORD_GUILD_ID` in the process environment. Before registering commands, the bot checks that the token belongs to the configured application. `.env.example` documents the fields; native `cargo run` does not load `.env` automatically. Do not reuse TTS/Helper tokens or commit secrets.
+Set `DISCORD_TOKEN` for the **dedicated Music application**, its `DISCORD_APPLICATION_ID`, and optionally a development `DISCORD_GUILD_ID` in the process environment. Before registering commands, the bot checks that the token belongs to the configured application. `.env.example` documents the fields; native `cargo run` does not load `.env` automatically. Do not reuse TTS/Helper tokens or commit secrets. Do not start the local gateway while the VPS instance is running.
 
 ```powershell
 cargo run --locked
 ```
 
-This connects to Discord and **replaces this application's commands in the configured development server**. It does not register global commands. Invite Music using the `bot` and `applications.commands` scopes, with View Channel, Connect, and Speak permissions in the voice channel. Error notices also require View Channel and Send Messages in the text channel. Administrator is not required.
+This connects to Discord and **replaces this application's commands in the configured development server**, or its global commands when `DISCORD_GUILD_ID` is absent/empty. Invite Music using the `bot` and `applications.commands` scopes, with View Channel, Connect, and Speak permissions in the voice channel. Error notices also require View Channel and Send Messages in the text channel. Administrator is not required.
 
 ## Docker development setup
 
@@ -149,12 +151,12 @@ The owner chooses the development server and authorizes the installation. The co
 
 ## Verification and limits
 
-Local Linux release compilation, 15 unit tests, Clippy with `-D warnings`, and formatting passed on 2026-10-27. The optimized codec integration test also passed, decoding all 175 active recordings with Symphonia and checking their durations. The full FFmpeg/provenance/quality audit passed for all 175 files. These offline checks do not establish Discord audibility or interruption-free operation.
+The dashboard release passed Linux release compilation, 31 unit/router tests, Clippy with `-D warnings`, and formatting on 2026-10-27. The earlier optimized codec integration test decoded all 175 active recordings with Symphonia and checked their durations; the earlier full FFmpeg/provenance/quality audit also passed. Audio and codec dependencies were unchanged by the dashboard release, so those full audio checks were not repeated. These offline checks do not establish Discord audibility or interruption-free operation.
 
 The native Windows build was blocked by Application Control, error 4551, when running a dependency build script. The policy was not changed. Local tests used the existing `vozen-qa-toolchain:20260930` Docker image. Docker build caches are isolated in the `vozen-music-registry` and `vozen-music-build` volumes.
 
-The Music connected to the development server, and Discord's API confirmed all seven English guild commands. The owner confirmed that it joined the voice channel and played audible music on 2026-10-27. Natural track endings, station changes, pause, skip, stop, errors, and wrong-channel permissions still need real Discord checks. Unit tests include synthetic fixtures; they do not prove audibility. No VPS deployment has been performed. The bot currently depends on this computer and Docker Desktop remaining available.
+The Music connected to Discord from the VPS, and Discord's API confirmed all eight English global commands. The owner previously confirmed that the local instance joined voice and played audible music. Natural track endings, station changes, pause, skip, stop, errors, wrong-channel permissions and VPS audibility still need real Discord checks. Unit tests include synthetic fixtures; they do not prove audibility. The VPS service is enabled with mount ordering and restart handling; no reboot test was performed. Playback does not automatically resume after process restart.
 
 The initial Docker release image compiled on 2026-10-27 and passed its offline catalog check as user `10001:10001` with a read-only filesystem and no network. The expanded-catalog revision has 11 unit tests, including rejection of undocumented/non-instrumental tracks and validation of all bundled paths. These checks do not prove the absence of vocals or live Discord audibility.
 
-No Spotify/YouTube search, member-supplied URLs, web panel, payments, central entitlements, personalization, rain mixing, crossfade, or 24/7 restart recovery. One voice connection per server.
+No Spotify/YouTube search, member-supplied URLs, payments, central entitlements, personalization, rain mixing, crossfade, or playback recovery after restart. One voice connection per server. The dashboard currently controls skip settings only.
