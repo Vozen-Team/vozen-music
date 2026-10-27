@@ -3,6 +3,12 @@
 !Cargo.lock
 !src
 !src/**
+!web
+!web/**
+!assets
+!assets/brand
+!assets/brand/v4
+!assets/brand/v4/vozen-music-avatar.png
 !catalog.json
 !media
 !media/**

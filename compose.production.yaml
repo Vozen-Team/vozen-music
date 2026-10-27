@@ -1,0 +1,31 @@
+name: vozen-music
+services:
+  music:
+    image: ${MUSIC_IMAGE:?Set MUSIC_IMAGE to the validated release tag}
+    env_file: .env
+    environment:
+      DISCORD_GUILD_ID: ""
+      MUSIC_HTTP_BIND: 0.0.0.0:8790
+    ports:
+      - "127.0.0.1:8790:8790"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+        bind:
+          create_host_path: false
+    init: true
+    # systemd owns restarts and waits for the encrypted data mount.
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"

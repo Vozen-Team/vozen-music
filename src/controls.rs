@@ -255,7 +255,7 @@ impl Bot {
         interaction_id: u64,
         target: Option<(u64, usize)>,
     ) -> Result<String, Error> {
-        if guild != self.guild {
+        if self.guild.is_some_and(|allowed| guild != allowed) {
             return Err("This version is limited to the development server.".into());
         }
         let policy = self.settings.lock().await.get(guild.get());

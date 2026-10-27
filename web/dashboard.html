@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Server settings · Vozen Music</title>
+  <link rel="icon" href="/music/avatar.png">
+  <link rel="stylesheet" href="/music/dashboard.css">
+  <script src="/music/dashboard.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to settings</a>
+  <header class="topbar">
+    <a class="brand" href="/music/dashboard"><img src="/music/avatar.png" width="44" height="44" alt=""><span>Vozen <strong>Music</strong></span></a>
+    <div class="account" id="account" hidden><span id="username"></span><button class="quiet" id="logout" type="button">Sign out</button></div>
+  </header>
+  <div class="shell">
+    <aside id="sidebar" hidden aria-label="Server navigation">
+      <h2>Your servers</h2>
+      <p class="small">Servers you manage with Vozen Music installed.</p>
+      <nav id="servers" aria-label="Choose a server"></nav>
+      <a class="install" href="https://discord.com/oauth2/authorize?client_id=1564573935234973817&amp;scope=bot%20applications.commands&amp;permissions=3148800&amp;integration_type=0" target="_blank" rel="noopener noreferrer">Add Music to a server <span aria-hidden="true">↗</span></a>
+    </aside>
+    <main id="main" tabindex="-1">
+      <section id="welcome" class="welcome" hidden>
+        <img src="/music/avatar.png" width="100" height="100" alt="">
+        <h1>Your server.<br>Your skip rules.</h1>
+        <p>Choose who can skip a track and when a vote is needed. Sign in with Discord to manage your server’s settings.</p>
+        <a class="button primary" href="/music/auth/login">Continue with Discord</a>
+        <p class="small">Requires Manage Server permission.</p>
+      </section>
+      <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="loading" class="loading" aria-live="polite"><h1>Loading your dashboard…</h1><p>Checking your Discord session.</p></section>
+      <section id="empty" hidden><h1>No servers to manage yet</h1><p>You need Manage Server permission and Vozen Music must be installed. After adding the bot, refresh this list.</p><button id="refresh" type="button">Refresh servers</button></section>
+      <section id="editor" hidden>
+        <div class="page-heading"><div><p class="server-name" id="server-name"></p><h1>Skip settings</h1></div><span class="tag">Server settings</span></div>
+        <p class="intro">Set the rules once. The Skip button and <code>/skip</code> will follow them.</p>
+        <form id="settings-form">
+          <fieldset>
+            <legend>Who can skip?</legend>
+            <p class="help">Members must be in the same voice channel as Music. Bots are excluded.</p>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="access" value="everyone" required><span><strong>Everyone in the call</strong><small>Any listener can skip or vote.</small></span></label>
+              <label class="choice"><input type="radio" name="access" value="moderators"><span><strong>Moderators only</strong><small>Only eligible moderators can skip or vote.</small></span></label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>How does a skip happen?</legend>
+            <div class="choices">
+              <label class="choice"><input type="radio" name="mode" value="instant" required><span><strong>One click</strong><small>One eligible member skips immediately.</small></span></label>
+              <label class="choice"><input type="radio" name="mode" value="majority"><span><strong>Majority vote</strong><small>More than half must agree. One vote per person.</small></span></label>
+            </div>
+            <div id="majority-options" class="dependent" hidden>
+              <label for="majority-scope">Who counts towards the majority?</label>
+              <select id="majority-scope" name="majority_scope"><option value="call">Everyone in the call</option><option value="eligible">Only eligible voters</option></select>
+              <p class="help" id="majority-help"></p>
+            </div>
+          </fieldset>
+          <fieldset id="role-options" hidden>
+            <legend>Moderator roles</legend>
+            <p class="help">Choose roles below, or leave all unchecked to use Discord moderation permissions. Server owners, administrators and members with Manage Server remain eligible.</p>
+            <div class="roles" id="roles"></div>
+            <p class="help">Without custom roles, Moderate Members, Kick Members, Ban Members or Manage Messages qualifies.</p>
+          </fieldset>
+          <div class="savebar"><p id="save-description">Changes apply to this server only. Saving clears current skip votes.</p><button class="primary" id="save" type="submit" disabled>Save changes</button></div>
+        </form>
+      </section>
+      <noscript><p>Enable JavaScript to sign in and manage Vozen Music settings.</p></noscript>
+    </main>
+  </div>
+  <footer>Vozen Music <span aria-hidden="true">·</span> Find your rhythm.</footer>
+</body>
+</html>

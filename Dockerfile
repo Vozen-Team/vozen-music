@@ -5,6 +5,8 @@ RUN apt-get update \
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY web ./web
+COPY assets/brand/v4/vozen-music-avatar.png ./assets/brand/v4/vozen-music-avatar.png
 RUN cargo build --release --locked
 
 FROM debian:bookworm-slim

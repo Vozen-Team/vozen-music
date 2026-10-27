@@ -1,4 +1,5 @@
 mod controls;
+mod dashboard;
 mod player;
 
 use serenity::{all::*, async_trait};
@@ -67,7 +68,7 @@ impl Session {
 
 struct Bot {
     catalog: Arc<Catalog>,
-    guild: GuildId,
+    guild: Option<GuildId>,
     sessions: Mutex<HashMap<GuildId, Arc<Session>>>,
     settings: Mutex<SettingsStore>,
 }
@@ -203,7 +204,7 @@ impl Bot {
         let guild_id = command
             .guild_id
             .ok_or("This command can only be used in a server.")?;
-        if guild_id != self.guild {
+        if self.guild.is_some_and(|allowed| guild_id != allowed) {
             return Err("This version is limited to the development server.".into());
         }
         if command.data.name == "skip-settings" {
@@ -395,7 +396,7 @@ impl Bot {
 #[async_trait]
 impl EventHandler for Bot {
     async fn ready(&self, _: Context, _: Ready) {
-        println!("Vozen Music connected to the development server.");
+        println!("Vozen Music connected to Discord.");
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -464,7 +465,8 @@ impl EventHandler for Bot {
         let mut components = vec![];
         if success
             && command.data.name == "nowplaying"
-            && let Some(session) = self.sessions.lock().await.get(&self.guild)
+            && let Some(guild) = command.guild_id
+            && let Some(session) = self.sessions.lock().await.get(&guild)
             && session.active.load(Ordering::SeqCst)
         {
             components =
@@ -512,32 +514,41 @@ async fn main() -> Result<(), Error> {
         .ok()
         .filter(|id| *id > 0)
         .ok_or("Invalid DISCORD_APPLICATION_ID.")?;
-    let guild = GuildId::new(
-        std::env::var("DISCORD_GUILD_ID")
-            .map_err(|_| "Missing development DISCORD_GUILD_ID.")?
-            .parse::<u64>()
-            .ok()
-            .filter(|id| *id > 0)
-            .ok_or("Invalid DISCORD_GUILD_ID.")?,
-    );
-    let bot = Bot {
+    let guild = std::env::var("DISCORD_GUILD_ID")
+        .ok()
+        .filter(|value| !value.is_empty())
+        .map(|value| {
+            value
+                .parse::<u64>()
+                .ok()
+                .filter(|id| *id > 0)
+                .map(GuildId::new)
+                .ok_or("Invalid DISCORD_GUILD_ID.")
+        })
+        .transpose()?;
+    let bot = Arc::new(Bot {
         catalog,
         guild,
         sessions: Mutex::new(HashMap::new()),
         settings: Mutex::new(SettingsStore::load(
             Path::new("data/skip-settings.json").to_path_buf(),
         )?),
-    };
+    });
     let commands = bot.commands();
     let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES;
     let mut client = Client::builder(token, intents)
-        .event_handler(bot)
+        .event_handler_arc(bot.clone())
         .register_songbird()
         .await?;
     let application = client.http.get_current_application_info().await?;
     check_application_identity(application_id, application.id.get())?;
     client.http.set_application_id(application.id);
-    guild.set_commands(&client.http, commands).await?;
+    if let Some(guild) = guild {
+        guild.set_commands(&client.http, commands).await?;
+    } else {
+        Command::set_global_commands(&client.http, commands).await?;
+    }
+    let mut dashboard = dashboard::start(bot, client.cache.clone(), client.http.clone()).await?;
     let shards = client.shard_manager.clone();
     #[cfg(unix)]
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
@@ -552,7 +563,22 @@ async fn main() -> Result<(), Error> {
         let _ = tokio::signal::ctrl_c().await;
         shards.shutdown_all().await;
     });
-    client.start().await?;
+    tokio::select! {
+        result = client.start() => { result?; },
+        result = async {
+            match &mut dashboard {
+                Some(task) => task.await.map_err(|_| "Dashboard task stopped unexpectedly.")?,
+                None => std::future::pending().await,
+            }
+        } => {
+            client.shard_manager.shutdown_all().await;
+            result?;
+            return Err("Dashboard stopped unexpectedly.".into());
+        }
+    }
+    if let Some(task) = dashboard {
+        task.abort();
+    }
     Ok(())
 }
 
@@ -565,7 +591,7 @@ mod tests {
         let catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         let bot = Bot {
             catalog: Arc::new(catalog),
-            guild: GuildId::new(1),
+            guild: Some(GuildId::new(1)),
             sessions: Mutex::new(HashMap::new()),
             settings: Mutex::new(
                 SettingsStore::load(std::env::temp_dir().join(format!(

@@ -1,0 +1,22 @@
+[Unit]
+Description=Vozen Music Discord bot and dashboard
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+RequiresMountsFor=/srv/vozen-secure/music/data
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/srv/vozen-secure/music
+ExecStartPre=/usr/bin/mountpoint -q /srv/vozen-secure
+ExecStart=/usr/bin/docker compose -f compose.production.yaml up --no-build --abort-on-container-exit --exit-code-from music
+ExecStop=/usr/bin/docker compose -f compose.production.yaml stop -t 20 music
+Restart=always
+RestartSec=5
+TimeoutStopSec=35
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target docker.service
