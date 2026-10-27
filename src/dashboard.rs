@@ -818,6 +818,15 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
+            "/music/vozen.svg",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "image/svg+xml")],
+                    include_str!("../web/vozen.svg"),
+                )
+            }),
+        )
+        .route(
             "/music/css/global-nav-v1.css",
             get(|| async {
                 (
