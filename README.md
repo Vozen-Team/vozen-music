@@ -18,12 +18,37 @@ Station names and track credits come from the operator-controlled catalog. Keep 
 | `/station station` | Switch stations and start from the first track. |
 | `/nowplaying` | Show the selected track, artist, source, and license. |
 | `/pause` / `/resume` | Pause / resume playback. |
-| `/skip` | Skip to the next track. |
+| `/skip` | Skip or vote to skip, using the same rules as the player button. |
 | `/stop` | Stop playback and leave the voice channel. |
+| `/skip-settings` | View or change this server's skip policy; requires Manage Server. |
 
 Tracks play in catalog order and repeat at the end. A failed track is skipped automatically. If a whole station cycle fails consecutively, playback stops and attempts to post a notice in the command's text channel. Controls require membership in the bot's voice channel. Before the initial connection, the member must join a voice channel. Only standard voice channels are supported, not Stage channels.
 
-Command replies are private; playback errors are posted in the command's text channel with mentions disabled. This version is limited to one development server.
+Command replies are private. `/play` and `/station` also post a shared station player with the current recording and a Skip button. The player updates on track changes and shows vote progress; old controls are rejected. `/nowplaying` includes a private copy of the current button. Playback errors are posted in the command's text channel with mentions disabled. This version is limited to one development server.
+
+## Skip buttons and votes
+
+Defaults are **everyone in the bot's voice channel**, **instant skip**, and **whole-call majority scope** (the scope only matters when voting is enabled). Buttons and `/skip` share the same permission and vote checks. Bots never vote or count in the quorum. Server managers and administrators must also be in the bot's voice channel to skip.
+
+Configure with `/skip-settings`; omitted options keep their existing values, and no options shows the current policy. Only the owner or members with Manage Server/Administrator may use it. Examples:
+
+```text
+/skip-settings access:everyone mode:instant
+/skip-settings access:everyone mode:majority majority-scope:call
+/skip-settings access:moderators mode:majority majority-scope:eligible
+/skip-settings access:moderators mode:majority majority-scope:call
+/skip-settings add-role:@Moderator
+/skip-settings remove-role:@Moderator
+/skip-settings clear-roles:true
+```
+
+`access` is `everyone` or `moderators`; `mode` is `instant` or `majority`. `majority-scope:call` requires more than half of all humans currently in the call. `majority-scope:eligible` requires more than half of the humans allowed by the access policy. For example, ten humans with two eligible moderators require six votes under `call`, or two votes under `eligible`. A combination with too few eligible voters cannot pass; the voter receives a notice explaining this. Administrators do not bypass voting thresholds.
+
+Server managers/administrators are always eligible under moderator access. With no configured moderator roles, moderation permissions (Moderate Members, Kick Members, Ban Members, or Manage Messages) qualify. Once custom roles are added, other moderators need at least one of those roles. `clear-roles:true` restores the permission-based definition; it also allows clearing roles that were deleted from Discord's role picker. Skip rules apply to skip requests; the other playback commands retain their existing same-voice-channel controls.
+
+Votes are unique per user and track. On each request the bot rechecks current membership, excludes bots, and removes votes from members who left or are no longer eligible. Ineligible or unverifiable membership fails without skipping. Natural transitions, skips, station changes, stop, restart, and settings changes clear votes. Repeat voting requests from the same user have a two-second cooldown on the current track; instant skips have no such cooldown. A request already waiting for listener verification cannot vote on the next track.
+
+Policies are saved per server in `data/skip-settings.json`, atomically replaced after file sync. Invalid stored settings stop startup instead of silently opening access. A failed save retains the previous in-memory policy. Compose stores this file in its dedicated `music-data` volume; `/data/` is ignored by Git and excluded from the build context. Keep this volume to retain settings across recreations; `docker compose down -v` removes it. Votes are transient and are not saved. Only one Music process should write to this volume.
 
 ## Catalog
 

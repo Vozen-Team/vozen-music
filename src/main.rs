@@ -1,3 +1,6 @@
+mod controls;
+mod player;
+
 use serenity::{all::*, async_trait};
 use songbird::{
     Call, Event, EventContext, EventHandler as AudioEventHandler, SerenityInit, TrackEvent,
@@ -15,9 +18,16 @@ use std::{
     time::Duration,
 };
 use tokio::sync::Mutex;
+use vozen_music::skip::{SettingsStore, SkipSettings, SkipVotes};
 use vozen_music::{
-    Catalog, Error, check_application_identity, next_after_playback, next_track, same_voice_channel,
+    Catalog, Error, check_application_identity, next_after_playback, same_voice_channel,
 };
+
+struct PlayerPanel {
+    channel: ChannelId,
+    message: MessageId,
+    update: Mutex<()>,
+}
 
 struct Session {
     station: usize,
@@ -26,12 +36,40 @@ struct Session {
     generation: AtomicUsize,
     consecutive_errors: AtomicUsize,
     handle: SyncMutex<Option<TrackHandle>>,
+    control_id: u64,
+    panel: Option<Arc<PlayerPanel>>,
+    policy: SyncMutex<SkipSettings>,
+    votes: SyncMutex<SkipVotes>,
+}
+
+impl Session {
+    fn new(
+        station: usize,
+        index: usize,
+        control_id: u64,
+        policy: SkipSettings,
+        panel: Option<Arc<PlayerPanel>>,
+    ) -> Self {
+        Self {
+            station,
+            active: AtomicBool::new(true),
+            current: AtomicUsize::new(index),
+            generation: AtomicUsize::new(0),
+            consecutive_errors: AtomicUsize::new(0),
+            handle: SyncMutex::new(None),
+            control_id,
+            panel,
+            policy: SyncMutex::new(policy),
+            votes: SyncMutex::new(SkipVotes::default()),
+        }
+    }
 }
 
 struct Bot {
     catalog: Arc<Catalog>,
     guild: GuildId,
     sessions: Mutex<HashMap<GuildId, Arc<Session>>>,
+    settings: Mutex<SettingsStore>,
 }
 
 #[derive(Clone)]
@@ -46,8 +84,15 @@ struct Advance {
 
 fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(), Error> {
     let track = &advance.catalog.stations[advance.session.station].tracks[index];
+    advance.session.current.store(index, Ordering::SeqCst);
     // Invalidate callbacks before replacing the previous track, including its stop event.
     advance.generation = advance.session.generation.fetch_add(1, Ordering::SeqCst) + 1;
+    advance
+        .session
+        .votes
+        .lock()
+        .map_err(|_| "Skip votes are unavailable.")?
+        .reset(advance.generation);
     let mut audio =
         Track::from(File::new(track.file.clone())).volume(10.0_f32.powf(track.gain_db / 20.0));
     // Errored tracks also emit End; register a single callback before playback starts.
@@ -56,7 +101,6 @@ fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(),
         Duration::ZERO,
     );
     let handle = call.play_only(audio);
-    advance.session.current.store(index, Ordering::SeqCst);
     *advance
         .session
         .handle
@@ -106,6 +150,7 @@ impl AudioEventHandler for Advance {
             }
             failed
         };
+        player::refresh(&self.http, &self.catalog, &self.session, failed).await;
         if failed {
             let message = CreateMessage::new()
                 .content(
@@ -145,11 +190,12 @@ impl Bot {
             ("nowplaying", "Show the current track and credits"),
             ("pause", "Pause the station"),
             ("resume", "Resume the station"),
-            ("skip", "Skip to the next track"),
+            ("skip", "Skip or vote to skip the current track"),
             ("stop", "Stop the station and leave the voice channel"),
         ] {
             commands.push(CreateCommand::new(name).description(description));
         }
+        commands.push(controls::definition());
         commands
     }
 
@@ -159,6 +205,18 @@ impl Bot {
             .ok_or("This command can only be used in a server.")?;
         if guild_id != self.guild {
             return Err("This version is limited to the development server.".into());
+        }
+        if command.data.name == "skip-settings" {
+            return self.configure_skip(ctx, command).await;
+        }
+        if command.data.name == "skip" {
+            let member = command
+                .member
+                .as_deref()
+                .ok_or("Server member information is unavailable.")?;
+            return self
+                .request_skip(ctx, guild_id, member, command.id.get(), None)
+                .await;
         }
         let manager = songbird::get(ctx)
             .await
@@ -239,19 +297,35 @@ impl Bot {
                     );
                 }
             };
+            let policy = self.settings.lock().await.get(guild_id.get());
+            let mut session = Session::new(station_index, 0, command.id.get(), policy, None);
+            let message = match command
+                .channel_id
+                .send_message(&ctx.http, player::message(&self.catalog, &session)?)
+                .await
+            {
+                Ok(message) => message,
+                Err(_) => {
+                    if !sessions.contains_key(&guild_id) {
+                        let _ =
+                            tokio::time::timeout(Duration::from_secs(5), manager.remove(guild_id))
+                                .await;
+                    }
+                    return Err("Could not post the player. Check View Channel and Send Messages permissions.".into());
+                }
+            };
+            session.panel = Some(Arc::new(PlayerPanel {
+                channel: command.channel_id,
+                message: message.id,
+                update: Mutex::new(()),
+            }));
+            let session = Arc::new(session);
             let mut locked = call.lock().await;
-            if let Some(old) = sessions.remove(&guild_id) {
+            let old = sessions.remove(&guild_id);
+            if let Some(old) = &old {
                 old.active.store(false, Ordering::SeqCst);
             }
             locked.stop();
-            let session = Arc::new(Session {
-                station: station_index,
-                active: AtomicBool::new(true),
-                current: AtomicUsize::new(0),
-                generation: AtomicUsize::new(0),
-                consecutive_errors: AtomicUsize::new(0),
-                handle: SyncMutex::new(None),
-            });
             let advance = Advance {
                 call: Arc::downgrade(&call),
                 catalog: self.catalog.clone(),
@@ -262,6 +336,11 @@ impl Bot {
             };
             play_track(&mut locked, advance, 0)?;
             sessions.insert(guild_id, session);
+            drop(locked);
+            drop(sessions);
+            if let Some(old) = old {
+                player::refresh(&ctx.http, &self.catalog, &old, true).await;
+            }
             return Ok(format!(
                 "Station selected: {}.",
                 self.catalog.stations[station_index].name
@@ -273,6 +352,7 @@ impl Bot {
         let call = existing.ok_or("The bot is no longer connected. Use /play to start again.")?;
         let mut locked = call.lock().await;
         if command.data.name == "stop" {
+            let stopped = session.clone();
             session.active.store(false, Ordering::SeqCst);
             locked.stop();
             sessions.remove(&guild_id);
@@ -281,6 +361,8 @@ impl Bot {
                 .await
                 .map_err(|_| "Playback stopped, but leaving the voice channel timed out.")?
                 .map_err(|_| "Playback stopped, but the bot could not leave the voice channel.")?;
+            drop(sessions);
+            player::refresh(&ctx.http, &self.catalog, &stopped, true).await;
             return Ok("Station stopped.".into());
         }
         if !session.active.load(Ordering::SeqCst) {
@@ -304,30 +386,6 @@ impl Bot {
         match command.data.name.as_str() {
             "pause" => handle.pause().map_err(|_| "Could not pause playback.")?,
             "resume" => handle.play().map_err(|_| "Could not resume playback.")?,
-            "skip" => {
-                // Replacing the session invalidates old callbacks, including the End caused by skip.
-                session.active.store(false, Ordering::SeqCst);
-                let next =
-                    next_track(current, station.tracks.len()).ok_or("The station is empty.")?;
-                let replacement = Arc::new(Session {
-                    station: session.station,
-                    active: AtomicBool::new(true),
-                    current: AtomicUsize::new(next),
-                    generation: AtomicUsize::new(0),
-                    consecutive_errors: AtomicUsize::new(0),
-                    handle: SyncMutex::new(None),
-                });
-                let advance = Advance {
-                    call: Arc::downgrade(&call),
-                    catalog: self.catalog.clone(),
-                    session: replacement.clone(),
-                    http: ctx.http.clone(),
-                    text_channel: command.channel_id,
-                    generation: 0,
-                };
-                play_track(&mut locked, advance, next)?;
-                sessions.insert(guild_id, replacement);
-            }
             _ => return Err("Unknown command.".into()),
         }
         Ok("Playback control applied.".into())
@@ -341,6 +399,48 @@ impl EventHandler for Bot {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        let interaction = match interaction {
+            Interaction::Component(button) if button.data.custom_id.starts_with("vozen:skip:") => {
+                let response = CreateInteractionResponseMessage::new()
+                    .ephemeral(true)
+                    .allowed_mentions(CreateAllowedMentions::new());
+                if button
+                    .create_response(&ctx.http, CreateInteractionResponse::Defer(response))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+                let result = async {
+                    let guild = button
+                        .guild_id
+                        .ok_or("This control can only be used in a server.")?;
+                    let member = button
+                        .member
+                        .as_ref()
+                        .ok_or("Server member information is unavailable.")?;
+                    let target = player::target(&button.data.custom_id)?;
+                    self.request_skip(&ctx, guild, member, button.id.get(), Some(target))
+                        .await
+                }
+                .await;
+                let content = result.unwrap_or_else(|error| error.to_string());
+                if button
+                    .edit_response(
+                        &ctx.http,
+                        EditInteractionResponse::new()
+                            .content(content)
+                            .allowed_mentions(CreateAllowedMentions::new()),
+                    )
+                    .await
+                    .is_err()
+                {
+                    eprintln!("Could not respond to a player control.");
+                }
+                return;
+            }
+            other => other,
+        };
         let Interaction::Command(command) = interaction else {
             return;
         };
@@ -355,15 +455,28 @@ impl EventHandler for Bot {
             eprintln!("Could not acknowledge an interaction.");
             return;
         }
-        let content = match self.command(&ctx, &command).await {
+        let result = self.command(&ctx, &command).await;
+        let success = result.is_ok();
+        let content = match result {
             Ok(message) => message,
             Err(error) => error.to_string(),
         };
+        let mut components = vec![];
+        if success
+            && command.data.name == "nowplaying"
+            && let Some(session) = self.sessions.lock().await.get(&self.guild)
+            && session.active.load(Ordering::SeqCst)
+        {
+            components =
+                player::controls(session, session.generation.load(Ordering::SeqCst), false)
+                    .unwrap_or_default();
+        }
         if command
             .edit_response(
                 &ctx.http,
                 EditInteractionResponse::new()
                     .content(content)
+                    .components(components)
                     .allowed_mentions(CreateAllowedMentions::new()),
             )
             .await
@@ -411,6 +524,9 @@ async fn main() -> Result<(), Error> {
         catalog,
         guild,
         sessions: Mutex::new(HashMap::new()),
+        settings: Mutex::new(SettingsStore::load(
+            Path::new("data/skip-settings.json").to_path_buf(),
+        )?),
     };
     let commands = bot.commands();
     let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES;
@@ -451,6 +567,16 @@ mod tests {
             catalog: Arc::new(catalog),
             guild: GuildId::new(1),
             sessions: Mutex::new(HashMap::new()),
+            settings: Mutex::new(
+                SettingsStore::load(std::env::temp_dir().join(format!(
+                        "vozen-unused-{}.json",
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .as_nanos()
+                    )))
+                .unwrap(),
+            ),
         };
         let commands = serde_json::to_value(bot.commands()).unwrap();
         let commands = commands.as_array().unwrap();
@@ -467,7 +593,8 @@ mod tests {
                 "pause",
                 "resume",
                 "skip",
-                "stop"
+                "stop",
+                "skip-settings"
             ]
         );
         for command in commands {
@@ -493,14 +620,11 @@ mod tests {
         Advance {
             call,
             catalog: Arc::new(Catalog { stations: vec![] }),
-            session: Arc::new(Session {
-                station: 0,
-                active: AtomicBool::new(active),
-                current: AtomicUsize::new(0),
-                generation: AtomicUsize::new(0),
-                consecutive_errors: AtomicUsize::new(0),
-                handle: SyncMutex::new(None),
-            }),
+            session: {
+                let session = Arc::new(Session::new(0, 0, 1, SkipSettings::default(), None));
+                session.active.store(active, Ordering::SeqCst);
+                session
+            },
             http: Arc::new(Http::new("synthetic-test-token")),
             text_channel: ChannelId::new(1),
             generation: 0,

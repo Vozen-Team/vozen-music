@@ -14,6 +14,7 @@ RUN apt-get update \
     && groupadd --gid 10001 vozen \
     && useradd --uid 10001 --gid vozen --no-create-home --shell /usr/sbin/nologin vozen
 WORKDIR /app
+RUN mkdir -p /app/data && chown 10001:10001 /app/data
 COPY --from=build /build/target/release/vozen-music /usr/local/bin/vozen-music
 COPY catalog.json ./catalog.json
 COPY media ./media

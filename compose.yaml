@@ -4,6 +4,8 @@ services:
     image: vozen-music:local
     build: .
     env_file: .env
+    volumes:
+      - music-data:/app/data
     init: true
     restart: unless-stopped
     read_only: true
@@ -18,3 +20,5 @@ services:
       options:
         max-size: "5m"
         max-file: "2"
+volumes:
+  music-data:
