@@ -184,7 +184,7 @@ async fn guarded(
         ("x-frame-options", "DENY"),
         (
             "content-security-policy",
-            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://vozen.org https://cdn.discordapp.com; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://cdn.discordapp.com; font-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'",
         ),
     ] {
         headers.insert(
@@ -824,6 +824,25 @@ fn router(state: Arc<Dashboard>) -> Router {
                     [(header::CONTENT_TYPE, "image/svg+xml")],
                     include_str!("../web/vozen.svg"),
                 )
+            }),
+        )
+        .route(
+            "/music/assets/flags-v2/{flag}",
+            get(|RoutePath(flag): RoutePath<String>| async move {
+                let svg = match flag.as_str() {
+                    "gb.svg" => include_str!("../web/flags/gb.svg"),
+                    "pt.svg" => include_str!("../web/flags/pt.svg"),
+                    "fr.svg" => include_str!("../web/flags/fr.svg"),
+                    "es.svg" => include_str!("../web/flags/es.svg"),
+                    "de.svg" => include_str!("../web/flags/de.svg"),
+                    "tr.svg" => include_str!("../web/flags/tr.svg"),
+                    "sa.svg" => include_str!("../web/flags/sa.svg"),
+                    "tw.svg" => include_str!("../web/flags/tw.svg"),
+                    "ru.svg" => include_str!("../web/flags/ru.svg"),
+                    "kr.svg" => include_str!("../web/flags/kr.svg"),
+                    _ => return StatusCode::NOT_FOUND.into_response(),
+                };
+                ([(header::CONTENT_TYPE, "image/svg+xml")], svg).into_response()
             }),
         )
         .route(
