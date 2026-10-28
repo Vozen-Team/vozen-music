@@ -46,7 +46,22 @@ function update() {
     : selected.access === 'moderators'
       ? 'All human listeners count, but only moderators can vote. With 10 listeners, 6 votes are needed. If fewer than 6 are eligible, the vote cannot pass.'
       : 'More than half of all human listeners must vote. With 5 listeners, 3 votes are needed.';
-  $('save').disabled = saving || !changed();
+  const dirty = changed();
+  $('save').disabled = saving || !dirty;
+  $('save-state').textContent = saving ? 'Saving your changes…' : dirty ? 'You have unsaved changes' : 'All changes saved';
+  $('save-state').dataset.state = dirty ? 'unsaved' : 'saved';
+  $('preview-access').textContent = selected.access === 'moderators' ? 'Moderators only' : 'Everyone';
+  $('preview-mode').textContent = selected.mode === 'majority' ? 'Majority vote' : 'One click';
+  $('preview-title').textContent = selected.mode === 'majority' ? 'Let the room decide.' : 'One click. Next track.';
+  $('preview-description').textContent = selected.mode === 'instant'
+    ? selected.access === 'moderators'
+      ? 'An eligible moderator in the call can skip a track immediately.'
+      : 'Any listener in the call can skip a track immediately.'
+    : selected.access === 'moderators'
+      ? selected.majority_scope === 'eligible'
+        ? 'Only eligible moderators vote. More than half of them must agree.'
+        : 'Only eligible moderators vote. More than half of all listeners must agree.'
+      : 'Listeners in the call vote together. More than half must agree.';
 }
 
 function renderServers() {

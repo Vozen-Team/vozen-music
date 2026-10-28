@@ -44,6 +44,7 @@
     </header>
   <div class="shell">
     <aside id="sidebar" hidden aria-label="Server navigation">
+      <div class="music-identity"><img src="/music/avatar.png" alt="" width="44" height="44"><div><strong>Vozen Music</strong><span>Server dashboard</span></div></div>
       <h2>Your servers</h2>
       <p class="small">Servers you manage with Vozen Music installed.</p>
       <nav id="servers" aria-label="Choose a server"></nav>
@@ -62,22 +63,23 @@
       <section id="loading" class="loading" aria-live="polite"><h1>Loading your dashboard…</h1><p>Checking your Discord session.</p></section>
       <section id="empty" hidden><h1>No servers to manage yet</h1><p>You need Manage Server permission and Vozen Music must be installed. After adding the bot, refresh this list.</p><button id="refresh" type="button">Refresh servers</button></section>
       <section id="editor" hidden>
-        <div class="page-heading"><div><p class="server-name" id="server-name"></p><h1>Skip settings</h1></div><span class="tag">Server settings</span></div>
+        <div class="page-heading"><h1>Skip settings<span class="heading-dot" aria-hidden="true">.</span></h1><div class="server-context"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="4" y="3" width="16" height="7" rx="2"/><rect x="4" y="14" width="16" height="7" rx="2"/><path d="M8 6.5h1m-1 11h1"/></svg><p class="server-name" id="server-name"></p></div></div>
         <p class="intro">Set the rules once. The Skip button and <code>/skip</code> will follow them.</p>
+        <div class="settings-layout">
         <form id="settings-form">
           <fieldset>
             <legend>Who can skip?</legend>
             <p class="help">Members must be in the same voice channel as Music. Bots are excluded.</p>
             <div class="choices">
-              <label class="choice"><input type="radio" name="access" value="everyone" required><span><strong>Everyone in the call</strong><small>Any listener can skip or vote.</small></span></label>
-              <label class="choice"><input type="radio" name="access" value="moderators"><span><strong>Moderators only</strong><small>Only eligible moderators can skip or vote.</small></span></label>
+              <label class="choice"><input type="radio" name="access" value="everyone" required><svg class="choice-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m2-15a3 3 0 0 1 0 6m3 9v-2a6 6 0 0 0-3-5"/></svg><span><strong>Everyone in the call</strong><small>Any listener can skip or vote.</small></span></label>
+              <label class="choice"><input type="radio" name="access" value="moderators"><svg class="choice-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><span><strong>Moderators only</strong><small>Only eligible moderators can skip or vote.</small></span></label>
             </div>
           </fieldset>
           <fieldset>
             <legend>How does a skip happen?</legend>
             <div class="choices">
-              <label class="choice"><input type="radio" name="mode" value="instant" required><span><strong>One click</strong><small>One eligible member skips immediately.</small></span></label>
-              <label class="choice"><input type="radio" name="mode" value="majority"><span><strong>Majority vote</strong><small>More than half must agree. One vote per person.</small></span></label>
+              <label class="choice"><input type="radio" name="mode" value="instant" required><svg class="choice-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 5 9 7-9 7V5Zm13 0v14"/></svg><span><strong>One click</strong><small>One eligible member skips immediately.</small></span></label>
+              <label class="choice"><input type="radio" name="mode" value="majority"><svg class="choice-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 11 3 3 5-6"/><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 17h8"/></svg><span><strong>Majority vote</strong><small>More than half must agree. One vote per person.</small></span></label>
             </div>
             <div id="majority-options" class="dependent" hidden>
               <label for="majority-scope">Who counts towards the majority?</label>
@@ -91,8 +93,17 @@
             <div class="roles" id="roles"></div>
             <p class="help">Without custom roles, Moderate Members, Kick Members, Ban Members or Manage Messages qualifies.</p>
           </fieldset>
-          <div class="savebar"><p id="save-description">Changes apply to this server only. Saving clears current skip votes.</p><button class="primary" id="save" type="submit" disabled>Save changes</button></div>
+          <div class="savebar"><div><p id="save-state" class="save-state" role="status">All changes saved</p><p id="save-description">Changes apply to this server only. Saving clears current skip votes.</p></div><button class="primary" id="save" type="submit" disabled>Save changes</button></div>
         </form>
+        <aside class="skip-preview" aria-labelledby="preview-heading">
+          <h2 id="preview-heading">Your Skip button</h2>
+          <div class="preview-art" aria-hidden="true"><img src="/music/avatar.png" alt="" width="176" height="176"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m5 5 9 7-9 7V5Zm13 0v14"/></svg></div>
+          <p class="preview-title" id="preview-title">One click. Next track.</p>
+          <p class="preview-description" id="preview-description">Any listener in the call can skip a track immediately.</p>
+          <div class="preview-rules"><span id="preview-access">Everyone</span><span id="preview-mode">One click</span></div>
+          <p class="preview-note">A preview of your selected rules. Save to apply them to your server.</p>
+        </aside>
+        </div>
       </section>
       <noscript><p>Enable JavaScript to sign in and manage Vozen Music settings.</p></noscript>
     </main>
