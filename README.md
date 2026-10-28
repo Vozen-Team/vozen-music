@@ -160,3 +160,12 @@ The Music connected to Discord from the VPS, and Discord's API confirmed all eig
 The initial Docker release image compiled on 2026-10-27 and passed its offline catalog check as user `10001:10001` with a read-only filesystem and no network. The expanded-catalog revision has 11 unit tests, including rejection of undocumented/non-instrumental tracks and validation of all bundled paths. These checks do not prove the absence of vocals or live Discord audibility.
 
 No Spotify/YouTube search, member-supplied URLs, payments, central entitlements, personalization, rain mixing, crossfade, or playback recovery after restart. One voice connection per server. The dashboard currently controls skip settings only.
+
+## Code license
+
+Vozen Music source code is licensed under AGPL-3.0-only. See [LICENSE](LICENSE).
+
+Audio recordings and other third-party material keep their own licenses and notices.
+The recording licenses and attribution evidence remain in [licenses/README.md](licenses/README.md)
+and [licenses/catalog-sources.json](licenses/catalog-sources.json). AGPL-3.0-only applies
+to the project code; it does not replace those recording licenses.
