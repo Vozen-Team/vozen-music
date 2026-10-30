@@ -17,7 +17,7 @@ async function api(path, options = {}) {
   try { data = await response.json(); } catch { throw new Error('The server could not respond. Please try again.'); }
   if (!response.ok) {
     if (response.status === 401) signedOut();
-    throw new Error(data.error || 'The request failed. Please try again.');
+    throw Object.assign(new Error(data.error || 'The request failed. Please try again.'), {status: response.status});
   }
   return data;
 }
@@ -161,6 +161,10 @@ window.addEventListener('beforeunload', (event) => { if (changed() || saving) { 
     await refreshServers();
   } catch (error) {
     signedOut();
+    if (error.status === 401 && !location.search.includes('login=cancelled')) {
+      location.replace('https://vozen.org/account/?music=1');
+      return;
+    }
     if (location.search.includes('login=cancelled')) notice('Discord sign-in was cancelled. You can try again.');
     else if (!error.message.includes('Sign in') && !error.message.includes('session expired')) notice(error.message, 'error');
   }
