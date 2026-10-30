@@ -44,10 +44,11 @@
     </header>
   <div class="shell">
     <aside id="sidebar" hidden aria-label="Server navigation">
-      <div class="music-identity"><img src="/music/avatar.png" alt="" width="44" height="44"><div><strong>Vozen Music</strong><span>Server dashboard</span></div></div>
-      <h2>Your servers</h2>
+      <div class="music-identity"><img src="/music/avatar.png" alt="" width="44" height="44"><div><select id="product-switcher" aria-label="Product"><option value="tts">Vozen TTS</option><option value="music" selected>Vozen Music</option><option value="helper">Vozen Helper</option></select><span>Server dashboard</span></div></div>
+      <label for="server-select" class="small">Current server</label>
       <p class="small">Servers you manage with Vozen Music installed.</p>
-      <nav id="servers" aria-label="Choose a server"></nav>
+      <div id="servers"><select id="server-select" aria-label="Current server"></select></div>
+      <button type="button" id="sections-trigger" aria-expanded="false">Sections ▾</button>
       <button class="quiet logout" id="logout" type="button">Sign out of Music</button>
       <a class="install" href="https://discord.com/oauth2/authorize?client_id=1564573935234973817&amp;scope=bot%20applications.commands&amp;permissions=3148800&amp;integration_type=0" target="_blank" rel="noopener noreferrer">Add Music to a server <span aria-hidden="true">↗</span></a>
     </aside>
@@ -93,7 +94,7 @@
             <div class="roles" id="roles"></div>
             <p class="help">Without custom roles, Moderate Members, Kick Members, Ban Members or Manage Messages qualifies.</p>
           </fieldset>
-          <div class="savebar"><div><p id="save-state" class="save-state" role="status">All changes saved</p><p id="save-description">Changes apply to this server only. Saving clears current skip votes.</p></div><button class="primary" id="save" type="submit" disabled>Save changes</button></div>
+          <div class="savebar"><div><p id="save-state" class="save-state" role="status">All changes saved</p><p id="save-description">Changes apply to this server only. Saving clears current skip votes.</p></div><button type="button" id="discard">Discard</button><button class="primary" id="save" type="submit" disabled>Save changes</button></div>
         </form>
         <aside class="skip-preview" aria-labelledby="preview-heading">
           <h2 id="preview-heading">Your Skip button</h2>

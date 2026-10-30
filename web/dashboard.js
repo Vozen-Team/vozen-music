@@ -50,6 +50,9 @@ function update() {
   $('save').disabled = saving || !dirty;
   $('save-state').textContent = saving ? 'Saving your changes…' : dirty ? 'You have unsaved changes' : 'All changes saved';
   $('save-state').dataset.state = dirty ? 'unsaved' : 'saved';
+  $('discard').disabled=saving||!dirty||baseline==='deleted-roles';
+  document.querySelector('.savebar').classList.toggle('is-dirty',dirty||saving);
+  $('server-select').disabled=saving;
   $('preview-access').textContent = selected.access === 'moderators' ? 'Moderators only' : 'Everyone';
   $('preview-mode').textContent = selected.mode === 'majority' ? 'Majority vote' : 'One click';
   $('preview-title').textContent = selected.mode === 'majority' ? 'Let the room decide.' : 'One click. Next track.';
@@ -65,23 +68,10 @@ function update() {
 }
 
 function renderServers() {
-  $('servers').replaceChildren();
-  for (const guild of serverList) {
-    const button = document.createElement('button');
-    button.className = 'server'; button.type = 'button';
-    button.setAttribute('aria-current', String(guild.id === current));
-    const initial = document.createElement('span');
-    initial.className = 'server-initial'; initial.textContent = guild.name.slice(0, 1).toUpperCase();
-    initial.setAttribute('aria-hidden', 'true');
-    const name = document.createElement('span'); name.textContent = guild.name;
-    button.append(initial, name);
-    button.addEventListener('click', () => {
-      if (guild.id === current || saving) return;
-      if (changed() && !window.confirm('Discard your unsaved changes and switch servers?')) return;
-      loadServer(guild.id);
-    });
-    $('servers').append(button);
-  }
+  const select=$('server-select');select.replaceChildren();
+  for(const guild of serverList)select.add(new Option(guild.name,guild.id,false,guild.id===current));
+  select.disabled=saving;
+
 }
 
 async function loadServer(id) {
@@ -247,3 +237,11 @@ document.addEventListener('keydown', event => {
 document.addEventListener('click', event => { if (!$('nav').contains(event.target)) closeNavigation(); });
 window.matchMedia('(min-width:1280px)').addEventListener('change', event => { if (event.matches) closeNavigation(); });
 window.addEventListener('scroll', () => $('nav').classList.toggle('is-stuck', scrollY > 12), {passive:true});
+
+$('server-select').addEventListener('change',event=>{const id=event.target.value;if(saving||id===current)return;if(changed()&&!confirm('Discard your unsaved changes and switch servers?')){event.target.value=current;return;}loadServer(id);});
+$('product-switcher').addEventListener('change',event=>{if(saving||changed()&&!confirm('You have unsaved changes. Leave this panel?')){event.target.value='music';return;}location.assign(event.target.value==='tts'?'https://vozen.org/dashboard.html':'https://vozen.org/panel/features/');});
+$('discard').addEventListener('click',()=>{if(saving||!baseline||baseline==='deleted-roles')return;const saved=JSON.parse(baseline),form=$('settings-form');form.elements.access.value=saved.access;form.elements.mode.value=saved.mode;$('majority-scope').value=saved.majority_scope;for(const role of $('roles').querySelectorAll('input'))role.checked=saved.moderator_roles.includes(role.value);notice('');update();});
+function closeSections(focus){$('sidebar').classList.remove('sections-open');$('sections-trigger').setAttribute('aria-expanded','false');if(focus)$('sections-trigger').focus();}
+$('sections-trigger').addEventListener('click',()=>{const open=$('sidebar').classList.toggle('sections-open');$('sections-trigger').setAttribute('aria-expanded',String(open));});
+$('sidebar').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeSections(true);}});
+if(window.visualViewport){const resize=()=>document.documentElement.style.setProperty('--keyboard-offset',Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop)+'px');visualViewport.addEventListener('resize',resize);visualViewport.addEventListener('scroll',resize);}
