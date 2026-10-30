@@ -72,3 +72,5 @@ body{background:radial-gradient(65% 48% at 0 0,rgba(94,112,255,.19),transparent 
 
 /* Login and loading occupy the workspace when server navigation is hidden. */
 .shell:has(#sidebar[hidden]){grid-template-columns:minmax(0,1fr)}
+
+@supports(appearance:base-select){#sidebar select{align-items:center;white-space:nowrap;padding-inline:12px}#sidebar select::picker-icon{margin-inline-start:auto;align-self:center;flex-shrink:0}}
