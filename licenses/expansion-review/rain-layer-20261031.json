@@ -1,0 +1,33 @@
+{
+  "title": "rain and thunders",
+  "artist": "kindland",
+  "source_url": "https://opengameart.org/content/rain-and-thunders",
+  "download_url": "https://opengameart.org/sites/default/files/Dark_Rainy_Night%28ambience%29.ogg",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "checked_on": "2026-10-31",
+  "source_page_sha256": "7de8fa49199749ff3861538e9ef19edbd71983d0d9706ab452ec67dba41ebe13",
+  "file": "output/station-research/downloads/rain-and-thunders.ogg",
+  "sha256": "115c233f9f8bc793f12723030aaae6cfda923e565c32a8e54bb274b2a8199ee1",
+  "note": "Author describes a mix using their own rain recording and thunder plugins. No independent full listening review.",
+  "technical_review": {
+    "sha256": "115c233f9f8bc793f12723030aaae6cfda923e565c32a8e54bb274b2a8199ee1",
+    "pcm_sha256": "6656a2d6dbdf371dd6466e1c5a44f0a661a2ce3ff4a3cc50a99cd46f2c8fd5e5",
+    "bytes": 6770906,
+    "duration_seconds": 278.774036,
+    "sample_rate": 44100,
+    "channels": 2,
+    "codec": "vorbis",
+    "bit_rate": 194305,
+    "decoded_in_full": true,
+    "input_lufs": -20.36,
+    "input_true_peak_dbfs": 0.55,
+    "loudness_range_lu": 7.6,
+    "gain_db": -2.55,
+    "projected_lufs": -22.91,
+    "projected_true_peak_dbfs": -1.9999999999999998,
+    "silence_events": [],
+    "voice_content_checked": false,
+    "subjective_quality_checked": false
+  }
+}

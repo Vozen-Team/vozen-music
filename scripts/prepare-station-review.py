@@ -23,9 +23,10 @@ def prepare(track):
     assert destination.is_relative_to(REVIEW.resolve())
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists():
+        assert not track.get('mix_recipe'), 'Render the fixed rain mix with scripts/mix-rain-review.py first'
         temporary = destination.with_suffix('.part')
         if track.get('archive'):
-            archive = (ROOT / track['archive']).resolve()
+            archive = (ROOT / track['archive'].replace('\\', '/')).resolve()
             assert archive.is_relative_to((ROOT / 'output/station-research').resolve())
             if not archive.exists():
                 archive.parent.mkdir(parents=True, exist_ok=True)
@@ -101,6 +102,8 @@ def main():
     manifest['technical_errors'] = errors
     MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
     (REVIEW / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
+    for source, destination in [('station-review.html', 'index.html'), ('station-review.js', 'review.js')]:
+        (REVIEW / destination).write_bytes((ROOT / 'scripts' / source).read_bytes())
     print(f'Completed {len(completed)}/75; {len(errors)} technical errors. Human listening and Rain suitability remain unapproved.', flush=True)
     for error in errors:
         print(error, flush=True)
