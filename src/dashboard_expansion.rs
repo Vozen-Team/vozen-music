@@ -355,6 +355,40 @@ struct ProfileEdit {
     banner: Option<String>,
     reset: Option<bool>,
 }
+fn animated_image(bytes: &[u8]) -> bool {
+    let png = bytes.starts_with(b"\x89PNG\r\n\x1a\n");
+    let webp = bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP";
+    if !png && !webp {
+        return false;
+    }
+    let mut offset = if png { 8 } else { 12 };
+    while offset + 12 <= bytes.len() {
+        let (kind, length) = if png {
+            (
+                &bytes[offset + 4..offset + 8],
+                u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize,
+            )
+        } else {
+            (
+                &bytes[offset..offset + 4],
+                u32::from_le_bytes(bytes[offset + 4..offset + 8].try_into().unwrap()) as usize,
+            )
+        };
+        if png && kind == b"acTL" || webp && (kind == b"ANIM" || kind == b"ANMF") {
+            return true;
+        }
+        let overhead = if png { 12 } else { 8 + (length % 2) };
+        let Some(next) = offset
+            .checked_add(length)
+            .and_then(|n| n.checked_add(overhead))
+        else {
+            return false;
+        };
+        offset = next;
+    }
+    false
+}
+
 fn profile_image(data: &str) -> Result<String, Error> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     if data.len() > 2_800_000 {
@@ -371,7 +405,7 @@ fn profile_image(data: &str) -> Result<String, Error> {
         .ok_or("Upload a PNG, JPEG or WebP image.")?
         .1;
     let bytes = STANDARD.decode(encoded)?;
-    if bytes.len() > 2 * 1024 * 1024 || bytes.windows(4).any(|w| w == b"acTL" || w == b"ANIM") {
+    if bytes.len() > 2 * 1024 * 1024 || animated_image(&bytes) {
         return Err("Choose a static image up to 2 MB.".into());
     }
     let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format()?;
@@ -530,6 +564,21 @@ mod expansion_web_tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    }
+    #[test]
+    fn static_jpeg_comments_are_not_mistaken_for_animation() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let image = image::DynamicImage::new_rgb8(2, 2);
+        let mut output = std::io::Cursor::new(Vec::new());
+        image
+            .write_to(&mut output, image::ImageFormat::Jpeg)
+            .unwrap();
+        let bytes = output.into_inner();
+        let mut commented = bytes[..2].to_vec();
+        commented.extend_from_slice(b"\xff\xfe\x00\x06ANIM");
+        commented.extend_from_slice(&bytes[2..]);
+        let input = format!("data:image/jpeg;base64,{}", STANDARD.encode(commented));
+        assert!(profile_image(&input).is_ok());
     }
     #[test]
     fn image_processing_rejects_urls_corrupt_and_oversized_data() {
