@@ -1,34 +1,179 @@
 // Local UI fixture only: no Discord credentials, gateway or production data.
-import http from 'node:http';
-import fs from 'node:fs';
-import path from 'node:path';
-const root=path.resolve(import.meta.dirname,'..');
-let settings={revision:0,skip:{access:'everyone',mode:'instant',majority_scope:'call',moderator_roles:[]},volume:100,default_station:'lofi',radio_mode:'session',voice_channel:null,voice_rules:{allow:false,channels:[]},text_rules:{allow:false,channels:[]},dj_roles:[],djs_only:false,player_locked:false,announcements:true,announcement_channel:null,tips:false,statistics:false};
-let personal={privacy:{enabled:false,visible:false},seconds:0,ratings:{}};
-const stations=JSON.parse(fs.readFileSync(path.join(root,'catalog.json'),'utf8')).stations.map(s=>({...s,tracks:s.tracks.map(t=>({...t,source:t.source_url}))}));
-stations.push({id:'my',name:'My Station',tracks:[]});
-const server=http.createServer(async(req,res)=>{
- const url=new URL(req.url,'http://localhost'),p=url.pathname;
- const json=(data,status=200)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
- if(p==='/music/api/me')return json({csrf:'local-fixture',user:{id:'1',username:'Local preview'}});
- if(p==='/music/api/guilds')return json({guilds:[{id:'1',name:'Example server'}]});
- if(p==='/music/api/stations')return json({stations,pending:['night','rain','sleep']});
- if(p.startsWith('/music/api/guilds/1/')){
-  const action=p.split('/').at(-1);let body={};if(req.method!=='GET'){let text='';for await(const chunk of req){text+=chunk;if(text.length>6*1024*1024){res.writeHead(413);res.end();return;}}try{body=JSON.parse(text);}catch{return json({error:'Invalid JSON'},400);}}
-  if(action==='server-settings'){
-   if(req.method==='PUT'){if(body.revision!==settings.revision)return json({error:'Settings changed. Reload before saving.'},409);if(body.volume<0||body.volume>100)return json({error:'Volume must be 0–100.'},400);settings={...body,revision:settings.revision+1};}
-   return json({settings,roles:[{id:'2',name:'DJ'},{id:'3',name:'Moderator'}],channels:[{id:'4',name:'Lounge',voice:true},{id:'5',name:'music',voice:false}],session:null});
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+const root = path.resolve(import.meta.dirname, "..");
+let settings = {
+  revision: 0,
+  skip: {
+    access: "everyone",
+    mode: "instant",
+    majority_scope: "call",
+    moderator_roles: [],
+  },
+  volume: 100,
+  default_station: "lofi",
+  radio_mode: "session",
+  voice_channel: null,
+  voice_rules: { allow: false, channels: [] },
+  text_rules: { allow: false, channels: [] },
+  dj_roles: [],
+  djs_only: false,
+  player_locked: false,
+  announcements: true,
+  announcement_channel: null,
+  tips: false,
+  statistics: false,
+};
+let personal = {
+  privacy: { enabled: false, visible: false },
+  seconds: 0,
+  ratings: {},
+};
+const stations = JSON.parse(
+  fs.readFileSync(path.join(root, "catalog.json"), "utf8"),
+).stations.map((s) => ({
+  ...s,
+  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url })),
+}));
+stations.push({ id: "my", name: "My Station", tracks: [] });
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://localhost"),
+    p = url.pathname;
+  const json = (data, status = 200) => {
+    res.writeHead(status, {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    });
+    res.end(JSON.stringify(data));
+  };
+  if (p === "/music/api/me")
+    return json({
+      csrf: "local-fixture",
+      user: { id: "1", username: "Local preview" },
+    });
+  if (p === "/music/api/guilds")
+    return json({ guilds: [{ id: "1", name: "Example server" }] });
+  if (p === "/music/api/stations")
+    return json({ stations, pending: ["night", "rain", "sleep"] });
+  if (p.startsWith("/music/api/guilds/1/")) {
+    const action = p.split("/").at(-1);
+    let body = {};
+    if (req.method !== "GET") {
+      let text = "";
+      for await (const chunk of req) {
+        text += chunk;
+        if (text.length > 6 * 1024 * 1024) {
+          res.writeHead(413);
+          res.end();
+          return;
+        }
+      }
+      try {
+        body = JSON.parse(text);
+      } catch {
+        return json({ error: "Invalid JSON" }, 400);
+      }
+    }
+    if (action === "server-settings") {
+      if (req.method === "PUT") {
+        if (body.revision !== settings.revision)
+          return json(
+            { error: "Settings changed. Reload before saving." },
+            409,
+          );
+        if (body.volume < 0 || body.volume > 100)
+          return json({ error: "Volume must be 0–100." }, 400);
+        settings = { ...body, revision: settings.revision + 1 };
+      }
+      return json({
+        settings,
+        roles: [
+          { id: "2", name: "DJ" },
+          { id: "3", name: "Moderator" },
+        ],
+        channels: [
+          { id: "4", name: "Lounge", voice: true },
+          { id: "5", name: "music", voice: false },
+        ],
+        session: null,
+      });
+    }
+    if (action === "personal") {
+      if (body.privacy) personal.privacy = body.privacy;
+      if (body.erase_statistics)
+        personal = {
+          ...personal,
+          seconds: 0,
+          privacy: { enabled: false, visible: false },
+        };
+      if (body.clear_ratings) personal.ratings = {};
+      return json(personal);
+    }
+    if (action === "community") return json({ rows: [] });
+    if (action === "playback")
+      return json(
+        {
+          error:
+            "Start Music in a voice channel first. This preview does not connect to Discord.",
+        },
+        409,
+      );
+    if (action === "profile")
+      return req.method === "GET"
+        ? json({ nick: "Vozen Music", bio: "" })
+        : json(
+            {
+              error:
+                "Profile changes require the real Discord dashboard. This page is a local UI fixture.",
+            },
+            400,
+          );
   }
-  if(action==='personal'){if(body.privacy)personal.privacy=body.privacy;if(body.erase_statistics)personal={...personal,seconds:0,privacy:{enabled:false,visible:false}};if(body.clear_ratings)personal.ratings={};return json(personal);}
-  if(action==='community')return json({rows:[]});
-  if(action==='playback')return json({error:'Start Music in a voice channel first. This preview does not connect to Discord.'},409);
-  if(action==='profile')return req.method==='GET'?json({nick:'Vozen Music',bio:''}):json({error:'Profile changes require the real Discord dashboard. This page is a local UI fixture.'},400);
- }
- if(p==='/music/auth/logout')return json({saved:true});
- const mapping={'/music/dashboard':'web/dashboard.html','/music/':'web/dashboard.html','/music/avatar.png':'assets/brand/v4/vozen-music-avatar.png','/music/css/global-nav-v1.css':'web/global-nav-v1.css','/music/header-font.woff2':'web/header-font.woff2'};
- const relative=mapping[p]??(p.startsWith('/music/')?'web/'+p.slice(7):'');
- const file=path.resolve(root,relative);if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404);res.end();return;}
- const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.svg':'image/svg+xml','.woff2':'font/woff2'};res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');
- let bytes=fs.readFileSync(file);if(file.endsWith('dashboard.html'))bytes=Buffer.from(bytes.toString().replace('<main id="main" tabindex="-1">','<main id="main" tabindex="-1"><p class="small">Local UI preview · sample server · no Discord actions</p>'));res.end(bytes);
+  if (p === "/music/auth/logout") return json({ saved: true });
+  const mapping = {
+    "/music/dashboard": "web/dashboard.html",
+    "/music/": "web/dashboard.html",
+    "/music/avatar.png": "assets/brand/v4/vozen-music-avatar.png",
+    "/music/css/global-nav-v1.css": "web/global-nav-v1.css",
+    "/music/header-font.woff2": "web/header-font.woff2",
+  };
+  const relative =
+    mapping[p] ?? (p.startsWith("/music/") ? "web/" + p.slice(7) : "");
+  const file = path.resolve(root, relative);
+  if (
+    !file.startsWith(root + path.sep) ||
+    !fs.existsSync(file) ||
+    !fs.statSync(file).isFile()
+  ) {
+    res.writeHead(404);
+    res.end();
+    return;
+  }
+  const types = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".woff2": "font/woff2",
+  };
+  res.setHeader(
+    "Content-Type",
+    types[path.extname(file)] || "application/octet-stream",
+  );
+  let bytes = fs.readFileSync(file);
+  if (file.endsWith("dashboard.html"))
+    bytes = Buffer.from(
+      bytes
+        .toString()
+        .replace(
+          '<main id="main" tabindex="-1">',
+          '<main id="main" tabindex="-1"><p class="small">Local UI preview · sample server · no Discord actions</p>',
+        ),
+    );
+  res.end(bytes);
 });
-server.listen(4783,'127.0.0.1',()=>console.log('Music UI fixture: http://localhost:4783/music/dashboard'));
+server.listen(4783, "127.0.0.1", () =>
+  console.log("Music UI fixture: http://localhost:4783/music/dashboard"),
+);
