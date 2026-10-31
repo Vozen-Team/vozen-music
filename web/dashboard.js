@@ -430,7 +430,7 @@ function render() {
       [
         "Current playback",
         model.session
-          ? `${model.session.station} · ${model.session.track}`
+          ? `${model.session.active === false ? "Stopped" : model.session.paused ? "Paused" : "Playing"} · ${model.session.station} · ${model.session.track}`
           : "No active session",
       ],
     ])

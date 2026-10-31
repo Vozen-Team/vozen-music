@@ -186,7 +186,7 @@ impl Runtime {
             &ratings,
             tracks.get(current).map(|t| t.id.as_str()),
             catalog.stations[session.station].id == "my",
-            session.turn.fetch_add(1, Ordering::SeqCst),
+            session.turn.load(Ordering::SeqCst),
         );
         if eligible.is_empty() {
             return Ok(None);

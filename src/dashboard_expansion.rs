@@ -111,7 +111,7 @@ async fn expanded_settings(
         .map(|r| serde_json::json!({"id":r.id.to_string(),"name":r.name}))
         .collect();
     let channels=guild.channels(&state.http).await.map_err(|_|unavailable())?.values().filter(|c|matches!(c.kind,ChannelType::Voice|ChannelType::Text)).map(|c|serde_json::json!({"id":c.id.to_string(),"name":c.name,"voice":c.kind==ChannelType::Voice})).collect::<Vec<_>>();
-    let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
+    let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
         serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session}),
     ))

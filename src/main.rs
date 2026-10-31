@@ -103,6 +103,7 @@ struct Advance {
 fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(), Error> {
     let track = &advance.catalog.stations[advance.session.station].tracks[index];
     advance.session.current.store(index, Ordering::SeqCst);
+    advance.session.turn.fetch_add(1, Ordering::SeqCst);
     // Invalidate callbacks before replacing the previous track, including its stop event.
     advance.generation = advance.session.generation.fetch_add(1, Ordering::SeqCst) + 1;
     advance
@@ -136,6 +137,11 @@ impl AudioEventHandler for Advance {
             self.session.active.store(false, Ordering::SeqCst);
             return Some(Event::Cancel);
         };
+        if !self.session.active.load(Ordering::SeqCst)
+            || self.generation != self.session.generation.load(Ordering::SeqCst)
+        {
+            return Some(Event::Cancel);
+        }
         let preferred = if let Some(r) = &self.session.runtime {
             r.next(&self.catalog, &self.session).await.unwrap_or(None)
         } else {
