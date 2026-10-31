@@ -215,7 +215,7 @@ async fn station_catalog(
 ) -> WebResult<Json<serde_json::Value>> {
     state.login(&headers, false).await?;
     Ok(Json(
-        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":["night","rain","sleep"]}),
+        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":(["night","rain","sleep"].into_iter().filter(|id| !state.bot.catalog.stations.iter().any(|s| s.id == *id)).collect::<Vec<_>>())}),
     ))
 }
 

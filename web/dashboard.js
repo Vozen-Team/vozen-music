@@ -646,12 +646,8 @@ function render() {
       c.append(details);
       editor.append(c);
     }
-    editor.append(
-      card(
-        "Night, Rain & Sleep",
-        "Pending: these stations remain unavailable until each has 25 licensed, distinct recordings and a complete listening review.",
-      ),
-    );
+    if (["night", "rain", "sleep"].some((id) => !catalog.some((s) => s.id === id)))
+      editor.append(card("More stations", "Additional stations are being prepared."));
   }
   if (page === "community") {
     editor.append(

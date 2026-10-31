@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import tarfile
 import urllib.request
 
 ROOT = Path('/srv/vozen-secure/music')
@@ -94,6 +95,9 @@ def main():
     previous = manifest['previous_image']
     assert run('docker', 'inspect', CONTAINER, '--format', '{{.Config.Image}}') == previous
     assert shutil.disk_usage(ROOT).free > 3 * (INCOMING / 'vozen-music').stat().st_size + 100 * 1024 * 1024
+    if manifest.get('bundle_files'):
+        assert digest(INCOMING / 'stations.tar.gz') == manifest['sha256']['stations.tar.gz']
+        assert shutil.disk_usage(ROOT).free > 3 * (INCOMING / 'stations.tar.gz').stat().st_size + 2 * (INCOMING / 'vozen-music').stat().st_size + 100 * 1024 * 1024
     stage = ROOT / ('expansion-stage-' + manifest['source_revision'][:8])
     tag = 'vozen-music:expansion-' + manifest['source_revision'][:8]
     legacy_path = ROOT / 'data/skip-settings.json'
@@ -101,8 +105,22 @@ def main():
         stage.mkdir(mode=0o700)
         for name in ['vozen-music', 'catalog.json']:
             shutil.copy2(INCOMING / name, stage / name)
+        if manifest.get('bundle_files'):
+            with tarfile.open(INCOMING / 'stations.tar.gz', 'r:gz') as bundle:
+                assert {m.name for m in bundle.getmembers()} == set(manifest['bundle_files'])
+                for member in bundle.getmembers():
+                    target = (stage / member.name).resolve()
+                    assert member.isfile() and target.is_relative_to(stage.resolve())
+                    assert member.name.startswith(('media/expansion/', 'licenses/'))
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(bundle.extractfile(member).read())
+                    target.chmod(0o644)
+                    assert digest(target) == manifest['bundle_files'][member.name]
         (stage / 'vozen-music').chmod(0o755)
         (stage / 'Dockerfile').write_text(f'FROM {previous}\nCOPY vozen-music /usr/local/bin/vozen-music\nCOPY catalog.json /app/catalog.json\nLABEL org.opencontainers.image.revision="{manifest["source_revision"]}"\n')
+        if manifest.get('bundle_files'):
+            with (stage / 'Dockerfile').open('a') as dockerfile:
+                dockerfile.write('COPY media/ /app/media/\nCOPY licenses/ /app/licenses/\n')
         subprocess.run(['docker', 'build', '--network=none', '-t', tag, str(stage)], check=True)
         run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', tag, '--check')
         migrate_copy(stage / 'migration-test', tag, legacy_path.read_bytes() if legacy_path.exists() else b'{}', ROOT / 'data/skip-settings.sqlite3')
@@ -142,6 +160,12 @@ def main():
         assert sorted(c['name'] for c in commands) == sorted(manifest['commands'])
         play = next(c for c in commands if c['name'] == 'play')
         assert not play['options'][0].get('required', False)
+        if manifest.get('station_counts'):
+            catalog = json.loads(run('docker', 'exec', CONTAINER, 'cat', '/app/catalog.json'))
+            assert {s['id']: len(s['tracks']) for s in catalog['stations']} == manifest['station_counts']
+            assert {'night', 'rain', 'sleep'} <= {c['value'] for c in play['options'][0]['choices']}
+            for name, expected_hash in manifest['bundle_files'].items():
+                assert run('docker', 'exec', CONTAINER, 'sha256sum', '/app/' + name).split()[0] == expected_hash
         legacy_commands = discord(env, f'applications/{app}/guilds/1524199248248176751/commands')
         legacy_names = {'play', 'station', 'nowplaying', 'pause', 'resume', 'skip', 'stop', 'skip-settings'}
         if legacy_commands and {c['name'] for c in legacy_commands} <= legacy_names:

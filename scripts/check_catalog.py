@@ -13,7 +13,7 @@ quality = json.loads((root / "licenses/audio-quality.json").read_text(encoding="
 by_quality = {record["file"]: record for record in quality["tracks"]}
 assert len(by_file) == len(records), "Duplicate provenance records"
 assert {s["id"] for s in catalog["stations"]} == {
-    "lofi", "ambient", "jazz", "electronic", "piano", "cinematic", "rock"
+    "lofi", "ambient", "jazz", "electronic", "piano", "cinematic", "rock", "night", "rain", "sleep"
 }
 seen_files, seen_audio = set(), set()
 total_seconds = 0

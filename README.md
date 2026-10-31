@@ -1,6 +1,6 @@
 # Vozen Music
 
-Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 175 recordings across seven stations, selected from sources publishing CC0 licenses and instrumental evidence. Running on the VPS since 2026-10-27, with the previous local gateway stopped. The owner confirmed audible lofi playback from the VPS; the expanded catalog has not been independently listened to in full.
+Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 250 recordings across ten stations, selected from sources publishing CC0 licenses and instrumental evidence. Running on the VPS since 2026-10-27, with the previous local gateway stopped. The owner confirmed audible lofi playback from the VPS; the expanded catalog has not been independently listened to in full.
 
 [Open the Music dashboard](https://api.vozen.org/music/dashboard) to configure skip rules through Discord login. There is no public Music marketing page in this release. See [dashboard behavior and security](web/README.md) and the [VPS operation guide](ops/README.md). Real Discord login, server settings read/save, persistence through a Music-only restart, reauthorization and restoration of the original settings were verified on 2026-10-27.
 
@@ -64,7 +64,7 @@ Policies are saved transactionally per server in `data/skip-settings.sqlite3`. T
 | `cinematic` | Vozen Cinematic | 25 |
 | `rock` | Vozen Rock | 25 |
 
-Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Rock includes metal and synthetic game-rock arrangements. Some recordings are short loops or cues. Total active playback is approximately 396 minutes across all seven stations; individual stations contain approximately 43–74 minutes before repetition. The [full catalog](CATALOG.md) lists every recording, artist, source, duration, and type of instrumental evidence.
+Use `/station station:jazz`, for example. The catalog is not limited to lofi; station placement is editorial curation and some tracks blend styles. Rock includes metal and synthetic game-rock arrangements. Some recordings are short loops or cues. Total active playback is approximately 585 minutes across all ten stations; individual stations contain approximately 43–74 minutes before repetition. The [full catalog](CATALOG.md) lists every recording, artist, source, duration, and type of instrumental evidence.
 
 Sources, hashes, durations, transformations, and instrumental evidence are recorded in [licenses/README.md](licenses/README.md) and [catalog-sources.json](licenses/catalog-sources.json). The approved recordings are included in the repository; other local audio files are ignored. The bot refuses to start if a station is empty or a track lacks explicit instrumental approval and evidence. Only the operator edits the catalog. This validates the operator's declaration, not the contents of an audio waveform.
 
@@ -159,7 +159,7 @@ The Music connected to Discord from the VPS, and Discord's API confirmed all eig
 
 The initial Docker release image compiled on 2026-10-27 and passed its offline catalog check as user `10001:10001` with a read-only filesystem and no network. The expanded-catalog revision has 11 unit tests, including rejection of undocumented/non-instrumental tracks and validation of all bundled paths. These checks do not prove the absence of vocals or live Discord audibility.
 
-No Spotify/YouTube search, member-supplied URLs, payments, central entitlements, rain mixing or crossfade. One voice connection per server. Premium, multiple calls and translations remain deferred. Night, Rain and Sleep remain unavailable while their music review is pending.
+No Spotify/YouTube search, member-supplied URLs, payments, central entitlements, runtime rain mixing or crossfade. One voice connection per server. Premium, multiple calls and translations remain deferred. Night, Rain and Sleep each have 25 recordings admitted for owner-authorised live testing on 2026-10-31. Full human listening remains pending. Rain uses fixed offline CC0 mixes; there is no runtime mixer.
 
 ## Code license
 

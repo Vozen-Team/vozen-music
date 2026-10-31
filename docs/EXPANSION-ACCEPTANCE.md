@@ -16,14 +16,14 @@ O proprietário substituiu o bot de testes pelo Music real. Não iniciar outra l
 ## Verificação
 
 - Testes Rust de migração, gravação recusada, revisões concorrentes, IDs, seleção, privacidade, uploads, autenticação/CSRF, timers, callbacks e comandos.
-- Teste otimizado de descodificação integral das 175 gravações existentes.
+- Teste otimizado de descodificação integral das 250 gravações do catálogo, incluindo75 novas.
 - UI em 320/360/390/430/768/900/1440 px; navegação, Quick Setup, guardar/recarregar, descartar, menu/Escape e ausência de overflow.
 - `cargo fmt`, Clippy com `-D warnings`, sintaxe JavaScript e revisão do diff.
 - Os resultados efetivos do corte e hashes ficam no recibo de release. Resultados offline não são prova de audição real nem de uma chamada prolongada.
 
 ## Catálogo pendente — não anunciar como concluído
 
-Night, Rain e Sleep não estão registadas como estações reproduzíveis. A pesquisa encontrou 95 candidatas num manifesto público e duas fontes adicionais, guardadas em `licenses/expansion-review/`.
+O utilizador autorizou agora testes no bot real com Night, Rain e Sleep:25 faixas por estação. Esta revisão acrescenta75 gravações de fontes CC0 OpenGameArt, incluindo25 misturas Rain fixas. Isso substitui a restrição anterior de publicação apenas após audição; não constitui confirmação de ausência de voz. As95 candidatas anteriores Open Lo-Fi/Suno não foram usadas. A aprovação no catálogo refere-se a origem/licença e autorização de teste, não a uma audição inexistente.
 
 [Unverified] O manifesto Open Lo-Fi declara CC0 e origem Suno. Isso não é uma verificação independente de direitos, ausência de voz, qualidade ou chuva incorporada. As candidatas não foram descarregadas nem aprovadas para o catálogo. As versões alternativas nas páginas OpenGameArt não podem preencher quotas de gravações distintas.
 

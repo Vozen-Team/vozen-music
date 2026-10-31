@@ -1,6 +1,6 @@
 # Vozen Music catalog
 
-175 recordings across seven stations. Source and objective audio review: 2026-10-27.
+250 recordings across ten stations. Original175 reviewed2026-10-27; new75 source/technical checks2026-10-31, admitted for owner-authorised live testing. Full listening remains pending.
 
 Source license and instrumental evidence: [catalog-sources.json](licenses/catalog-sources.json). Objective levels, gain, sample rates, and file hashes: [audio-quality.json](licenses/audio-quality.json).
 
@@ -229,3 +229,99 @@ Eight lower-quality/anomalous recordings were replaced. Long near-silent tails w
 | [Theme of Mini-Tank](https://opengameart.org/content/theme-of-mini-tank) | Spring Spring | 2:45 | Inference |
 | [Theme Song Remake](https://opengameart.org/content/cc0-remakes) | Umplix (CC0 Remakes) | 1:29 | Source declaration |
 | [Wine Less Cry More](https://opengameart.org/content/wine-less-cry-more) | Pro Sensory | 2:54 | Source declaration |
+
+## Vozen Night
+
+25 tracks; 69.72 minutes. Live testing authorised; no complete human vocal audit.
+
+| Track | Artist | Duration | Instrumental evidence |
+| --- | --- | --- | --- |
+| [Not It (Lofi)](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:57 | Source-based; listening pending |
+| [Fire Place](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:50 | Source-based; listening pending |
+| [Small Towns Smaller Lives](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:23 | Source-based; listening pending |
+| [Winter Blues](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 3:43 | Source-based; listening pending |
+| [All The Way Sad](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 3:06 | Source-based; listening pending |
+| [Shut up, or shut in](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:00 | Source-based; listening pending |
+| [Yesterday](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:31 | Source-based; listening pending |
+| [Cellar Door](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:12 | Source-based; listening pending |
+| [Seasons Change](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:15 | Source-based; listening pending |
+| [Mixed Signals](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 1:49 | Source-based; listening pending |
+| [Static](https://opengameart.org/content/sad-lo-fi-lofi-collectioni) | Holizna | 2:25 | Source-based; listening pending |
+| [First Snow](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:51 | Source-based; listening pending |
+| [Laundry On The Wire](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 3:00 | Source-based; listening pending |
+| [Everything You Ever Dreamed](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 3:34 | Source-based; listening pending |
+| [Keeping Cool](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:33 | Source-based; listening pending |
+| [Snow Drift](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:54 | Source-based; listening pending |
+| [Windows Down](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:46 | Source-based; listening pending |
+| [2 Hour Delay](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:12 | Source-based; listening pending |
+| [Glad To Be Stuck Inside](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:41 | Source-based; listening pending |
+| [Vintage](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:54 | Source-based; listening pending |
+| [Moil](https://opengameart.org/content/moil) | Ruskerdax | 3:05 | Source-based; listening pending |
+| [Lonely Night](https://opengameart.org/content/lonely-night) | Centurion_of_war | 1:04 | Source-based; listening pending |
+| [Night Shift](https://opengameart.org/content/night-shift) | iamoneabe | 4:29 | Source-based; listening pending |
+| [Alison Night](https://opengameart.org/content/alison-night) | Fupi | 3:20 | Source-based; listening pending |
+| [Bartender](https://opengameart.org/content/lofi-compilation) | TAD | 4:07 | Source-based; listening pending |
+
+## Vozen Rain
+
+25 tracks; 58.27 minutes. Live testing authorised; no complete human vocal audit.
+
+| Track | Artist | Duration | Instrumental evidence |
+| --- | --- | --- | --- |
+| [Morning Coffee](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 3:12 | Source-based; listening pending |
+| [A Little Shade](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 2:59 | Source-based; listening pending |
+| [Ghosts](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 1:30 | Source-based; listening pending |
+| [Whatever](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 3:51 | Source-based; listening pending |
+| [Ramen](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 1:53 | Source-based; listening pending |
+| [Pretty Little Lies](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 3:30 | Source-based; listening pending |
+| [So Broke](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 3:42 | Source-based; listening pending |
+| [Come Again](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 3:00 | Source-based; listening pending |
+| [Something In the Air](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 2:12 | Source-based; listening pending |
+| [Waves](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 2:13 | Source-based; listening pending |
+| [Creature Comforts](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 2:55 | Source-based; listening pending |
+| [Foggy Headed](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna + kindland | 4:06 | Source-based; listening pending |
+| [Sunshine Coast](https://opengameart.org/content/jrpg-pack-2-towns) | SubspaceAudio + kindland | 1:52 | Source-based; listening pending |
+| [Bazaar](https://opengameart.org/content/jrpg-pack-2-towns) | SubspaceAudio + kindland | 1:50 | Source-based; listening pending |
+| [Home Town](https://opengameart.org/content/jrpg-pack-2-towns) | SubspaceAudio + kindland | 1:30 | Source-based; listening pending |
+| [Where Time Stands Still](https://opengameart.org/content/jrpg-pack-2-towns) | SubspaceAudio + kindland | 1:16 | Source-based; listening pending |
+| [A cup of tea](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 2:49 | Source-based; listening pending |
+| [Cue](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 2:27 | Source-based; listening pending |
+| [Cat caffe](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 2:13 | Source-based; listening pending |
+| [Rainy Forest](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 1:40 | Source-based; listening pending |
+| [Countryside](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 1:32 | Source-based; listening pending |
+| [Oceanside](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 1:43 | Source-based; listening pending |
+| [Florist](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 1:53 | Source-based; listening pending |
+| [Morning rain](https://opengameart.org/content/lofi-compilation) | TAD + kindland | 1:04 | Source-based; listening pending |
+| [School day / Rain / Sun / Loop](https://opengameart.org/content/school-day-rain-sun-loop) | KiluaBoy + kindland | 1:25 | Source-based; listening pending |
+
+## Vozen Sleep
+
+25 tracks; 61.0 minutes. Live testing authorised; no complete human vocal audit.
+
+| Track | Artist | Duration | Instrumental evidence |
+| --- | --- | --- | --- |
+| [Aurora](https://opengameart.org/content/aurora-0) | Trex0n | 1:20 | Source-based; listening pending |
+| [Icy Realm - (Seven and Eight)](https://opengameart.org/content/icy-realm-seven-and-eight) | cynicmusic | 1:22 | Source-based; listening pending |
+| [Another August](https://opengameart.org/content/another-august) | cynicmusic | 3:27 | Source-based; listening pending |
+| [Sirens in Darkness](https://opengameart.org/content/sirens-in-darkness) | cynicmusic | 3:47 | Source-based; listening pending |
+| [November Snow](https://opengameart.org/content/november-snow) | cynicmusic | 5:50 | Source-based; listening pending |
+| [Aquaria](https://opengameart.org/content/aquaria) | cynicmusic | 0:44 | Source-based; listening pending |
+| [Contemplation](https://opengameart.org/content/contemplation-0) | Joth | 2:00 | Source-based; listening pending |
+| [Calm Ambient 1 (Synthwave 4k)](https://opengameart.org/content/calm-ambient-1-synthwave-4k) | cynicmusic | 2:38 | Source-based; listening pending |
+| [Calm Ambient 2 (Synthwave 15k)](https://opengameart.org/content/calm-ambient-2-synthwave-15k) | cynicmusic | 3:14 | Source-based; listening pending |
+| [Calm Ambient 3 (Lifewave 2k)](https://opengameart.org/content/calm-ambient-3-lifewave-2k) | cynicmusic | 3:01 | Source-based; listening pending |
+| [Calm Relax 1 (Synthwave 421k)](https://opengameart.org/content/calm-relax-1-synthwave-421k) | cynicmusic | 7:51 | Source-based; listening pending |
+| [Yoiyami Core Theme – Deep Blue Ambient Piano](https://opengameart.org/content/yoiyami-core-theme-%E2%80%93-deep-blue-ambient-piano) | Yoiyami | 3:55 | Source-based; listening pending |
+| [A Place I Call Home](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 0:46 | Source-based; listening pending |
+| [Childhood Friends](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 1:43 | Source-based; listening pending |
+| [Peaceful Days](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 1:04 | Source-based; listening pending |
+| [Sand Castles](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 1:11 | Source-based; listening pending |
+| [Summer Memories](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 1:05 | Source-based; listening pending |
+| [Innocence](https://opengameart.org/content/jrpg-pack-4-calm) | SubspaceAudio | 1:11 | Source-based; listening pending |
+| [Forget Me Not](https://opengameart.org/content/forget-me-not) | Kistol | 3:06 | Source-based; listening pending |
+| [Somnium](https://opengameart.org/content/somnium) | Adiutorium | 3:36 | Source-based; listening pending |
+| [Chilly Bells](https://opengameart.org/content/chilly-bells) | Pro Sensory | 2:08 | Source-based; listening pending |
+| [Dream Ambience](https://opengameart.org/content/dream-ambience) | TokyoGeisha | 2:04 | Source-based; listening pending |
+| [Small Things](https://opengameart.org/content/small-things) | 3xBlast | 1:04 | Source-based; listening pending |
+| [Starlike](https://opengameart.org/content/starlike) | Écrivain | 0:42 | Source-based; listening pending |
+| [First Light Particles – CC0 Atmospheric Piano/Ambient Track](https://opengameart.org/node/182244) | Yoiyami | 2:12 | Source-based; listening pending |
