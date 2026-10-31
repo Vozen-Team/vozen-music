@@ -1,4 +1,5 @@
 """Run as root on the verified VPS: stage first, then apply. Never opens a gateway in staging."""
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -30,21 +31,28 @@ def normalized(policies):
     return {str(g): {**p, 'moderator_roles': sorted(map(int, p['moderator_roles']))} for g, p in policies.items()}
 
 def verify_migration(folder, original):
-    with sqlite3.connect(folder / 'skip-settings.sqlite3') as db:
+    with closing(sqlite3.connect(folder / 'skip-settings.sqlite3')) as db:
         assert db.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
         assert db.execute('PRAGMA foreign_key_check').fetchall() == []
         rows = {g: json.loads(body)['skip'] for g, body in db.execute('SELECT guild,body FROM settings')}
         assert normalized(rows) == normalized(original)
 
-def migrate_copy(folder, tag, data):
+def migrate_copy(folder, tag, data, database=None):
     folder.mkdir(mode=0o700)
     os.chown(folder, 10001, 10001)
     legacy = folder / 'skip-settings.json'
     legacy.write_bytes(data)
     legacy.chmod(0o600)
     os.chown(legacy, 10001, 10001)
+    expected = json.loads(data)
+    if database is not None and database.exists():
+        target = folder / 'skip-settings.sqlite3'
+        with closing(sqlite3.connect(database)) as source, closing(sqlite3.connect(target)) as snapshot:
+            source.backup(snapshot)
+            expected = {g: json.loads(body)['skip'] for g, body in snapshot.execute('SELECT guild,body FROM settings')}
+        os.chown(target, 10001, 10001)
     run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', '-v', f'{folder}:/app/data', tag, '--check-data')
-    verify_migration(folder, json.loads(data))
+    verify_migration(folder, expected)
     assert legacy.read_bytes() == data
 
 def set_image(tag):
@@ -97,7 +105,7 @@ def main():
         (stage / 'Dockerfile').write_text(f'FROM {previous}\nCOPY vozen-music /usr/local/bin/vozen-music\nCOPY catalog.json /app/catalog.json\nLABEL org.opencontainers.image.revision="{manifest["source_revision"]}"\n')
         subprocess.run(['docker', 'build', '--network=none', '-t', tag, str(stage)], check=True)
         run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', tag, '--check')
-        migrate_copy(stage / 'migration-test', tag, legacy_path.read_bytes() if legacy_path.exists() else b'{}')
+        migrate_copy(stage / 'migration-test', tag, legacy_path.read_bytes() if legacy_path.exists() else b'{}', ROOT / 'data/skip-settings.sqlite3')
         receipt = {'sourceRevision': manifest['source_revision'], 'image': tag, 'imageId': run('docker', 'image', 'inspect', tag, '--format', '{{.Id}}'), 'migrationCopyPassed': True}
         (stage / 'staged.json').write_text(json.dumps(receipt, indent=2))
         print(json.dumps(receipt))
@@ -115,7 +123,7 @@ def main():
         shutil.copytree(ROOT / 'data', backup / 'data')
         (backup / 'data').chmod(0o700)
         original = legacy_path.read_bytes() if legacy_path.exists() else b'{}'
-        migrate_copy(stage / 'quiescent-migration-test', tag, original)
+        migrate_copy(stage / 'quiescent-migration-test', tag, original, ROOT / 'data/skip-settings.sqlite3')
         assert (ROOT / '.env').read_bytes() == env_bytes
         set_image(tag)
         subprocess.run(['systemctl', 'start', 'vozen-music'], check=True)
@@ -123,7 +131,11 @@ def main():
         assert run('docker', 'inspect', CONTAINER, '--format', '{{.Config.Image}}') == tag
         assert run('docker', 'inspect', CONTAINER, '--format', '{{range .Mounts}}{{.Source}}:{{.Destination}}{{end}}') == str(ROOT / 'data') + ':/app/data'
         assert not legacy_path.exists() or legacy_path.read_bytes() == original
-        verify_migration(ROOT / 'data', json.loads(original))
+        expected = json.loads(original)
+        if (backup / 'data/skip-settings.sqlite3').exists():
+            with closing(sqlite3.connect(backup / 'data/skip-settings.sqlite3')) as before:
+                expected = {g: json.loads(body)['skip'] for g, body in before.execute('SELECT guild,body FROM settings')}
+        verify_migration(ROOT / 'data', expected)
         env = {line.split('=', 1)[0]: line.split('=', 1)[1].strip().strip('"').strip("'") for line in (ROOT / '.env').read_text().splitlines() if '=' in line and not line.startswith('#')}
         app = env['DISCORD_APPLICATION_ID']
         commands = discord(env, f'applications/{app}/commands')
@@ -136,7 +148,7 @@ def main():
             (backup / 'legacy-guild-commands.json').write_text(json.dumps(legacy_commands, indent=2))
             discord(env, f'applications/{app}/guilds/1524199248248176751/commands', 'PUT', [])
         assert siblings() == before_siblings
-        with sqlite3.connect(ROOT / 'data/skip-settings.sqlite3') as live, sqlite3.connect(backup / 'after-cut.sqlite3') as snapshot:
+        with closing(sqlite3.connect(ROOT / 'data/skip-settings.sqlite3')) as live, closing(sqlite3.connect(backup / 'after-cut.sqlite3')) as snapshot:
             live.backup(snapshot)
             assert snapshot.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
         receipt = {**staged, 'binarySha256': manifest['sha256']['vozen-music'], 'catalogSha256': manifest['sha256']['catalog.json'], 'rollbackImage': previous, 'backup': str(backup), 'skipPoliciesPreserved': True, 'otherVozenContainersUnchanged': True, 'globalCommands': len(commands), 'active': True}
@@ -149,11 +161,12 @@ def main():
             json.loads(exported)
             atomic(legacy_path, exported.encode())
             os.chown(legacy_path, 10001, 10001)
-            with sqlite3.connect(ROOT / 'data/skip-settings.sqlite3') as db:
+            with closing(sqlite3.connect(ROOT / 'data/skip-settings.sqlite3')) as db:
                 for guild, body in db.execute('SELECT guild,body FROM playback').fetchall():
                     intent = json.loads(body)
                     intent['active'] = False
                     db.execute('UPDATE playback SET body=? WHERE guild=?', (json.dumps(intent), guild))
+                db.commit()
         set_image(previous)
         subprocess.run(['systemctl', 'start', 'vozen-music'], check=True)
         healthy()

@@ -1,6 +1,31 @@
 use vozen_music::expansion::{Privacy, ServerSettings};
 static PROFILE_UPLOADS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
+async fn profile_upload_guard(
+    State(state): State<Arc<Dashboard>>,
+    request: axum::extract::Request,
+    next: Next,
+) -> Response {
+    let _permit = if request.method() == axum::http::Method::PUT {
+        if let Err(error) = state.login(request.headers(), true).await {
+            return error.into_response();
+        }
+        match PROFILE_UPLOADS.try_acquire() {
+            Ok(permit) => Some(permit),
+            Err(_) => {
+                return WebError(
+                    StatusCode::TOO_MANY_REQUESTS,
+                    "Profile uploads are busy. Try again shortly.",
+                )
+                .into_response();
+            }
+        }
+    } else {
+        None
+    };
+    next.run(request).await
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct TimerEdit {
@@ -396,12 +421,6 @@ async fn save_bot_profile(
     RoutePath(value): RoutePath<String>,
     Json(edit): Json<ProfileEdit>,
 ) -> WebResult<Json<serde_json::Value>> {
-    let _upload = PROFILE_UPLOADS.try_acquire().map_err(|_| {
-        WebError(
-            StatusCode::TOO_MANY_REQUESTS,
-            "Profile uploads are busy. Try again shortly.",
-        )
-    })?;
     let login = state.login(&headers, true).await?;
     let g = GuildId::new(parse_id(&value)?);
     state.manager(g, &login).await?;
@@ -494,6 +513,23 @@ mod expansion_web_tests {
             .await
             .unwrap();
         assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
+    }
+    #[tokio::test]
+    async fn profile_authentication_precedes_json_parsing() {
+        use axum::{body::Body, http::Request};
+        let app = router(super::tests::fixture());
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/music/api/guilds/1524199248248176751/profile")
+                    .method("PUT")
+                    .header("content-type", "application/json")
+                    .body(Body::from("not JSON"))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
     #[test]
     fn image_processing_rejects_urls_corrupt_and_oversized_data() {

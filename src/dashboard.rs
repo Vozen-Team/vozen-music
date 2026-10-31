@@ -834,6 +834,10 @@ fn router(state: Arc<Dashboard>) -> Router {
             "/music/api/guilds/{guild}/profile",
             get(bot_profile)
                 .put(save_bot_profile)
+                .layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    profile_upload_guard,
+                ))
                 .layer(DefaultBodyLimit::max(6 * 1024 * 1024)),
         )
         .route("/music", get(|| async { Redirect::to("/music/dashboard") }))
