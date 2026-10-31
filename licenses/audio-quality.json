@@ -3233,14 +3233,14 @@
       "file": "expansion/night/vintage.mp3"
     },
     {
-      "sha256": "09f49455c73d2f7a6bfb3093ce4a0e26a08a97d2e90a8438d10c08aae98e1e8e",
-      "pcm_sha256": "5ef78674a48f879651d755ae585c994ad33d137facee9b6e2b665b7986a808f7",
-      "bytes": 3567208,
-      "duration_seconds": 185.077563,
+      "sha256": "0f1d39b5ab3ff14bbfa305ec1cde2c2a2a291521242a3933be9428eb3b61dfa2",
+      "pcm_sha256": "90009ae7777cb45009083f69757fa16c2903428e30c635447e72eddf8508b963",
+      "bytes": 3510421,
+      "duration_seconds": 181.346167,
       "sample_rate": 48000,
       "channels": 2,
       "codec": "vorbis",
-      "bit_rate": 154192,
+      "bit_rate": 154860,
       "decoded_in_full": true,
       "input_lufs": -15.67,
       "input_true_peak_dbfs": -0.05,
@@ -3248,11 +3248,7 @@
       "gain_db": -2.33,
       "projected_lufs": -18.0,
       "projected_true_peak_dbfs": -2.38,
-      "silence_events": [
-        "silence_start: 181.096167",
-        "silence_end: 185.077562",
-        "silence_duration: 3.981396"
-      ],
+      "silence_events": [],
       "voice_content_checked": false,
       "subjective_quality_checked": false,
       "file": "expansion/night/moil-vorbis.ogg"

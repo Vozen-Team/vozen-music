@@ -232,7 +232,7 @@ Eight lower-quality/anomalous recordings were replaced. Long near-silent tails w
 
 ## Vozen Night
 
-25 tracks; 69.72 minutes. Live testing authorised; no complete human vocal audit.
+25 tracks; 69.66 minutes. Live testing authorised; no complete human vocal audit.
 
 | Track | Artist | Duration | Instrumental evidence |
 | --- | --- | --- | --- |
@@ -256,7 +256,7 @@ Eight lower-quality/anomalous recordings were replaced. Long near-silent tails w
 | [2 Hour Delay](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:12 | Source-based; listening pending |
 | [Glad To Be Stuck Inside](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:41 | Source-based; listening pending |
 | [Vintage](https://opengameart.org/content/lo-fi-and-chill-collection) | Holizna | 2:54 | Source-based; listening pending |
-| [Moil](https://opengameart.org/content/moil) | Ruskerdax | 3:05 | Source-based; listening pending |
+| [Moil](https://opengameart.org/content/moil) | Ruskerdax | 3:01 | Source-based; listening pending |
 | [Lonely Night](https://opengameart.org/content/lonely-night) | Centurion_of_war | 1:04 | Source-based; listening pending |
 | [Night Shift](https://opengameart.org/content/night-shift) | iamoneabe | 4:29 | Source-based; listening pending |
 | [Alison Night](https://opengameart.org/content/alison-night) | Fupi | 3:20 | Source-based; listening pending |

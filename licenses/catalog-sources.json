@@ -7223,16 +7223,16 @@
         "http://creativecommons.org/publicdomain/zero/1.0/"
       ],
       "file": "media/expansion/night/moil-vorbis.ogg",
-      "sha256": "09f49455c73d2f7a6bfb3093ce4a0e26a08a97d2e90a8438d10c08aae98e1e8e",
-      "bytes": 3567208,
-      "pcm_sha256": "5ef78674a48f879651d755ae585c994ad33d137facee9b6e2b665b7986a808f7",
-      "duration_seconds": 185.077563,
+      "sha256": "0f1d39b5ab3ff14bbfa305ec1cde2c2a2a291521242a3933be9428eb3b61dfa2",
+      "bytes": 3510421,
+      "pcm_sha256": "90009ae7777cb45009083f69757fa16c2903428e30c635447e72eddf8508b963",
+      "duration_seconds": 181.346167,
       "instrumental_evidence": "Source-based instrumental classification from the CC0 music source and its music/instrument tags; not independently listened to in full. Owner explicitly authorised live testing on 2026-10-31.",
       "listening_review": "Pending; live test authorised by owner, not a completed audition",
       "approval_scope": "owner-authorised live testing; source/license and technical checks only",
       "download_url": "https://opengameart.org/sites/default/files/ruskerdax_-_moil.mp3",
       "source_page_sha256": "cfa60fc40b466aaeef27e7693e71f1f0dc21d0ae2c8b46de7f23754f2fcf6d12",
-      "transformation": "FFmpeg conversion to 48000Hz Vorbis q6 with sample-derived timestamps; source MP3 is incompatible with playback codec",
+      "transformation": "Trim measured trailing silence, retaining250ms;50ms end fade; Vorbis q6 48000Hz with sample-derived timestamps. Original MP3 incompatible with playback codec.",
       "review_source_sha256": "d496edafbca02a2a84ae1150e11b2e4d46b8a15e2ee081a676d1ae3ce996dc25"
     },
     {
