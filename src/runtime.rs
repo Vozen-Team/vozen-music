@@ -407,6 +407,15 @@ impl Bot {
         let active = self.sessions.lock().await.get(&guild).cloned();
         if let Some(s) = active {
             if let Some(r) = &s.runtime {
+                let bot_id = ctx.cache.current_user().id;
+                let actual_channel = ctx
+                    .cache
+                    .guild(guild)
+                    .and_then(|g| g.voice_states.get(&bot_id).and_then(|v| v.channel_id));
+                if actual_channel.is_some_and(|channel| channel != r.channel) {
+                    self.stop_session(ctx, guild).await?;
+                    return Ok(());
+                }
                 let deadline = s.sleep_until.load(Ordering::SeqCst);
                 let empty = humans(&ctx.cache, &ctx.http, guild, r.channel, false)
                     .await?
