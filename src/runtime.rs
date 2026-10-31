@@ -9,6 +9,7 @@ pub struct Runtime {
     pub cache: Arc<Cache>,
     pub http: Arc<Http>,
     pub settings: Arc<Mutex<SettingsStore>>,
+    pub voice: Weak<songbird::Songbird>,
 }
 
 pub async fn set_timer(
@@ -296,6 +297,7 @@ impl Bot {
             cache: ctx.cache.clone(),
             http: ctx.http.clone(),
             settings: self.settings.clone(),
+            voice: Arc::downgrade(&manager),
         }));
         let index = if let Some(id) = restore {
             self.catalog.stations[station]

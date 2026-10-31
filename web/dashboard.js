@@ -371,7 +371,12 @@ async function save() {
     baseline = JSON.stringify(draft);
     model.settings = draft;
     persistDraft();
-    notice("Settings saved for this server.", "success");
+    notice(
+      result.warning
+        ? `Settings saved for this server. ${result.warning}`
+        : "Settings saved for this server.",
+      result.warning ? "info" : "success",
+    );
     render();
   } catch (e) {
     notice(e.message, "error");

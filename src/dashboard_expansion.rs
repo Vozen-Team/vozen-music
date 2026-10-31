@@ -124,39 +124,64 @@ async fn save_expanded(
         .await
         .map_err(|_| unavailable())?;
     settings.validate_resources(guild.get(),&server.roles.keys().map(|r|r.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Voice).map(|c|c.id.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Text).map(|c|c.id.get()).collect(),&state.bot.catalog.stations.iter().map(|s|s.id.clone()).collect()).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
-    let saved = {
-        let mut store = state.bot.settings.lock().await;
-        if store
-            .db
-            .settings(guild.get())
-            .map_err(storage_error)?
-            .revision
-            != settings.revision
-        {
-            return Err(WebError(
-                StatusCode::CONFLICT,
-                "Settings changed. Reload before saving.",
-            ));
-        }
-        store.save(guild.get(), settings).map_err(storage_error)?
+    // Match command lock order: session map, voice call, then settings storage.
+    let sessions = state.bot.sessions.lock().await;
+    let active = sessions.get(&guild).cloned();
+    let call = active
+        .as_ref()
+        .and_then(|s| s.runtime.as_ref())
+        .and_then(|r| r.voice.upgrade())
+        .and_then(|v| v.get(guild));
+    let voice_guard = if let Some(call) = &call {
+        Some(call.lock().await)
+    } else {
+        None
     };
-    let active = state.bot.sessions.lock().await.get(&guild).cloned();
-    if let Some(s) = active {
+    let mut store = state.bot.settings.lock().await;
+    if store
+        .db
+        .settings(guild.get())
+        .map_err(storage_error)?
+        .revision
+        != settings.revision
+    {
+        return Err(WebError(
+            StatusCode::CONFLICT,
+            "Settings changed. Reload before saving.",
+        ));
+    }
+    let saved = store.save(guild.get(), settings).map_err(storage_error)?;
+    let mut warning = None;
+    if let Some(s) = &active {
         *s.policy.lock().map_err(|_| unavailable())? = saved.skip.clone();
         s.votes
             .lock()
             .map_err(|_| unavailable())?
             .reset(s.generation.load(Ordering::SeqCst));
-        let track = &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];
-        if let Some(h) = s.handle.lock().map_err(|_| unavailable())?.as_ref() {
-            h.set_volume(10.0_f32.powf(track.gain_db / 20.0) * saved.volume as f32 / 100.0)
-                .map_err(|_| unavailable())?;
+        if voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
+            let track =
+                &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];
+            if let Some(h) = s.handle.lock().map_err(|_| unavailable())?.as_ref()
+                && h.set_volume(10.0_f32.powf(track.gain_db / 20.0) * saved.volume as f32 / 100.0)
+                    .is_err()
+            {
+                warning = Some(
+                    "The current recording could not update its volume. The saved volume applies to future recordings.",
+                );
+            }
         }
         s.volume.store(saved.volume as usize, Ordering::SeqCst);
-        s.tips.store(saved.tips,Ordering::SeqCst);
+        s.tips.store(saved.tips, Ordering::SeqCst);
+    }
+    drop(store);
+    drop(voice_guard);
+    drop(sessions);
+    if let Some(s) = active {
         player::refresh(&state.http, &state.bot.catalog, &s, false).await;
     }
-    Ok(Json(serde_json::json!({"settings":saved})))
+    Ok(Json(
+        serde_json::json!({"settings":saved,"warning":warning}),
+    ))
 }
 
 async fn station_catalog(
