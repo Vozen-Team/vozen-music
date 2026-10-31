@@ -685,7 +685,9 @@ impl Bot {
             if erase {
                 privacy = Privacy::default();
             }
-            store.db.set_privacy(g.get(), u, privacy.clone(), erase)?;
+            if !command.data.options.is_empty() {
+                store.db.set_privacy(g.get(), u, privacy.clone(), erase)?;
+            }
             return Ok(Some(format!(
                 "Time-in-call statistics: {}. Leaderboard visibility: {}. Favorites were not changed.",
                 privacy.enabled, privacy.visible
