@@ -1,6 +1,7 @@
 mod controls;
 mod dashboard;
 mod player;
+mod runtime;
 
 use serenity::{all::*, async_trait};
 use songbird::{
@@ -31,6 +32,13 @@ struct PlayerPanel {
 }
 
 struct Session {
+    runtime: Option<Arc<runtime::Runtime>>,
+    volume: AtomicUsize,
+    turn: AtomicUsize,
+    recovery_attempts: AtomicUsize,
+    sleep_until: AtomicUsize,
+    paused: AtomicBool,
+    tips: AtomicBool,
     station: usize,
     active: AtomicBool,
     current: AtomicUsize,
@@ -38,7 +46,7 @@ struct Session {
     consecutive_errors: AtomicUsize,
     handle: SyncMutex<Option<TrackHandle>>,
     control_id: u64,
-    panel: Option<Arc<PlayerPanel>>,
+    panel: SyncMutex<Option<Arc<PlayerPanel>>>,
     policy: SyncMutex<SkipSettings>,
     votes: SyncMutex<SkipVotes>,
 }
@@ -52,6 +60,13 @@ impl Session {
         panel: Option<Arc<PlayerPanel>>,
     ) -> Self {
         Self {
+            runtime: None,
+            volume: AtomicUsize::new(100),
+            turn: AtomicUsize::new(0),
+            recovery_attempts: AtomicUsize::new(0),
+            sleep_until: AtomicUsize::new(0),
+            paused: AtomicBool::new(false),
+            tips: AtomicBool::new(false),
             station,
             active: AtomicBool::new(true),
             current: AtomicUsize::new(index),
@@ -59,18 +74,20 @@ impl Session {
             consecutive_errors: AtomicUsize::new(0),
             handle: SyncMutex::new(None),
             control_id,
-            panel,
+            panel: SyncMutex::new(panel),
             policy: SyncMutex::new(policy),
             votes: SyncMutex::new(SkipVotes::default()),
         }
     }
 }
 
+#[derive(Clone)]
 struct Bot {
     catalog: Arc<Catalog>,
+    background: Arc<AtomicBool>,
     guild: Option<GuildId>,
-    sessions: Mutex<HashMap<GuildId, Arc<Session>>>,
-    settings: Mutex<SettingsStore>,
+    sessions: Arc<Mutex<HashMap<GuildId, Arc<Session>>>>,
+    settings: Arc<Mutex<SettingsStore>>,
 }
 
 #[derive(Clone)]
@@ -94,8 +111,10 @@ fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(),
         .lock()
         .map_err(|_| "Skip votes are unavailable.")?
         .reset(advance.generation);
-    let mut audio =
-        Track::from(File::new(track.file.clone())).volume(10.0_f32.powf(track.gain_db / 20.0));
+    let mut audio = Track::from(File::new(track.file.clone())).volume(
+        10.0_f32.powf(track.gain_db / 20.0) * advance.session.volume.load(Ordering::SeqCst) as f32
+            / 100.0,
+    );
     // Errored tracks also emit End; register a single callback before playback starts.
     audio.events.add_event(
         EventData::new(Event::Track(TrackEvent::End), advance.clone()),
@@ -117,6 +136,20 @@ impl AudioEventHandler for Advance {
             self.session.active.store(false, Ordering::SeqCst);
             return Some(Event::Cancel);
         };
+        let preferred = if let Some(r) = &self.session.runtime {
+            r.next(&self.catalog, &self.session).await.unwrap_or(None)
+        } else {
+            Some(
+                (self.session.current.load(Ordering::SeqCst) + 1)
+                    % self
+                        .catalog
+                        .stations
+                        .get(self.session.station)
+                        .map(|s| s.tracks.len())
+                        .unwrap_or(1)
+                        .max(1),
+            )
+        };
         let failed = {
             let mut call = call.lock().await;
             if !self.session.active.load(Ordering::SeqCst)
@@ -137,7 +170,16 @@ impl AudioEventHandler for Advance {
                 eprintln!("An audio track failed; attempting the next station track.");
             }
             let failed = match next {
-                Some((index, errors)) => {
+                Some((_index, errors)) => {
+                    let index = if let Some(index) = preferred {
+                        index
+                    } else {
+                        self.session.paused.store(true, Ordering::SeqCst);
+                        call.stop();
+                        drop(call);
+                        let _=self.text_channel.say(&self.http,"Playback paused: no recordings match the listeners preferences. Change ratings and use /play.").await;
+                        return Some(Event::Cancel);
+                    };
                     self.session
                         .consecutive_errors
                         .store(errors, Ordering::SeqCst);
@@ -151,6 +193,11 @@ impl AudioEventHandler for Advance {
             }
             failed
         };
+        if let Some(r) = &self.session.runtime
+            && let Err(e) = r.persist(&self.catalog, &self.session, !failed).await
+        {
+            eprintln!("Could not persist playback: {e}");
+        }
         player::refresh(&self.http, &self.catalog, &self.session, failed).await;
         if failed {
             let message = CreateMessage::new()
@@ -175,7 +222,7 @@ impl Bot {
     fn commands(&self) -> Vec<CreateCommand> {
         let mut station =
             CreateCommandOption::new(CommandOptionType::String, "station", "Choose a station")
-                .required(true);
+                .required(false);
         for item in &self.catalog.stations {
             station = station.add_string_choice(&item.name, &item.id);
         }
@@ -185,7 +232,7 @@ impl Bot {
                 .add_option(station.clone()),
             CreateCommand::new("station")
                 .description("Switch stations")
-                .add_option(station),
+                .add_option(station.required(true)),
         ];
         for (name, description) in [
             ("nowplaying", "Show the current track and credits"),
@@ -197,6 +244,7 @@ impl Bot {
             commands.push(CreateCommand::new(name).description(description));
         }
         commands.push(controls::definition());
+        commands.extend(runtime::definitions());
         commands
     }
 
@@ -207,6 +255,9 @@ impl Bot {
         if self.guild.is_some_and(|allowed| guild_id != allowed) {
             return Err("This version is limited to the development server.".into());
         }
+        if let Some(reply) = self.extra_command(ctx, command).await? {
+            return Ok(reply);
+        }
         if command.data.name == "skip-settings" {
             return self.configure_skip(ctx, command).await;
         }
@@ -216,9 +267,32 @@ impl Bot {
                 .as_deref()
                 .ok_or("Server member information is unavailable.")?;
             return self
-                .request_skip(ctx, guild_id, member, command.id.get(), None)
+                .request_skip(
+                    ctx,
+                    guild_id,
+                    member,
+                    command.channel_id,
+                    command.id.get(),
+                    None,
+                )
                 .await;
         }
+        let member = command
+            .member
+            .as_deref()
+            .ok_or("Member information is unavailable.")?;
+        let config = self
+            .authorize(
+                ctx,
+                guild_id,
+                member,
+                command.channel_id,
+                !matches!(
+                    command.data.name.as_str(),
+                    "like" | "dislike" | "nowplaying"
+                ),
+            )
+            .await?;
         let manager = songbird::get(ctx)
             .await
             .ok_or("The voice connection service is unavailable.")?;
@@ -251,7 +325,7 @@ impl Bot {
                 .iter()
                 .find(|o| o.name == "station")
                 .and_then(|o| o.value.as_str())
-                .ok_or("Choose a station.")?;
+                .unwrap_or(&config.default_station);
             let station_index = self
                 .catalog
                 .stations
@@ -259,101 +333,121 @@ impl Bot {
                 .position(|s| s.id == id)
                 .ok_or("Unknown station.")?;
             let channel_id = member_channel.ok_or("Join a voice channel first.")?;
-            {
-                let guild = ctx
-                    .cache
-                    .guild(guild_id)
-                    .ok_or("The server is unavailable.")?;
-                let channel = guild
-                    .channels
-                    .get(&channel_id)
-                    .ok_or("The voice channel is unavailable.")?;
-                if channel.kind != ChannelType::Voice {
-                    return Err("This version only supports standard voice channels.".into());
-                }
-                #[allow(deprecated)]
-                let permissions = channel
-                    .permissions_for_user(&ctx.cache, ctx.cache.current_user().id)
-                    .map_err(|_| "Could not verify the bot's channel permissions.")?;
-                if !permissions
-                    .contains(Permissions::VIEW_CHANNEL | Permissions::CONNECT | Permissions::SPEAK)
-                {
-                    return Err(
-                        "The bot needs View Channel, Connect, and Speak permissions.".into(),
-                    );
-                }
-            }
-            let call = match tokio::time::timeout(
-                Duration::from_secs(15),
-                manager.join(guild_id, channel_id),
-            )
-            .await
-            {
-                Ok(Ok(call)) => call,
-                _ => {
-                    let _ = tokio::time::timeout(Duration::from_secs(5), manager.remove(guild_id))
-                        .await;
-                    return Err(
-                        "Could not join the voice channel. Check permissions and try again.".into(),
-                    );
-                }
-            };
-            let policy = self.settings.lock().await.get(guild_id.get());
-            let mut session = Session::new(station_index, 0, command.id.get(), policy, None);
-            let message = match command
-                .channel_id
-                .send_message(&ctx.http, player::message(&self.catalog, &session)?)
-                .await
-            {
-                Ok(message) => message,
-                Err(_) => {
-                    if !sessions.contains_key(&guild_id) {
-                        let _ =
-                            tokio::time::timeout(Duration::from_secs(5), manager.remove(guild_id))
-                                .await;
-                    }
-                    return Err("Could not post the player. Check View Channel and Send Messages permissions.".into());
-                }
-            };
-            session.panel = Some(Arc::new(PlayerPanel {
-                channel: command.channel_id,
-                message: message.id,
-                update: Mutex::new(()),
-            }));
-            let session = Arc::new(session);
-            let mut locked = call.lock().await;
-            let old = sessions.remove(&guild_id);
-            if let Some(old) = &old {
-                old.active.store(false, Ordering::SeqCst);
-            }
-            locked.stop();
-            let advance = Advance {
-                call: Arc::downgrade(&call),
-                catalog: self.catalog.clone(),
-                session: session.clone(),
-                http: ctx.http.clone(),
-                text_channel: command.channel_id,
-                generation: 0,
-            };
-            play_track(&mut locked, advance, 0)?;
-            sessions.insert(guild_id, session);
-            drop(locked);
             drop(sessions);
-            if let Some(old) = old {
-                player::refresh(&ctx.http, &self.catalog, &old, true).await;
-            }
-            return Ok(format!(
-                "Station selected: {}.",
-                self.catalog.stations[station_index].name
-            ));
+            return self
+                .start_session(
+                    ctx,
+                    guild_id,
+                    channel_id,
+                    command.channel_id,
+                    station_index,
+                    command.id.get(),
+                    None,
+                    None,
+                )
+                .await;
         }
         let session = sessions
             .get(&guild_id)
             .ok_or("No station is active. Use /play to start one.")?;
         let call = existing.ok_or("The bot is no longer connected. Use /play to start again.")?;
         let mut locked = call.lock().await;
+        let expected_id = command
+            .data
+            .options
+            .iter()
+            .find(|o| o.name == "player-id")
+            .and_then(|o| o.value.as_str());
+        let expected_generation = command
+            .data
+            .options
+            .iter()
+            .find(|o| o.name == "generation")
+            .and_then(|o| o.value.as_i64());
+        if expected_id.is_some_and(|id| id != session.control_id.to_string())
+            || expected_generation
+                .is_some_and(|v| v != session.generation.load(Ordering::SeqCst) as i64)
+        {
+            return Err("This player is outdated. Use /panel.".into());
+        }
+        if matches!(command.data.name.as_str(), "like" | "dislike") {
+            let track = &self.catalog.stations[session.station].tracks
+                [session.current.load(Ordering::SeqCst)];
+            self.settings.lock().await.db.rate(
+                guild_id.get(),
+                command.user.id.get(),
+                &track.id,
+                if command.data.name == "like" { 1 } else { -1 },
+            )?;
+            return Ok("Your rating was saved for this server.".into());
+        }
+        if command.data.name == "volume" {
+            if let Some(level) = command
+                .data
+                .options
+                .iter()
+                .find(|o| o.name == "level")
+                .and_then(|o| o.value.as_i64())
+            {
+                if !(0..=100).contains(&level) {
+                    return Err("Volume must be between 0 and 100.".into());
+                }
+                let mut store = self.settings.lock().await;
+                let mut cfg = store.db.settings(guild_id.get())?;
+                cfg.volume = level as u8;
+                store.save(guild_id.get(), cfg)?;
+                let track = &self.catalog.stations[session.station].tracks
+                    [session.current.load(Ordering::SeqCst)];
+                if let Some(handle) = session
+                    .handle
+                    .lock()
+                    .map_err(|_| "Audio unavailable.")?
+                    .as_ref()
+                {
+                    handle
+                        .set_volume(10.0_f32.powf(track.gain_db / 20.0) * level as f32 / 100.0)?;
+                }
+                session.volume.store(level as usize, Ordering::SeqCst);
+            }
+            return Ok(format!(
+                "Volume: {}%.",
+                session.volume.load(Ordering::SeqCst)
+            ));
+        }
+        if command.data.name == "sleep" {
+            let cancel = command
+                .data
+                .options
+                .iter()
+                .any(|o| o.name == "cancel" && o.value.as_bool() == Some(true));
+            let minutes = command
+                .data
+                .options
+                .iter()
+                .find(|o| o.name == "minutes")
+                .and_then(|o| o.value.as_i64());
+            return runtime::set_timer(&self.catalog, session, minutes, cancel).await;
+        }
+        if command.data.name == "panel" {
+            let message = command
+                .channel_id
+                .send_message(&ctx.http, player::message(&self.catalog, session)?)
+                .await?;
+            *session.panel.lock().map_err(|_| "Panel unavailable.")? =
+                Some(Arc::new(PlayerPanel {
+                    channel: command.channel_id,
+                    message: message.id,
+                    update: Mutex::new(()),
+                }));
+            return Ok("Player panel posted.".into());
+        }
         if command.data.name == "stop" {
             let stopped = session.clone();
+            let persistence = if let Some(r) = &session.runtime {
+                r.persist(&self.catalog, session, false).await
+            } else {
+                Ok(())
+            };
             session.active.store(false, Ordering::SeqCst);
             locked.stop();
             sessions.remove(&guild_id);
@@ -364,6 +458,7 @@ impl Bot {
                 .map_err(|_| "Playback stopped, but the bot could not leave the voice channel.")?;
             drop(sessions);
             player::refresh(&ctx.http, &self.catalog, &stopped, true).await;
+            persistence.map_err(|_|"Playback stopped, but its stop intent could not be saved. Check storage before restarting Music.")?;
             return Ok("Station stopped.".into());
         }
         if !session.active.load(Ordering::SeqCst) {
@@ -385,22 +480,119 @@ impl Bot {
             .clone()
             .ok_or("No track is currently playing.")?;
         match command.data.name.as_str() {
-            "pause" => handle.pause().map_err(|_| "Could not pause playback.")?,
-            "resume" => handle.play().map_err(|_| "Could not resume playback.")?,
+            "pause" => {
+                handle.pause().map_err(|_| "Could not pause playback.")?;
+                session.paused.store(true, Ordering::SeqCst);
+            }
+            "resume" => {
+                if handle
+                    .get_info()
+                    .await
+                    .map(|s| s.playing.is_done())
+                    .unwrap_or(true)
+                {
+                    let next = self
+                        .selection(session)
+                        .await?
+                        .ok_or("No recordings match the listeners' preferences.")?;
+                    play_track(
+                        &mut locked,
+                        Advance {
+                            call: Arc::downgrade(&call),
+                            catalog: self.catalog.clone(),
+                            session: session.clone(),
+                            http: ctx.http.clone(),
+                            text_channel: command.channel_id,
+                            generation: 0,
+                        },
+                        next,
+                    )?;
+                } else {
+                    handle.play().map_err(|_| "Could not resume playback.")?;
+                }
+                session.paused.store(false, Ordering::SeqCst);
+            }
             _ => return Err("Unknown command.".into()),
         }
+        let refreshed = session.clone();
+        drop(locked);
+        drop(sessions);
+        player::refresh(&ctx.http, &self.catalog, &refreshed, false).await;
         Ok("Playback control applied.".into())
     }
 }
 
 #[async_trait]
 impl EventHandler for Bot {
-    async fn ready(&self, _: Context, _: Ready) {
+    async fn ready(&self, ctx: Context, _: Ready) {
+        self.start_background(ctx).await;
         println!("Vozen Music connected to Discord.");
+    }
+
+    async fn voice_state_update(&self, ctx: Context, old: Option<VoiceState>, new: VoiceState) {
+        if let Some(guild) = new.guild_id {
+            let entered = new.channel_id.is_some()
+                && old.as_ref().and_then(|s| s.channel_id) != new.channel_id
+                && new
+                    .member
+                    .as_ref()
+                    .map(|m| !m.user.bot)
+                    .or_else(|| ctx.cache.user(new.user_id).map(|u| !u.bot))
+                    .unwrap_or(false);
+            if let Err(e) = self.reconcile(&ctx, guild, entered).await {
+                eprintln!("Voice-state reconciliation failed: {e}");
+            }
+        }
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         let interaction = match interaction {
+            Interaction::Component(button)
+                if button.data.custom_id.starts_with("vozen:action:") =>
+            {
+                let _ = button
+                    .create_response(
+                        &ctx.http,
+                        CreateInteractionResponse::Defer(
+                            CreateInteractionResponseMessage::new().ephemeral(true),
+                        ),
+                    )
+                    .await;
+                let result: Result<String, Error> = async {
+                    let parts: Vec<_> = button.data.custom_id.split(':').collect();
+                    if parts.len() != 5 {
+                        return Err("Invalid player control.".into());
+                    }
+                    let guild = button.guild_id.ok_or("Use this in a server.")?;
+                    {
+                        let sessions = self.sessions.lock().await;
+                        let session = sessions.get(&guild).ok_or("Player stopped.")?;
+                        if session.control_id.to_string() != parts[3]
+                            || session.generation.load(Ordering::SeqCst).to_string() != parts[4]
+                        {
+                            return Err("This player is outdated. Use /panel.".into());
+                        }
+                    }
+                    if !["pause", "resume", "like", "dislike", "stop"].contains(&parts[2]) {
+                        return Err("Unknown player control.".into());
+                    }
+                    let mut data = serde_json::to_value(&button)?;
+                    data["data"] =
+                        serde_json::json!({"id":"1","name":parts[2],"type":1,"options":[{"name":"player-id","type":3,"value":parts[3]},{"name":"generation","type":4,"value":parts[4].parse::<i64>()?}]});
+                    let command: CommandInteraction = serde_json::from_value(data)?;
+                    self.command(&ctx, &command).await
+                }
+                .await;
+                let _ = button
+                    .edit_response(
+                        &ctx.http,
+                        EditInteractionResponse::new()
+                            .content(result.unwrap_or_else(|e| e.to_string()))
+                            .allowed_mentions(CreateAllowedMentions::new()),
+                    )
+                    .await;
+                return;
+            }
             Interaction::Component(button) if button.data.custom_id.starts_with("vozen:skip:") => {
                 let response = CreateInteractionResponseMessage::new()
                     .ephemeral(true)
@@ -421,8 +613,15 @@ impl EventHandler for Bot {
                         .as_ref()
                         .ok_or("Server member information is unavailable.")?;
                     let target = player::target(&button.data.custom_id)?;
-                    self.request_skip(&ctx, guild, member, button.id.get(), Some(target))
-                        .await
+                    self.request_skip(
+                        &ctx,
+                        guild,
+                        member,
+                        button.channel_id,
+                        button.id.get(),
+                        Some(target),
+                    )
+                    .await
                 }
                 .await;
                 let content = result.unwrap_or_else(|error| error.to_string());
@@ -492,10 +691,30 @@ impl EventHandler for Bot {
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    if !args.is_empty() && args != ["--check"] {
-        return Err("Usage: vozen-music [--check], from the catalog directory.".into());
+    if !args.is_empty()
+        && args != ["--check"]
+        && args != ["--check-data"]
+        && args != ["--export-skip"]
+    {
+        return Err(
+            "Usage: vozen-music [--check|--check-data|--export-skip], from the catalog directory."
+                .into(),
+        );
     }
-    let catalog = Arc::new(Catalog::load(Path::new("."))?);
+    let mut loaded = Catalog::load(Path::new("."))?;
+    if args.is_empty() {
+        let tracks = loaded
+            .stations
+            .iter()
+            .flat_map(|s| s.tracks.clone())
+            .collect();
+        loaded.stations.push(vozen_music::Station {
+            id: "my".into(),
+            name: "My Station".into(),
+            tracks,
+        });
+    }
+    let catalog = Arc::new(loaded);
     if args == ["--check"] {
         let tracks: usize = catalog.stations.iter().map(|s| s.tracks.len()).sum();
         println!(
@@ -506,6 +725,21 @@ async fn main() -> Result<(), Error> {
         return Ok(());
     }
     catalog.require_audio()?;
+    if args == ["--check-data"] || args == ["--export-skip"] {
+        let store = SettingsStore::load(Path::new("data/skip-settings.json").to_path_buf())?;
+        if args == ["--export-skip"] {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&store.db.export_legacy()?)?
+            );
+        } else {
+            println!(
+                "Music SQLite data validated; {} configured server(s).",
+                store.db.servers()?.len()
+            );
+        }
+        return Ok(());
+    }
     let token = std::env::var("DISCORD_TOKEN")
         .map_err(|_| "Missing DISCORD_TOKEN for the Music application.")?;
     let application_id = std::env::var("DISCORD_APPLICATION_ID")
@@ -528,11 +762,12 @@ async fn main() -> Result<(), Error> {
         .transpose()?;
     let bot = Arc::new(Bot {
         catalog,
+        background: Arc::new(AtomicBool::new(false)),
         guild,
-        sessions: Mutex::new(HashMap::new()),
-        settings: Mutex::new(SettingsStore::load(
+        sessions: Arc::new(Mutex::new(HashMap::new())),
+        settings: Arc::new(Mutex::new(SettingsStore::load(
             Path::new("data/skip-settings.json").to_path_buf(),
-        )?),
+        )?)),
     });
     let commands = bot.commands();
     let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES;
@@ -591,9 +826,10 @@ mod tests {
         let catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         let bot = Bot {
             catalog: Arc::new(catalog),
+            background: Arc::new(AtomicBool::new(false)),
             guild: Some(GuildId::new(1)),
-            sessions: Mutex::new(HashMap::new()),
-            settings: Mutex::new(
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+            settings: Arc::new(Mutex::new(
                 SettingsStore::load(std::env::temp_dir().join(format!(
                         "vozen-unused-{}.json",
                         std::time::SystemTime::now()
@@ -602,7 +838,7 @@ mod tests {
                             .as_nanos()
                     )))
                 .unwrap(),
-            ),
+            )),
         };
         let commands = serde_json::to_value(bot.commands()).unwrap();
         let commands = commands.as_array().unwrap();
@@ -611,7 +847,7 @@ mod tests {
             .map(|c| c["name"].as_str().unwrap())
             .collect();
         assert_eq!(
-            names,
+            &names[..8],
             [
                 "play",
                 "station",
@@ -632,7 +868,7 @@ mod tests {
                 let option = &command["options"][0];
                 assert_eq!(option["name"], "station");
                 assert_eq!(option["description"], "Choose a station");
-                assert_eq!(option["required"], true);
+                assert_eq!(option["required"], command["name"] != "play");
                 assert!(!option["choices"].as_array().unwrap().is_empty());
                 assert_eq!(
                     option["choices"].as_array().unwrap().len(),

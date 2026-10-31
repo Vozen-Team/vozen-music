@@ -2,8 +2,6 @@ use crate::Error;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    fs,
-    io::Write,
     path::PathBuf,
 };
 
@@ -37,6 +35,7 @@ pub struct SkipSettings {
     pub access: SkipAccess,
     pub mode: SkipMode,
     pub majority_scope: MajorityScope,
+    #[serde(with = "crate::expansion::id_set")]
     pub moderator_roles: BTreeSet<u64>,
 }
 
@@ -95,52 +94,36 @@ impl SkipSettings {
 }
 
 pub struct SettingsStore {
-    path: PathBuf,
+    pub db: crate::expansion::Store,
     guilds: BTreeMap<u64, SkipSettings>,
 }
-
 impl SettingsStore {
     pub fn load(path: PathBuf) -> Result<Self, Error> {
-        let guilds = match fs::read(&path) {
-            Ok(bytes) => serde_json::from_slice(&bytes)?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => BTreeMap::new(),
-            Err(error) => return Err(error.into()),
-        };
-        let store = Self { path, guilds };
-        for (&guild, settings) in &store.guilds {
-            Self::validate(guild, settings)?;
+        let db = crate::expansion::Store::open(&path.with_extension("sqlite3"), &path)?;
+        let mut guilds = BTreeMap::new();
+        for guild in db.servers()? {
+            guilds.insert(guild, db.settings(guild)?.skip);
         }
-        Ok(store)
+        Ok(Self { db, guilds })
     }
-
-    fn validate(guild: u64, settings: &SkipSettings) -> Result<(), Error> {
-        if guild == 0
-            || settings.moderator_roles.contains(&0)
-            || settings.moderator_roles.contains(&guild)
-        {
-            return Err("Invalid guild or moderator role in skip settings.".into());
-        }
-        Ok(())
-    }
-
     pub fn get(&self, guild: u64) -> SkipSettings {
         self.guilds.get(&guild).cloned().unwrap_or_default()
     }
-
     pub fn set(&mut self, guild: u64, settings: SkipSettings) -> Result<(), Error> {
-        Self::validate(guild, &settings)?;
-        let mut updated = self.guilds.clone();
-        updated.insert(guild, settings);
-        let parent = self.path.parent().ok_or("Invalid settings path.")?;
-        fs::create_dir_all(parent)?;
-        let pending = self.path.with_extension("pending");
-        let mut file = fs::File::create(&pending)?;
-        file.write_all(&serde_json::to_vec_pretty(&updated)?)?;
-        file.sync_all()?;
-        drop(file);
-        fs::rename(&pending, &self.path)?;
-        self.guilds = updated;
+        let mut config = self.db.settings(guild)?;
+        config.skip = settings.clone();
+        self.db.save(guild, config)?;
+        self.guilds.insert(guild, settings);
         Ok(())
+    }
+    pub fn save(
+        &mut self,
+        guild: u64,
+        settings: crate::expansion::ServerSettings,
+    ) -> Result<crate::expansion::ServerSettings, Error> {
+        let saved = self.db.save(guild, settings)?;
+        self.guilds.insert(guild, saved.skip.clone());
+        Ok(saved)
     }
 }
 
@@ -216,6 +199,7 @@ impl SkipVotes {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn defaults_and_both_majority_scopes() {
@@ -317,13 +301,8 @@ mod tests {
         };
         assert!(store.set(11, invalid).is_err());
         assert_eq!(store.get(11), policy);
-        let original_path = store.path.clone();
-        fs::write(root.join("blocked"), b"not a directory").unwrap();
-        store.path = root.join("blocked/settings.json");
-        assert!(store.set(11, SkipSettings::default()).is_err());
-        assert_eq!(store.get(11), policy);
-        store.path = original_path;
-        fs::write(&path, b"broken JSON").unwrap();
+        drop(store);
+        fs::write(path.with_extension("sqlite3"), b"broken SQLite").unwrap();
         assert!(SettingsStore::load(path).is_err());
         assert!(root.starts_with(std::env::temp_dir()));
         fs::remove_dir_all(root).unwrap();

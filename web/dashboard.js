@@ -1,251 +1,63 @@
-'use strict';
-const $ = (id) => document.getElementById(id);
-let csrf = '', current = '', baseline = '', saving = false, sequence = 0;
-let serverList = [];
-
-function notice(message, kind = 'info') {
-  $('notice').textContent = message;
-  $('notice').dataset.kind = kind;
-  $('notice').hidden = !message;
+"use strict";
+const $=id=>document.getElementById(id);
+let csrf='',current='',saving=false,sequence=0,serverList=[],model=null,baseline='',draft=null,catalog=[],page=new URLSearchParams(location.search).get('page')||'overview',step=0;
+const pages={overview:'Overview',setup:'Quick Setup',playback:'Playback',access:'Access & Channels',stations:'Stations',community:'Community',profile:'Bot Profile'};
+const descriptions={overview:'Your Music settings at a glance.',setup:'Choose how Music should work, then review and save.',playback:'Choose the sound and behaviour of your radio.',access:'Choose who can control Music and where it can play.',stations:'Instrumental recordings, sources and credits.',community:'Optional time-in-call profiles for this server.',profile:'Change how Music looks in this server only.'};
+function el(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
+function notice(message,kind='info'){$('notice').textContent=message;$('notice').dataset.kind=kind;$('notice').hidden=!message;}
+async function api(path,options={}){const r=await fetch(`/music${path}`,{credentials:'same-origin',...options,headers:{...options.headers,...(options.method?{'X-CSRF-Token':csrf}:{})}});let data;try{data=await r.json();}catch{throw Error('The server could not respond. Try again.');}if(!r.ok){if(r.status===401)signedOut();throw Object.assign(Error(data.error||'The request failed.'),{status:r.status});}return data;}
+function signedOut(){csrf='';current='';sequence++;for(const id of ['editor','sidebar','loading','empty'])$(id).hidden=true;$('welcome').hidden=false;renderAccount(null);}
+function changed(){return !!draft&&JSON.stringify(draft)!==baseline;}
+function get(path){return path.split('.').reduce((o,k)=>o[k],draft);}
+function set(path,value){const parts=path.split('.'),key=parts.pop();parts.reduce((o,k)=>o[k],draft)[key]=value;persistDraft();updateSave();}
+function validDraft(value,base){if(!value||typeof value!=='object'||Object.keys(value).length!==Object.keys(base).length)return false;return Object.entries(base).every(([k,v])=>{const item=value[k];if(v===null)return item===null||typeof item==='string'&&/^\d+$/.test(item);if(Array.isArray(v))return Array.isArray(item)&&item.every(i=>typeof i==='string'&&/^\d+$/.test(i));if(typeof v==='object')return validDraft(item,v);return typeof item===typeof v&&(typeof item!=='number'||Number.isFinite(item));});}
+function persistDraft(){try{if(changed())localStorage.setItem(`music-draft:${current}`,JSON.stringify(draft));else localStorage.removeItem(`music-draft:${current}`);}catch{notice('This browser could not preserve your draft. Keep this tab open until you save.','error');}}
+function button(text,action,primary=false){const b=el('button',text,primary?'primary':'');b.type='button';b.addEventListener('click',()=>Promise.resolve(action()).catch(e=>notice(e.message,'error')));return b;}
+function card(title,description){const c=el('section',undefined,'music-card');c.append(el('h2',title));if(description)c.append(el('p',description,'help'));return c;}
+function field(path,label,type='text',options=[],help=''){
+ const wrap=el('div',undefined,'music-field'),id=`field-${path.replaceAll('.','-')}`;const l=el('label',label);l.htmlFor=id;wrap.append(l);
+ let input;if(type==='select'){input=el('select');for(const [value,text]of options)input.add(new Option(text,value));input.value=get(path)??'';}
+ else if(type==='multi'){input=el('div',undefined,'resource-list');input.setAttribute('role','group');input.setAttribute('aria-labelledby',`${id}-label`);l.id=`${id}-label`;const selected=get(path)||[];for(const [value,text]of options){const row=el('label'),check=el('input');check.type='checkbox';check.value=value;check.checked=selected.includes(value);check.addEventListener('change',()=>set(path,[...input.querySelectorAll('input:checked')].map(i=>i.value)));row.append(check,el('span',text));input.append(row);}if(!options.length)input.append(el('p','No resources available.'));
+ const missing=selected.filter(id=>!options.some(([v])=>v===id));for(const value of missing){const row=el('label'),check=el('input');check.type='checkbox';check.checked=true;check.value=value;check.addEventListener('change',()=>set(path,[...input.querySelectorAll('input:checked')].map(i=>i.value)));row.append(check,el('span',`Unavailable resource (${value}) — uncheck to remove`));input.append(row);}}
+ else{input=el('input');input.type=type;if(type==='checkbox'){input.checked=!!get(path);}else input.value=get(path)??'';if(type==='number'){input.min=0;input.max=100;input.step=1;}}
+ input.id=id;if(type!=='multi')input.addEventListener(type==='checkbox'||type==='select'?'change':'input',()=>{input.setCustomValidity('');if(type==='number'&&(!input.validity.valid||input.value==='')){input.setCustomValidity('Choose a whole number from 0 to 100.');return;}input.setCustomValidity('');let value=type==='checkbox'?input.checked:type==='number'?Number(input.value):input.value;if(path.endsWith('.allow'))value=value==='true';set(path,['voice_channel','announcement_channel'].includes(path)&&!value?null:value);dependent();});wrap.append(input);if(help)wrap.append(el('small',help));return wrap;
 }
-
-async function api(path, options = {}) {
-  const response = await fetch(`/music${path}`, { credentials: 'same-origin', ...options,
-    headers: { ...options.headers, ...(options.method ? { 'X-CSRF-Token': csrf } : {}) } });
-  if (response.status === 204) return null;
-  let data;
-  try { data = await response.json(); } catch { throw new Error('The server could not respond. Please try again.'); }
-  if (!response.ok) {
-    if (response.status === 401) signedOut();
-    throw Object.assign(new Error(data.error || 'The request failed. Please try again.'), {status: response.status});
-  }
-  return data;
+function stationOptions(){return catalog.map(s=>[s.id,s.name]);}
+function channelOptions(voice){return [['','None'],...model.channels.filter(c=>c.voice===voice).map(c=>[c.id,c.name])];}
+function roles(){return model.roles.map(r=>[r.id,r.name]);}
+function group(title,description,fields){const c=card(title,description),grid=el('div',undefined,'field-grid');grid.append(...fields);c.append(grid);return c;}
+function dependent(){document.querySelectorAll('[data-condition]').forEach(n=>{const [key,value]=n.dataset.condition.split('=');n.hidden=String(get(key))!==value;});}
+function conditional(node,condition){node.dataset.condition=condition;return node;}
+function playbackFields(){return [field('default_station','Default station','select',stationOptions()),field('volume','Default and current volume','number',[],'0–100%. Track loudness correction is applied separately.'),field('radio_mode','Radio mode','select',[['session','Session — leave when empty'],['always','24/7 — remain connected'],['auto_join','Auto-join — start when someone enters']]),field('voice_channel','Fixed / Auto-join voice channel','select',channelOptions(true)),field('announcements','Show the shared player automatically','checkbox'),field('announcement_channel','Player and error text channel','select',channelOptions(false),'Required for Auto-join.'),field('tips','Show command tips on the player','checkbox')];}
+function accessFields(){return [field('djs_only','Restrict playback controls to DJs and managers','checkbox'),field('player_locked','Lock the player to DJs and managers','checkbox'),field('dj_roles','DJ roles','multi',roles()),field('skip.access','Who can skip?','select',[['everyone','Everyone in the call'],['moderators','Moderators only']]),field('skip.mode','How does a skip happen?','select',[['instant','One click'],['majority','Majority vote']]),conditional(field('skip.majority_scope','Who counts towards the majority?','select',[['call','Everyone in the call'],['eligible','Only eligible voters']]),'skip.mode=majority'),conditional(field('skip.moderator_roles','Moderator roles','multi',roles(),'Leave empty to use moderation permissions. Managers still need to be in the call and satisfy the vote threshold.'),'skip.access=moderators')];}
+function updateSave(){for(const c of document.querySelectorAll('#editor input,#editor select,#editor button,#music-pages button'))c.disabled=saving;const bar=$('music-savebar');if(!bar)return;bar.hidden=!changed()&&!saving;$('music-save').disabled=saving||!changed();$('music-discard').disabled=saving;$('music-save-status').textContent=saving?'Saving…':'You have unsaved changes';$('server-select').disabled=saving;}
+async function save(){if(saving||!changed())return;if(page==='setup'&&step<3)return;const invalid=$('editor').querySelector(':invalid');if(invalid){invalid.reportValidity();return;}saving=true;updateSave();try{const result=await api(`/api/guilds/${current}/server-settings`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(draft)});draft=structuredClone(result.settings);baseline=JSON.stringify(draft);model.settings=draft;persistDraft();notice('Settings saved for this server.','success');render();}catch(e){notice(e.message,'error');}finally{saving=false;updateSave();}}
+function navigate(next){if(!pages[next])next='overview';page=next;step=0;const url=new URL(location.href);url.searchParams.set('page',page);history.replaceState(null,'',url);render();closeSections(true);$('main').focus();}
+function render(){
+ const editor=$('editor');editor.replaceChildren();$('music-pages').replaceChildren();for(const [key,label]of Object.entries(pages)){const b=button(label,()=>navigate(key));b.setAttribute('aria-current',key===page?'page':'false');$('music-pages').append(b);}
+ editor.append(el('h1',pages[page]||pages.overview),el('p',descriptions[page]||descriptions.overview,'intro'));
+ if(page==='overview'){const setup=card('Make Music yours','Review channels, your station and playback rules together.');setup.append(button('Open Quick Setup',()=>navigate('setup'),true));editor.append(setup);const c=card('Your choices');const list=el('dl',undefined,'overview-values');for(const [k,v]of [['Station',catalog.find(s=>s.id===draft.default_station)?.name||draft.default_station],['Volume',`${draft.volume}%`],['Mode',draft.radio_mode],['Skip',`${draft.skip.access} · ${draft.skip.mode}`],['Current playback',model.session?`${model.session.station} · ${model.session.track}`:'No active session']])list.append(el('dt',k),el('dd',v));c.append(list);editor.append(c);}
+ if(page==='setup'){const titles=['Channel & mode','Station & volume','Permissions','Review & save'];editor.append(el('p',`Step ${step+1} of 4 · ${titles[step]}`,'setup-progress'));const fields=step===0?[field('voice_channel','Voice channel','select',channelOptions(true)),field('announcement_channel','Text channel','select',channelOptions(false)),field('radio_mode','Radio mode','select',[['session','Session'],['always','24/7'],['auto_join','Auto-join']])]:step===1?[field('default_station','Default station','select',stationOptions()),field('volume','Volume','number')]:step===2?accessFields():[];const c=group(titles[step],step===3?'Nothing is saved until you choose Save changes.':'Changes remain a draft until the final review.',fields);if(step===3)c.append(el('p',`${catalog.find(s=>s.id===draft.default_station)?.name||draft.default_station} · ${draft.volume}% · ${draft.radio_mode} · ${draft.djs_only?'DJs':'Everyone'} controls · ${draft.skip.mode} skip`));const actions=el('div',undefined,'setup-actions');if(step>0)actions.append(button('Back',()=>{step--;render();}));if(step<3)actions.append(button('Continue',()=>{const invalid=editor.querySelector(':invalid');if(invalid){invalid.reportValidity();return;}if(step===0&&draft.radio_mode==='auto_join'&&(!draft.voice_channel||!draft.announcement_channel))throw Error('Choose both a voice channel and text channel for Auto-join.');step++;render();},true));else actions.append(button('Save changes',save,true));c.append(actions);editor.append(c);}
+ if(page==='playback'){editor.append(group('Radio settings','Session leaves immediately when the last person leaves. Bots do not count.',playbackFields()));const timer=card('Sleep timer','Use /sleep minutes:30 in your call. Use /sleep cancel:true to cancel.');timer.append(el('p',model.session?.sleep_until?`Current deadline: ${new Date(model.session.sleep_until*1000).toLocaleString()}`:'No active sleep timer in this snapshot.'));const duration=el('input');duration.type='number';duration.min=1;duration.max=720;duration.value=30;duration.id='timer-minutes';const label=el('label','Stop after (minutes)');label.htmlFor=duration.id;timer.append(label,duration);const timerAction=async cancel=>{if(!duration.validity.valid&&!cancel){duration.reportValidity();return;}const id=current;const result=await api(`/api/guilds/${id}/playback`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({minutes:cancel?null:Number(duration.value),cancel})});if(id===current){if(model.session)model.session.sleep_until=result.sleep_until;notice('Sleep timer updated.','success');render();}};timer.append(button('Set timer',()=>timerAction(false)),button('Cancel timer',()=>timerAction(true)));editor.append(timer);}
+ if(page==='access'){editor.append(group('Playback & skip','DJ restrictions do not override skip voting thresholds.',accessFields()));for(const [key,label,voice]of [['voice_rules','Voice channels',true],['text_rules','Text channels',false]])editor.append(group(label,'An empty blocklist allows all channels; an empty allowlist allows none.',[field(`${key}.allow`,'List behaviour','select',[['false','Block selected channels'],['true','Allow only selected channels']]),field(`${key}.channels`,'Channels','multi',channelOptions(voice).filter(([id])=>id))]));}
+ if(page==='stations'){editor.append(card('My Station','Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library.'));for(const s of catalog.filter(s=>s.id!=='my')){const c=card(s.name,`${s.tracks.length} recordings`);const details=el('details'),summary=el('summary','Track credits');details.append(summary);const list=el('ul');for(const t of s.tracks){const li=el('li');const link=el('a',`${t.title} — ${t.artist}`);if(t.source.startsWith('https://')){link.href=t.source;link.target='_blank';link.rel='noopener noreferrer';}li.append(link,el('small',` · ${t.license}`));list.append(li);}details.append(list);c.append(details);editor.append(c);}editor.append(card('Night, Rain & Sleep','Pending: these stations remain unavailable until each has 25 licensed, distinct recordings and a complete listening review.'));}
+ if(page==='community'){editor.append(group('Server statistics','Individual collection requires each person to opt in with /privacy. No global leaderboard.',[field('statistics','Allow optional time-in-call statistics','checkbox')]));const personal=card('Your privacy & this server leaderboard','Time in call while Music is playing, excluding deafened time. This is not proof of listening.');personal.id='personal-panel';editor.append(personal);loadPersonal(current,sequence);}
+ if(page==='profile'){const c=card('Server profile','Changes affect this server only and are sent to Discord when you apply them.');const form=el('form');form.id='profile-form';for(const [key,label,type,max]of [['nick','Display name','text',32],['bio','Description','text',190],['avatar','Avatar','file'],['banner','Banner','file']]){const wrap=el('div',undefined,'music-field'),input=el('input');input.name=key;input.id=`profile-${key}`;input.type=type;if(max)input.maxLength=max;if(type==='file')input.accept='image/png,image/jpeg,image/webp';const lab=el('label',label);lab.htmlFor=input.id;wrap.append(lab,input);form.append(wrap);}form.append(button('Apply profile',()=>saveProfile(false),true),button('Restore Vozen profile',()=>{if(confirm('Restore the default bot profile in this server?'))return saveProfile(true);}));c.append(form);editor.append(c);loadProfile(current,sequence);}
+ const bar=el('div',undefined,'savebar');bar.id='music-savebar';const status=el('p','You have unsaved changes');status.id='music-save-status';status.setAttribute('role','status');const discard=button('Discard',()=>{draft=JSON.parse(baseline);persistDraft();render();});discard.id='music-discard';const saveButton=button('Save changes',save,true);saveButton.id='music-save';bar.append(status,discard,saveButton);if(page!=='setup'||step===3)editor.append(bar);dependent();updateSave();
 }
-
-function signedOut() {
-  csrf = ''; current = ''; baseline = ''; sequence++;
-  for (const id of ['editor', 'sidebar', 'loading', 'empty']) $(id).hidden = true;
-  $('welcome').hidden = false; renderAccount(null);
-}
-
-function policy() {
-  const form = $('settings-form');
-  return { access: form.elements.access.value, mode: form.elements.mode.value,
-    majority_scope: $('majority-scope').value,
-    moderator_roles: [...$('roles').querySelectorAll('input:checked')].map((input) => input.value).sort() };
-}
-
-function changed() { return !!baseline && JSON.stringify(policy()) !== baseline; }
-
-function update() {
-  const selected = policy();
-  $('role-options').hidden = selected.access !== 'moderators';
-  $('majority-options').hidden = selected.mode !== 'majority';
-  $('majority-help').textContent = selected.majority_scope === 'eligible'
-    ? 'More than half of eligible listeners must vote. With 2 eligible moderators, both must agree.'
-    : selected.access === 'moderators'
-      ? 'All human listeners count, but only moderators can vote. With 10 listeners, 6 votes are needed. If fewer than 6 are eligible, the vote cannot pass.'
-      : 'More than half of all human listeners must vote. With 5 listeners, 3 votes are needed.';
-  const dirty = changed();
-  $('save').disabled = saving || !dirty;
-  $('save-state').textContent = saving ? 'Saving your changes…' : dirty ? 'You have unsaved changes' : 'All changes saved';
-  $('save-state').dataset.state = dirty ? 'unsaved' : 'saved';
-  $('discard').disabled=saving||!dirty||baseline==='deleted-roles';
-  document.querySelector('.savebar').classList.toggle('is-dirty',dirty||saving);
-  $('server-select').disabled=saving;
-  $('preview-access').textContent = selected.access === 'moderators' ? 'Moderators only' : 'Everyone';
-  $('preview-mode').textContent = selected.mode === 'majority' ? 'Majority vote' : 'One click';
-  $('preview-title').textContent = selected.mode === 'majority' ? 'Let the room decide.' : 'One click. Next track.';
-  $('preview-description').textContent = selected.mode === 'instant'
-    ? selected.access === 'moderators'
-      ? 'An eligible moderator in the call can skip a track immediately.'
-      : 'Any listener in the call can skip a track immediately.'
-    : selected.access === 'moderators'
-      ? selected.majority_scope === 'eligible'
-        ? 'Only eligible moderators vote. More than half of them must agree.'
-        : 'Only eligible moderators vote. More than half of all listeners must agree.'
-      : 'Listeners in the call vote together. More than half must agree.';
-}
-
-function renderServers() {
-  const select=$('server-select');select.replaceChildren();
-  for(const guild of serverList)select.add(new Option(guild.name,guild.id,false,guild.id===current));
-  select.disabled=saving;
-
-}
-
-async function loadServer(id) {
-  const request = ++sequence;
-  current = id; baseline = ''; notice(''); renderServers();
-  $('editor').hidden = true; $('empty').hidden = true; $('loading').hidden = false;
-  $('loading').querySelector('p').textContent = 'Loading server settings.';
-  try {
-    const data = await api(`/api/guilds/${encodeURIComponent(id)}/settings`);
-    if (request !== sequence) return;
-    $('server-name').textContent = data.name;
-    const form = $('settings-form');
-    form.elements.access.value = data.settings.access;
-    form.elements.mode.value = data.settings.mode;
-    $('majority-scope').value = data.settings.majority_scope;
-    $('roles').replaceChildren();
-    const available = new Set(data.roles.map((role) => role.id));
-    for (const role of data.roles) {
-      const label = document.createElement('label'); label.className = 'role';
-      const input = document.createElement('input'); input.type = 'checkbox'; input.value = role.id;
-      input.checked = data.settings.moderator_roles.includes(role.id);
-      const text = document.createElement('span'); text.textContent = role.name;
-      label.append(input, text); $('roles').append(label);
-    }
-    baseline = JSON.stringify(policy());
-    $('editor').hidden = false;
-    history.replaceState(null, '', `/music/dashboard?server=${encodeURIComponent(id)}`);
-    update();
-    if (data.settings.moderator_roles.some((role) => !available.has(role))) {
-      notice('A previously selected role was deleted. Review the roles and save to remove it from your settings.');
-      baseline = 'deleted-roles'; update();
-    }
-  } catch (error) {
-    if (request === sequence) { notice(error.message, 'error'); $('empty').hidden = !csrf; }
-  } finally { if (request === sequence) $('loading').hidden = true; }
-}
-
-async function refreshServers() {
-  $('loading').hidden = false; $('empty').hidden = true; notice('');
-  try {
-    const data = await api('/api/guilds');
-    serverList = data.guilds; renderServers(); $('loading').hidden = true;
-    if (!serverList.length) { $('editor').hidden = true; $('empty').hidden = false; return; }
-    const wanted = new URLSearchParams(location.search).get('server');
-    await loadServer(serverList.find((guild) => guild.id === wanted)?.id || serverList[0].id);
-  } catch (error) {
-    $('loading').hidden = true; $('empty').hidden = !csrf; notice(error.message, 'error');
-  }
-}
-
-$('settings-form').addEventListener('change', update);
-$('settings-form').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (saving || !current || !changed()) return;
-  const selected = policy();
-  if (selected.moderator_roles.length > 50) { notice('Choose at most 50 moderator roles.', 'error'); return; }
-  saving = true; $('save').textContent = 'Saving…'; update(); notice('');
-  const controls = [...$('settings-form').querySelectorAll('input, select')];
-  controls.forEach((control) => { control.disabled = true; });
-  try {
-    await api(`/api/guilds/${encodeURIComponent(current)}/settings`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(selected)
-    });
-    baseline = JSON.stringify(selected);
-    notice('Settings saved. Current skip votes have been cleared.', 'success');
-  } catch (error) { notice(error.message, 'error'); }
-  finally {
-    saving = false; controls.forEach((control) => { control.disabled = false; });
-    $('save').textContent = 'Save changes'; update();
-  }
-});
-$('logout').addEventListener('click', async () => {
-  if (saving || (changed() && !window.confirm('Discard your unsaved changes and sign out?'))) return;
-  $('logout').disabled = true;
-  try { await api('/auth/logout', { method: 'POST' }); signedOut(); notice(''); }
-  catch (error) { notice(error.message, 'error'); }
-  finally { $('logout').disabled = false; }
-});
-$('refresh').addEventListener('click', refreshServers);
-window.addEventListener('beforeunload', (event) => { if (changed() || saving) { event.preventDefault(); event.returnValue = ''; } });
-
-(async () => {
-  try {
-    const data = await api('/api/me'); csrf = data.csrf;
-    renderAccount(data.user);
-    $('sidebar').hidden = false;
-    await refreshServers();
-  } catch (error) {
-    signedOut();
-    if (error.status === 401 && !location.search.includes('login=cancelled')) {
-      location.replace('https://vozen.org/account/?music=1');
-      return;
-    }
-    if (location.search.includes('login=cancelled')) notice('Discord sign-in was cancelled. You can try again.');
-    else if (!error.message.includes('Sign in') && !error.message.includes('session expired')) notice(error.message, 'error');
-  }
-})();
-
-function renderAccount(user) {
-  const link = $('navLogin');
-  link.replaceChildren();
-  link.classList.toggle('nav__login--account', !!user);
-  if (!user) { link.textContent = 'Log in'; link.removeAttribute('aria-label'); return; }
-  const name = user.global_name || user.username;
-  link.setAttribute('aria-label', `Discord account: ${name}`);
-  const avatar = document.createElement('span');
-  avatar.className = 'discord-avatar nav__login-av-wrap';
-  const image = document.createElement('img');
-  image.className = 'nav__login-av'; image.width = 24; image.height = 24;
-  image.alt = `${name} avatar`; image.referrerPolicy = 'no-referrer';
-  const initial = document.createElement('span');
-  initial.className = 'nav__login-av nav__login-av--none';
-  initial.textContent = name.slice(0, 1).toUpperCase();
-  if (/^\d{16,22}$/.test(user.id) && /^(?:a_)?[a-f0-9]{32}$/.test(user.avatar || '')) {
-    image.src = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.webp?size=32`;
-    image.addEventListener('error', () => image.replaceWith(initial), {once:true});
-    avatar.append(image);
-  } else avatar.append(initial);
-  const asset = user.avatar_decoration_data?.asset;
-  if (/^[A-Za-z0-9_]{1,128}$/.test(asset || '')) {
-    const decoration = document.createElement('img');
-    decoration.className = 'discord-avatar__decoration'; decoration.alt = '';
-    decoration.setAttribute('aria-hidden', 'true'); decoration.width = 256; decoration.height = 256;
-    decoration.referrerPolicy = 'no-referrer';
-    decoration.src = `https://cdn.discordapp.com/avatar-decoration-presets/${asset}.png?size=256`;
-    decoration.addEventListener('error', () => decoration.remove(), {once:true});
-    avatar.append(decoration);
-  }
-  const label = document.createElement('span'); label.textContent = name;
-  link.append(avatar, label);
-}
-
-function closeNavigation() {
-  $('vozen-primary-links').classList.remove('is-open');
-  $('burger').setAttribute('aria-expanded', 'false');
-  $('langMenu').classList.remove('is-open');
-  $('langBtn').setAttribute('aria-expanded', 'false');
-}
-$('burger').addEventListener('click', () => {
-  const open = $('burger').getAttribute('aria-expanded') !== 'true';
-  closeNavigation();
-  $('vozen-primary-links').classList.toggle('is-open', open);
-  $('burger').setAttribute('aria-expanded', String(open));
-});
-$('langBtn').addEventListener('click', () => {
-  const open = $('langBtn').getAttribute('aria-expanded') !== 'true';
-  closeNavigation();
-  $('langMenu').classList.toggle('is-open', open);
-  $('langBtn').setAttribute('aria-expanded', String(open));
-  if (open) $('langPanel').querySelector('a')?.focus();
-});
-$('langPanel').addEventListener('keydown', event => {
-  const options = [...$('langPanel').querySelectorAll('a')];
-  const index = options.indexOf(document.activeElement);
-  let next;
-  if (event.key === 'ArrowDown') next = (index + 1) % options.length;
-  else if (event.key === 'ArrowUp') next = (index + options.length - 1) % options.length;
-  else if (event.key === 'Home') next = 0;
-  else if (event.key === 'End') next = options.length - 1;
-  if (next !== undefined) { event.preventDefault(); options[next].focus(); }
-});
-document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape' || ($('langBtn').getAttribute('aria-expanded') !== 'true' && $('burger').getAttribute('aria-expanded') !== 'true')) return;
-  const button = $('langBtn').getAttribute('aria-expanded') === 'true' ? $('langBtn') : $('burger');
-  closeNavigation(); button.focus();
-});
-document.addEventListener('click', event => { if (!$('nav').contains(event.target)) closeNavigation(); });
-window.matchMedia('(min-width:1280px)').addEventListener('change', event => { if (event.matches) closeNavigation(); });
-window.addEventListener('scroll', () => $('nav').classList.toggle('is-stuck', scrollY > 12), {passive:true});
-
-$('server-select').addEventListener('change',event=>{const id=event.target.value;if(saving||id===current)return;if(changed()&&!confirm('Discard your unsaved changes and switch servers?')){event.target.value=current;return;}loadServer(id);});
-$('product-switcher').addEventListener('change',event=>{if(saving||changed()&&!confirm('You have unsaved changes. Leave this panel?')){event.target.value='music';return;}location.assign(event.target.value==='tts'?'https://vozen.org/dashboard.html':'https://vozen.org/panel/features/');});
-$('discard').addEventListener('click',()=>{if(saving||!baseline||baseline==='deleted-roles')return;const saved=JSON.parse(baseline),form=$('settings-form');form.elements.access.value=saved.access;form.elements.mode.value=saved.mode;$('majority-scope').value=saved.majority_scope;for(const role of $('roles').querySelectorAll('input'))role.checked=saved.moderator_roles.includes(role.value);notice('');update();});
+async function loadPersonal(id,seq){try{const [me,ranking]=await Promise.all([api(`/api/guilds/${id}/personal`),api(`/api/guilds/${id}/community`)]);if(seq!==sequence||current!==id||page!=='community')return;const c=$('personal-panel');c.append(el('p',`${Math.floor(me.seconds/60)} minutes collected. Collection ${me.privacy.enabled?'on':'off'}; leaderboard ${me.privacy.visible?'visible':'hidden'}.`));for(const [label,payload]of [['Opt in',{privacy:{enabled:true,visible:false}}],['Show on leaderboard',{privacy:{enabled:true,visible:true}}],['Hide from leaderboard',{privacy:{...me.privacy,visible:false}}],['Disable collection',{privacy:{enabled:false,visible:false}}],['Erase statistics',{erase_statistics:true}],['Delete my favorites and dislikes',{clear_ratings:true}]])c.append(button(label,async()=>{if((payload.erase_statistics||payload.clear_ratings)&&!confirm(`${label} in this server?`))return;await api(`/api/guilds/${id}/personal`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});if(id===current){notice('Your preferences were saved.','success');render();}}));const list=el('ol');for(const [user,seconds]of ranking.rows)list.append(el('li',`Member ${user} · ${Math.floor(seconds/60)} min`));c.append(list);}catch(e){if(id===current)notice(e.message,'error');}}
+async function loadProfile(id,seq){try{const p=await api(`/api/guilds/${id}/profile`);if(seq!==sequence||page!=='profile')return;$('profile-nick').value=p.nick||'';$('profile-bio').value=p.bio||'';}catch(e){if(id===current)notice(e.message,'error');}}
+async function saveProfile(reset){const id=current,body={reset};if(!reset){body.nick=$('profile-nick').value;body.bio=$('profile-bio').value;for(const key of ['avatar','banner']){const file=$(`profile-${key}`).files[0];if(file){if(file.size>2*1024*1024)throw Error('Images must be no larger than 2 MB.');body[key]=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('The image could not be read.'));reader.readAsDataURL(file);});}}}const buttons=[...$('profile-form').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);try{await api(`/api/guilds/${id}/profile`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(id===current)notice('Discord applied the profile to this server.','success');}finally{buttons.forEach(b=>b.disabled=false);}}
+function renderServers(){const select=$('server-select');select.replaceChildren();for(const s of serverList)select.add(new Option(s.name,s.id,false,s.id===current));select.disabled=saving;}
+async function loadServer(id){const seq=++sequence;current=id;baseline='';draft=null;renderServers();$('editor').hidden=true;$('empty').hidden=true;$('loading').hidden=false;try{const [data,stations]=await Promise.all([api(`/api/guilds/${id}/server-settings`),api('/api/stations')]);if(seq!==sequence)return;model=data;catalog=stations.stations;baseline=JSON.stringify(data.settings);draft=structuredClone(data.settings);try{const saved=JSON.parse(localStorage.getItem(`music-draft:${id}`)||'null');if(saved&&saved.revision===draft.revision&&validDraft(saved,data.settings)){draft=saved;notice('Your unsaved draft was restored.');}else if(saved)notice('An older browser draft exists. Server settings changed; it was not applied.');}catch{notice('This browser could not restore your draft.');}if(!pages[page])page='overview';$('editor').hidden=false;const url=new URL(location.href);url.searchParams.set('server',id);history.replaceState(null,'',url);render();}catch(e){if(seq===sequence)notice(e.message,'error');}finally{if(seq===sequence)$('loading').hidden=true;}}
+async function refreshServers(){try{const data=await api('/api/guilds');serverList=data.guilds;renderServers();if(!serverList.length){$('empty').hidden=false;return;}const wanted=new URLSearchParams(location.search).get('server');await loadServer(serverList.find(s=>s.id===wanted)?.id||serverList[0].id);}catch(e){notice(e.message,'error');}finally{$('loading').hidden=true;}}
 function closeSections(focus){$('sidebar').classList.remove('sections-open');$('sections-trigger').setAttribute('aria-expanded','false');if(focus)$('sections-trigger').focus();}
-$('sections-trigger').addEventListener('click',()=>{const open=$('sidebar').classList.toggle('sections-open');$('sections-trigger').setAttribute('aria-expanded',String(open));});
-$('sidebar').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeSections(true);}});
-if(window.visualViewport){const resize=()=>document.documentElement.style.setProperty('--keyboard-offset',Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop)+'px');visualViewport.addEventListener('resize',resize);visualViewport.addEventListener('scroll',resize);}
+$('server-select').addEventListener('change',e=>{if(saving)return;loadServer(e.target.value);});
+$('product-switcher').addEventListener('change',e=>{if(saving||changed()&&!confirm('Your draft is kept in this browser. Leave Music?')){e.target.value='music';return;}location.assign(e.target.value==='tts'?'https://vozen.org/dashboard.html':'https://vozen.org/panel/features/');});
+$('sections-trigger').addEventListener('click',()=>{$('sections-trigger').setAttribute('aria-expanded',String($('sidebar').classList.toggle('sections-open')));});
+$('sidebar').addEventListener('keydown',e=>{if(e.key==='Escape'){closeSections(true);}});
+$('refresh').addEventListener('click',refreshServers);
+$('logout').addEventListener('click',async()=>{try{await api('/auth/logout',{method:'POST'});signedOut();}catch(e){notice(e.message,'error');}});
+window.addEventListener('beforeunload',e=>{if(changed()){e.preventDefault();e.returnValue='';}});
+if(window.visualViewport){const update=()=>document.documentElement.style.setProperty('--keyboard-offset',Math.max(0,innerHeight-visualViewport.height-visualViewport.offsetTop)+'px');visualViewport.addEventListener('resize',update);}
+(async()=>{try{const me=await api('/api/me');csrf=me.csrf;renderAccount(me.user);$('sidebar').hidden=false;await refreshServers();}catch(e){signedOut();if(e.status===401){location.replace('https://vozen.org/account/?music=1');return;}notice(e.message,'error');}})();

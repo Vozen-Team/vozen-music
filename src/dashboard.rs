@@ -730,12 +730,21 @@ async fn settings(
     let login = state.login(&headers, false).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let server = state.manager(guild, &login).await?;
-    let policy = Policy::from(state.bot.settings.lock().await.get(guild.get()));
+    let stored = state
+        .bot
+        .settings
+        .lock()
+        .await
+        .db
+        .settings(guild.get())
+        .map_err(storage_error)?;
+    let revision = stored.revision;
+    let policy = Policy::from(stored.skip);
     let mut roles: Vec<_> = server.roles.values().filter(|role| role.id.get() != guild.get())
         .map(|role| serde_json::json!({"id": role.id.to_string(), "name": role.name, "position": role.position})).collect();
     roles.sort_by_key(|role| std::cmp::Reverse(role["position"].as_i64().unwrap_or(0)));
     Ok(Json(
-        serde_json::json!({"id": guild.to_string(), "name": server.name, "settings": policy, "roles": roles}),
+        serde_json::json!({"id": guild.to_string(), "name": server.name, "settings": policy, "roles": roles,"revision":revision}),
     ))
 }
 
@@ -749,20 +758,35 @@ async fn save(
     let guild = GuildId::new(parse_id(&value)?);
     let server = state.manager(guild, &login).await?;
     let policy = validate_policy(policy, server.id, &server.roles)?;
+    let expected = headers
+        .get("if-match")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .ok_or(WebError(
+            StatusCode::PRECONDITION_REQUIRED,
+            "Reload the dashboard before saving these settings.",
+        ))?;
     let session = {
         let sessions = state.bot.sessions.lock().await;
-        state
-            .bot
-            .settings
-            .lock()
-            .await
-            .set(guild.get(), policy.clone())
-            .map_err(|_| {
-                WebError(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Settings could not be saved. Previous settings remain active. Try again.",
-                )
-            })?;
+        let mut store = state.bot.settings.lock().await;
+        if store
+            .db
+            .settings(guild.get())
+            .map_err(storage_error)?
+            .revision
+            != expected
+        {
+            return Err(WebError(
+                StatusCode::CONFLICT,
+                "Settings changed. Reload before saving.",
+            ));
+        }
+        store.set(guild.get(), policy.clone()).map_err(|_| {
+            WebError(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Settings could not be saved. Previous settings remain active. Try again.",
+            )
+        })?;
         if let Some(session) = sessions.get(&guild) {
             *session.policy.lock().map_err(|_| unavailable())? = policy.clone();
             session
@@ -779,8 +803,39 @@ async fn save(
     Ok(Json(serde_json::json!({"settings": Policy::from(policy)})))
 }
 
+include!("dashboard_expansion.rs");
+
 fn router(state: Arc<Dashboard>) -> Router {
     Router::new()
+        .route(
+            "/music/navigation.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../web/navigation.js"),
+                )
+            }),
+        )
+        .route("/music/api/stations", get(station_catalog))
+        .route(
+            "/music/api/guilds/{guild}/playback",
+            axum::routing::put(playback_timer),
+        )
+        .route(
+            "/music/api/guilds/{guild}/server-settings",
+            get(expanded_settings).put(save_expanded),
+        )
+        .route(
+            "/music/api/guilds/{guild}/personal",
+            get(personal).put(save_personal),
+        )
+        .route("/music/api/guilds/{guild}/community", get(community))
+        .route(
+            "/music/api/guilds/{guild}/profile",
+            get(bot_profile)
+                .put(save_bot_profile)
+                .layer(DefaultBodyLimit::max(6 * 1024 * 1024)),
+        )
         .route("/music", get(|| async { Redirect::to("/music/dashboard") }))
         .route(
             "/music/",
@@ -1048,7 +1103,7 @@ mod tests {
         );
     }
 
-    fn fixture() -> Arc<Dashboard> {
+    pub(super) fn fixture() -> Arc<Dashboard> {
         let mut auth = AuthStore::default();
         auth.sessions.insert(
             "test-session".into(),
@@ -1070,13 +1125,14 @@ mod tests {
             bot: Arc::new(Bot {
                 catalog: Arc::new(Catalog { stations: vec![] }),
                 guild: None,
-                sessions: Mutex::new(HashMap::new()),
-                settings: Mutex::new(
+                background: Arc::new(AtomicBool::new(false)),
+                sessions: Arc::new(Mutex::new(HashMap::new())),
+                settings: Arc::new(Mutex::new(
                     SettingsStore::load(
                         std::env::temp_dir().join(format!("music-web-{}.json", nonce())),
                     )
                     .unwrap(),
-                ),
+                )),
             }),
             cache: Arc::new(Cache::default()),
             http: Arc::new(Http::new("synthetic-token")),

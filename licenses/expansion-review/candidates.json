@@ -1,0 +1,870 @@
+{
+  "source_manifest_sha256": "f17c853f7d21d80c32b02eeebf6fcae0fb6f30ad762e3305a22009b1f1e9802b",
+  "candidates": [
+    {
+      "title": "Almost Floating",
+      "filename": "almost-floating.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Aurora on Mute",
+      "filename": "aurora-on-mute.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Blue Below the Surface",
+      "filename": "blue-below-the-surface.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Cathedral Hiss",
+      "filename": "cathedral-hiss.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Deep Space Loop",
+      "filename": "deep-space-loop.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Drifting Through Fog",
+      "filename": "drifting-through-fog.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "First Light on the Ridge",
+      "filename": "first-light-on-the-ridge.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Ghosts on the Hillside",
+      "filename": "ghosts-on-the-hillside.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Glasshouse Ghosts",
+      "filename": "glasshouse-ghosts.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Green After Midnight",
+      "filename": "green-after-midnight.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Misty Mountain Sunrise",
+      "filename": "misty-mountain-sunrise.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Moonlit Moss",
+      "filename": "moonlit-moss.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Orbiting in Silence",
+      "filename": "orbiting-in-silence.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Polar Afterglow",
+      "filename": "polar-afterglow.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Satellite Lullaby",
+      "filename": "satellite-lullaby.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Sea Glass Evening",
+      "filename": "sea-glass-evening.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Soft Weightless Hours",
+      "filename": "soft-weightless-hours.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Stained Glass Static",
+      "filename": "stained-glass-static.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Tide Pools at Twilight",
+      "filename": "tide-pools-at-twilight.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Underwater Dreamscape",
+      "filename": "underwater-dreamscape.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Warm Constellations",
+      "filename": "warm-constellations.mp3",
+      "category": "ambient-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Bamboo Shadow Waltz",
+      "filename": "bamboo-shadow-waltz.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Bells Before Sunrise",
+      "filename": "bells-before-sunrise.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Lanterns in Slow Motion",
+      "filename": "lanterns-in-slow-motion.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Misty Steam Quiet Dreams",
+      "filename": "misty-steam-quiet-dreams.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Moon Through Bamboo",
+      "filename": "moon-through-bamboo.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Paper Lantern Rain",
+      "filename": "paper-lantern-rain.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Teacup Morning Fog",
+      "filename": "teacup-morning-fog.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Temple at Dawn",
+      "filename": "temple-at-dawn.mp3",
+      "category": "asian-lofi",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "3 AM Echoes",
+      "filename": "3-am-echoes.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Antenna After Midnight",
+      "filename": "antenna-after-midnight.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Blinds and Headlights",
+      "filename": "blinds-and-headlights.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Electric Puddles",
+      "filename": "electric-puddles.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Elevator To the Moon",
+      "filename": "elevator-to-the-moon.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Empty Street Static",
+      "filename": "empty-street-static.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Half Empty Coupe",
+      "filename": "half-empty-coupe.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Headlights on the Divider",
+      "filename": "headlights-on-the-divider.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "High Rise Haze",
+      "filename": "high-rise-haze.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Last Call at Table Nine",
+      "filename": "last-call-at-table-nine.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Last Train Home",
+      "filename": "last-train-home.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Midnight on My Mind",
+      "filename": "midnight-on-my-mind.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Midnight Window Glow",
+      "filename": "midnight-window-glow.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Platform After Rain",
+      "filename": "platform-after-rain.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Rain Off the Neon Signs",
+      "filename": "rain-off-the-neon-signs.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Rooftop Static Dreams",
+      "filename": "rooftop-static-dreams.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Streetlights in the Rearview",
+      "filename": "streetlights-in-the-rearview.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Warm Mile Markers",
+      "filename": "warm-mile-markers.mp3",
+      "category": "late-night",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "A Taste of Spring",
+      "filename": "a-taste-of-spring.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "After School Rain",
+      "filename": "after-school-rain.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Amber Sidewalks",
+      "filename": "amber-sidewalks.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Amber Windowpane",
+      "filename": "amber-windowpane.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Autumn on the Window Glass",
+      "filename": "autumn-on-the-window-glass.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Bloom Between Showers",
+      "filename": "bloom-between-showers.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Blossoms on the Pavement",
+      "filename": "blossoms-on-the-pavement.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Embers After Midnight",
+      "filename": "embers-after-midnight.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Fallen Leaves Loop",
+      "filename": "fallen-leaves-loop.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Fieldnotes at Dawn",
+      "filename": "fieldnotes-at-dawn.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Fireplace Loop",
+      "filename": "fireplace-loop.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Hammock in the Shade",
+      "filename": "hammock-in-the-shade.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Lemonade Film Grain",
+      "filename": "lemonade-film-grain.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Mist Over Green Fields",
+      "filename": "mist-over-green-fields.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Moon Over Red Dunes",
+      "filename": "moon-over-red-dunes.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Palm Breeze Nap",
+      "filename": "palm-breeze-nap.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Petals After Rain",
+      "filename": "petals-after-rain.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Petals in the Breeze",
+      "filename": "petals-in-the-breeze.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Picnic Polaroids",
+      "filename": "picnic-polaroids.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Sidewalk Puddles",
+      "filename": "sidewalk-puddles.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Snow on the Needle",
+      "filename": "snow-on-the-needle.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Spring Garden Loops",
+      "filename": "spring-garden-loops.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Starlight in the Sand",
+      "filename": "starlight-in-the-sand.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Storm Over Side Streets",
+      "filename": "storm-over-side-streets.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Thunder in the Dust",
+      "filename": "thunder-in-the-dust.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Tide Stained Polaroids",
+      "filename": "tide-stained-polaroids.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Winter Turntable",
+      "filename": "winter-turntable.mp3",
+      "category": "seasonal-weather",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "3AM Sink Light",
+      "filename": "3am-sink-light.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Barefoot in the Kitchen",
+      "filename": "barefoot-in-the-kitchen.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Candle Wax Heart",
+      "filename": "candle-wax-heart.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Envelope on the Bed",
+      "filename": "envelope-on-the-bed.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Golden Afternoon Groove",
+      "filename": "golden-afternoon-groove.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Honey on the Speakers",
+      "filename": "honey-on-the-speakers.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Kitchen After the Party",
+      "filename": "kitchen-after-the-party.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Lazy Love Letter Afternoon",
+      "filename": "lazy-love-letter-afternoon.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Midnight Notes on the Floor",
+      "filename": "midnight-notes-on-the-floor.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Midnight Table Talk",
+      "filename": "midnight-table-talk.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Old Photos New Heart",
+      "filename": "old-photos-new-heart.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Polaroids in A Shoebox",
+      "filename": "polaroids-in-a-shoebox.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Porcelain Heartbeat",
+      "filename": "porcelain-heartbeat.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Rain on Your Hoodie",
+      "filename": "rain-on-your-hoodie.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Record Player Embrace",
+      "filename": "record-player-embrace.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Rooftop Slow Jam",
+      "filename": "rooftop-slow-jam.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Scattered Sheet Music",
+      "filename": "scattered-sheet-music.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Skyline and Satin",
+      "filename": "skyline-and-satin.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Slow Dance in the Living Room",
+      "filename": "slow-dance-in-the-living-room.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Slow Dancing By the Stove",
+      "filename": "slow-dancing-by-the-stove.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    },
+    {
+      "title": "Velvet Candle Smoke",
+      "filename": "velvet-candle-smoke.mp3",
+      "category": "soul-rnb",
+      "source": "https://github.com/btahir/open-lofi",
+      "declared_license": "CC0-1.0",
+      "approved": false,
+      "review_status": "Unreviewed: source declares Suno-generated recordings; rights, absence of voice, station suitability and actual rain must be checked."
+    }
+  ],
+  "additional_sources": [
+    {
+      "url": "https://opengameart.org/content/school-day-rain-sun-loop",
+      "notes": "CC0 listing; only one arrangement may count. Full listening pending."
+    },
+    {
+      "url": "https://opengameart.org/content/rizys-sleep-music",
+      "notes": "CC0 listing with multiple versions; count at most one composition. Full listening pending."
+    }
+  ]
+}

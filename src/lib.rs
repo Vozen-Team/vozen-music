@@ -1,4 +1,5 @@
 use serde::Deserialize;
+pub mod expansion;
 pub mod skip;
 use std::{
     collections::HashSet,
@@ -15,13 +16,13 @@ pub fn check_application_identity(expected: u64, actual: u64) -> Result<(), Erro
     Ok(())
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Catalog {
     pub stations: Vec<Station>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Station {
     pub id: String,
@@ -29,9 +30,11 @@ pub struct Station {
     pub tracks: Vec<Track>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Track {
+    #[serde(default)]
+    pub id: String,
     pub title: String,
     pub artist: String,
     pub file: PathBuf,
@@ -67,6 +70,13 @@ impl Catalog {
                 return Err("Invalid station or duplicate station ID.".into());
             }
             for track in &mut station.tracks {
+                if track.id.is_empty() {
+                    use sha2::Digest;
+                    track.id = format!(
+                        "rec-{:x}",
+                        sha2::Sha256::digest(track.source_url.as_bytes())
+                    );
+                }
                 // shortcut: initial catalog is CC0-only; review licenses before accepting other types.
                 if !track.approved
                     || track.license != "CC0-1.0"

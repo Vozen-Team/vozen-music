@@ -1,9 +1,6 @@
 use super::*;
 use std::collections::BTreeSet;
-use vozen_music::{
-    next_track,
-    skip::{MajorityScope, SkipAccess, SkipMode},
-};
+use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
 
 pub fn definition() -> CreateCommand {
     CreateCommand::new("skip-settings")
@@ -50,7 +47,7 @@ pub fn definition() -> CreateCommand {
 }
 
 impl Bot {
-    fn member_flags(
+    pub(crate) fn member_flags(
         &self,
         ctx: &Context,
         guild: GuildId,
@@ -252,12 +249,14 @@ impl Bot {
         ctx: &Context,
         guild: GuildId,
         member: &Member,
+        text: ChannelId,
         interaction_id: u64,
         target: Option<(u64, usize)>,
     ) -> Result<String, Error> {
         if self.guild.is_some_and(|allowed| guild != allowed) {
             return Err("This version is limited to the development server.".into());
         }
+        let config = self.authorize(ctx, guild, member, text, true).await?;
         let policy = self.settings.lock().await.get(guild.get());
         let roles = member.roles.iter().map(|id| id.get()).collect::<Vec<_>>();
         let (manager_permission, moderator) = self.member_flags(ctx, guild, member)?;
@@ -324,7 +323,9 @@ impl Bot {
                     guild,
                     channel,
                     member,
-                    policy.access == SkipAccess::Moderators,
+                    policy.access == SkipAccess::Moderators
+                        || config.djs_only
+                        || config.player_locked,
                 ),
             )
             .await
@@ -337,12 +338,23 @@ impl Bot {
         for listener in &listeners {
             let (manager, moderator) = self.member_flags(ctx, guild, listener)?;
             let roles = listener.roles.iter().map(|id| id.get()).collect::<Vec<_>>();
-            if !listener.user.bot && policy.allows(manager, moderator, &roles) {
+            if !listener.user.bot
+                && policy.allows(manager, moderator, &roles)
+                && config.permits_control(manager, &roles)
+            {
                 eligible.insert(listener.user.id.get());
             }
         }
         let mut sessions = self.sessions.lock().await;
-        if self.settings.lock().await.get(guild.get()) != policy {
+        if self
+            .settings
+            .lock()
+            .await
+            .db
+            .settings(guild.get())?
+            .revision
+            != config.revision
+        {
             return Err("Skip settings changed. Please try again.".into());
         }
         let session = sessions
@@ -351,6 +363,8 @@ impl Bot {
             .ok_or("No station is active. Use /play first.")?;
         let text_channel = session
             .panel
+            .lock()
+            .map_err(|_| "Panel unavailable.")?
             .as_ref()
             .map(|panel| panel.channel)
             .unwrap_or(channel);
@@ -397,19 +411,36 @@ impl Bot {
             }
             return Ok(reply);
         }
-        let next = next_track(
-            session.current.load(Ordering::SeqCst),
-            self.catalog.stations[session.station].tracks.len(),
-        )
-        .ok_or("The station is empty.")?;
+        let next = self
+            .selection(&session)
+            .await?
+            .ok_or("No recordings match the listeners' preferences.")?;
         session.active.store(false, Ordering::SeqCst);
-        let replacement = Arc::new(Session::new(
+        let mut replacement = Session::new(
             session.station,
             next,
             interaction_id,
             policy,
-            session.panel.clone(),
-        ));
+            session
+                .panel
+                .lock()
+                .map_err(|_| "Panel unavailable.")?
+                .clone(),
+        );
+        replacement.runtime = session.runtime.clone();
+        replacement
+            .tips
+            .store(session.tips.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .volume
+            .store(session.volume.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .sleep_until
+            .store(session.sleep_until.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .turn
+            .store(session.turn.load(Ordering::SeqCst), Ordering::SeqCst);
+        let replacement = Arc::new(replacement);
         let advance = Advance {
             call: Arc::downgrade(&call),
             catalog: self.catalog.clone(),
@@ -419,6 +450,9 @@ impl Bot {
             generation: 0,
         };
         play_track(&mut locked, advance, next)?;
+        if let Some(r) = &replacement.runtime {
+            r.persist(&self.catalog, &replacement, true).await?;
+        }
         sessions.insert(guild, replacement.clone());
         drop(locked);
         drop(sessions);
