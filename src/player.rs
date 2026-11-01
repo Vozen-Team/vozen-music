@@ -1,7 +1,7 @@
 use super::{Catalog, Error, Session};
 use serenity::all::*;
 use std::sync::{Arc, atomic::Ordering};
-use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
+use vozen_music::skip::SkipMode;
 
 pub async fn acknowledge_button(
     http: &Http,
@@ -93,129 +93,105 @@ pub fn controls(
         .votes
         .lock()
         .map_err(|_| "Skip votes are unavailable.")?;
-    let label = if policy.mode == SkipMode::Instant {
-        "Skip".to_owned()
-    } else if votes.voters.is_empty() {
-        "Vote to skip".to_owned()
-    } else {
-        format!("Skip ({}/{})", votes.voters.len(), votes.required)
-    };
-    let action = |name: &str, label: &str| {
+    let paused = session.paused.load(Ordering::SeqCst);
+    let action = |name: &str| {
         CreateButton::new(format!(
             "vozen:action:{name}:{}:{generation}",
             session.control_id
         ))
-        .label(label)
-        .style(if name == "stop" {
-            ButtonStyle::Danger
-        } else if matches!(name, "pause" | "resume") {
-            ButtonStyle::Primary
-        } else {
-            ButtonStyle::Secondary
-        })
+        .style(ButtonStyle::Secondary)
         .disabled(stopped)
     };
-    Ok(vec![
-        CreateActionRow::Buttons(vec![
-            action(
-                if session.paused.load(Ordering::SeqCst) {
-                    "resume"
-                } else {
-                    "pause"
-                },
-                if session.paused.load(Ordering::SeqCst) {
-                    "Resume"
-                } else {
-                    "Pause"
-                },
-            ),
-            CreateButton::new(format!("vozen:skip:{}:{generation}", session.control_id))
-                .label(label)
-                .style(ButtonStyle::Secondary)
-                .disabled(stopped),
-            action("stop", "Stop"),
-        ]),
-        CreateActionRow::Buttons(vec![action("like", "Like"), action("dislike", "Dislike")]),
-    ])
+    let mut skip = CreateButton::new(format!("vozen:skip:{}:{generation}", session.control_id))
+        .emoji(ReactionType::Unicode("⏭️".into()))
+        .style(ButtonStyle::Secondary)
+        .disabled(stopped);
+    if policy.mode == SkipMode::Majority {
+        skip = skip.label(if votes.voters.is_empty() {
+            "Vote".to_owned()
+        } else {
+            format!("{}/{}", votes.voters.len(), votes.required)
+        });
+    }
+    Ok(vec![CreateActionRow::Buttons(vec![
+        action("like").label("Like"),
+        action(if paused { "resume" } else { "pause" })
+            .emoji(ReactionType::Unicode(
+                if paused { "▶️" } else { "⏸️" }.into(),
+            ))
+            .style(ButtonStyle::Success),
+        skip,
+        action("stop").emoji(ReactionType::Unicode("⏹️".into())),
+        action("dislike").label("Dislike"),
+    ])])
 }
 
-fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEmbed, Error> {
+fn payload(
+    catalog: &Catalog,
+    session: &Session,
+    stopped: bool,
+    artwork_url: Option<&str>,
+) -> Result<serde_json::Value, Error> {
     let station = &catalog.stations[session.station];
-    let mut header = CreateEmbed::new().author(CreateEmbedAuthor::new(&station.name));
+    let generation = session.generation.load(Ordering::SeqCst).max(1);
+    let mut components = Vec::new();
     if stopped {
-        return Ok(header
-            .color(0x677286)
-            .title("Playback stopped")
-            .description("Use /play to start a station."));
-    }
-    let track = &station.tracks[session.current.load(Ordering::SeqCst)];
-    if let Some(name) = track
-        .cover
-        .as_ref()
-        .and_then(|p| p.file_name())
-        .and_then(|n| n.to_str())
-    {
-        header = header.image(format!("attachment://{name}"));
-    }
-    let policy = session
-        .policy
-        .lock()
-        .map_err(|_| "Player settings are unavailable.")?;
-    let access = match policy.access {
-        SkipAccess::Everyone => "Everyone in the call",
-        SkipAccess::Moderators => "Moderators and server managers",
-    };
-    let mode = match (policy.mode, policy.majority_scope) {
-        (SkipMode::Instant, _) => "One click",
-        (SkipMode::Majority, MajorityScope::Call) => "Majority of the call",
-        (SkipMode::Majority, MajorityScope::Eligible) => "Majority of eligible members",
-    };
-    let paused = session.paused.load(Ordering::SeqCst);
-    let footer = if session.tips.load(Ordering::SeqCst) {
-        "Controls are for this call · Like and Dislike shape future tracks · /library shows your ratings"
+        components.push(serde_json::json!({"type":10,"content":"Playback stopped. Use /play to start a station."}));
     } else {
-        "Controls are for this call · /skip-settings shows the full skip rules"
-    };
-    Ok(header
-        .color(if paused { 0x9B8AFB } else { 0x59D6CB })
-        .title(&track.title)
-        .description(format!("by {}", track.artist))
-        .field(
-            "Playback",
-            format!(
-                "{} · Volume {}%",
-                if paused { "Paused" } else { "Playing" },
-                session.volume.load(Ordering::SeqCst)
-            ),
-            true,
-        )
-        .field("Skip", format!("{access}\n{mode}"), true)
-        .field(
-            "Credits",
-            format!(
-                "[Source & licence]({}) · {}",
-                track.source_url, track.license
-            ),
-            false,
-        )
-        .footer(CreateEmbedFooter::new(footer)))
+        let track = &station.tracks[session.current.load(Ordering::SeqCst)];
+        if let Some(name) = track
+            .cover
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+        {
+            let url = artwork_url
+                .map(str::to_owned)
+                .unwrap_or_else(|| format!("attachment://{name}"));
+            components.push(serde_json::json!({"type":12,"items":[{"media":{"url":url},"description":format!("Cover art for {} by {}", track.title, track.artist)}]}));
+        }
+        let safe = |text: &str| {
+            serenity::utils::MessageBuilder::new()
+                .push_safe(text)
+                .build()
+        };
+        components.push(serde_json::json!({"type":10,"content":format!(
+            "### {}\n{}\n-# {} · {} · {}%",
+            safe(&track.title), safe(&track.artist), safe(&station.name),
+            if session.paused.load(Ordering::SeqCst) { "Paused" } else { "Playing" },
+            session.volume.load(Ordering::SeqCst)
+        )}));
+    }
+    components.extend(
+        controls(session, generation, stopped)?
+            .into_iter()
+            .map(serde_json::to_value)
+            .collect::<Result<Vec<_>, _>>()?,
+    );
+    if !stopped {
+        let track = &station.tracks[session.current.load(Ordering::SeqCst)];
+        components.push(serde_json::json!({"type":10,"content":format!("-# [Credits & licence]({}) · {}",track.source_url,track.license)}));
+        if session.tips.load(Ordering::SeqCst) {
+            components.push(serde_json::json!({"type":10,"content":"-# Like and Dislike shape future tracks. /library shows your ratings. /skip-settings shows the skip rules."}));
+        }
+    }
+    // Serenity's typed builders predate V2; its HTTP client still handles uploads and rate limits.
+    Ok(serde_json::json!({"flags":1 << 15,"components":components,"allowed_mentions":{"parse":[]}}))
 }
 
-pub async fn message(catalog: &Catalog, session: &Session) -> Result<CreateMessage, Error> {
-    let mut message = CreateMessage::new()
-        .embed(embed(catalog, session, false)?)
-        .components(controls(
-            session,
-            session.generation.load(Ordering::SeqCst).max(1),
-            false,
-        )?)
-        .allowed_mentions(CreateAllowedMentions::new());
+pub async fn message(
+    catalog: &Catalog,
+    session: &Session,
+) -> Result<(serde_json::Value, Vec<CreateAttachment>), Error> {
+    let mut body = payload(catalog, session, false, None)?;
+    let mut files = Vec::new();
     if let Some(file) =
         &catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)].cover
     {
-        message = message.add_file(CreateAttachment::path(file).await?);
+        files.push(CreateAttachment::path(file).await?);
+        body["attachments"] = serde_json::to_value(&files)?;
     }
-    Ok(message)
+    Ok((body, files))
 }
 
 pub async fn post(
@@ -252,7 +228,8 @@ pub async fn post(
         }
     }
     remove(&ctx.http, session).await?;
-    let message = channel.send_message(&ctx.http, message(catalog, session).await?).await.map_err(|error| {
+    let (body, files) = message(catalog, session).await?;
+    let message = ctx.http.send_message(channel, files, &body).await.map_err(|error| {
         eprintln!("Could not post the voice-channel player: {error}");
         "Could not post the player in voice chat. Check Music's channel permissions and try /panel."
     })?;
@@ -330,31 +307,25 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
         .cover
         .as_ref();
     let update = async {
-        let mut card = embed(catalog, session, stopped)?;
         let existing = panel_guard.as_ref().filter(|a| Some(&a.file) == file);
-        if let Some(artwork) = existing {
-            card = card.image(&artwork.url);
-        }
-        let mut update = EditMessage::new()
-            .content("")
-            .embeds(vec![card])
-            .components(controls(session, generation, stopped)?)
-            .allowed_mentions(CreateAllowedMentions::new());
+        let mut body = payload(catalog, session, stopped, existing.map(|a| a.url.as_str()))?;
+        body["content"] = serde_json::Value::Null;
+        body["embeds"] = serde_json::json!([]);
+        let mut files = Vec::new();
         if existing.is_none() {
-            let mut attachments = EditAttachments::new();
             if let Some(file) = file {
-                attachments = attachments.add(CreateAttachment::path(file).await?);
+                files.push(CreateAttachment::path(file).await?);
             }
-            update = update.attachments(attachments);
+            body["attachments"] = serde_json::to_value(&files)?;
         }
-        Ok::<_, Error>(update)
+        Ok::<_, Error>((body, files))
     }
     .await;
     if !stopped && generation != session.generation.load(Ordering::SeqCst) {
         return;
     }
     match update {
-        Ok(update) => match channel.edit_message(http, message, update).await {
+        Ok((body, files)) => match http.edit_message(channel, message, &body, files).await {
             Ok(message) => *panel_guard = attached_cover(file, &message),
             Err(error) => eprintln!("Could not update the station player message: {error}"),
         },
@@ -366,6 +337,25 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn v2_player_messages_and_button_events_keep_their_control_identity() {
+        let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
+        let session = Session::new(0, 0, 123, Default::default(), None);
+        let body = payload(&catalog, &session, false, None).unwrap();
+        let message = serde_json::json!({"id":"456","channel_id":"123","author":{"id":"789","username":"Music","discriminator":"0","avatar":null},"content":"","timestamp":"2026-11-01T20:00:00Z","edited_timestamp":null,"tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"attachments":[],"components":body["components"],"flags":32768});
+        let button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:action:pause:123:1","component_type":2},"message":message})).unwrap();
+        assert_eq!(button.message.components.len(), 1);
+        assert_eq!(button.message.components[0].components.len(), 5);
+        assert_eq!(button.message.id, MessageId::new(456));
+        assert_eq!(button.data.custom_id, "vozen:action:pause:123:1");
+        let mut data = serde_json::to_value(&button).unwrap();
+        data["data"] = serde_json::json!({"id":"1","name":"pause","type":1,"options":[]});
+        let command: CommandInteraction = serde_json::from_value(data).unwrap();
+        assert_eq!(command.user.id, button.user.id);
+        assert_eq!(command.channel_id, button.channel_id);
+        assert_eq!(command.data.name, "pause");
+    }
 
     #[tokio::test]
     async fn player_buttons_acknowledge_silently_and_only_errors_create_private_messages() {
@@ -478,8 +468,9 @@ mod tests {
                 axum::Json(serde_json::json!({
                     "id":"456", "channel_id":"123", "author":{"id":"789","username":"Music","discriminator":"0","avatar":null},
                     "content":"", "timestamp":"2026-11-01T20:00:00Z", "edited_timestamp":null, "tts":false,
-                    "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[{"image":{"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}]),"width":1254,"height":1254}}],
-                    "attachments":[]
+                    "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"flags":32768,
+                    "components":[{"type":12,"items":[{"media":{"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}])}}]},{"type":10,"content":"Track title"}],
+                    "attachments":[{"id":"17","filename":names[if index<2 {0} else {1}],"size":1024,"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}]),"proxy_url":format!("https://media.discordapp.net/attachments/123/17/{}",names[if index<2 {0} else {1}]),"width":1254,"height":1254}]
                 }))
             }
         });
@@ -524,7 +515,7 @@ mod tests {
         let same: serde_json::Value = serde_json::from_slice(&records[1].1).unwrap();
         assert!(same.get("attachments").is_none());
         assert_eq!(
-            same["embeds"][0]["image"]["url"],
+            same["components"][0]["items"][0]["media"]["url"],
             format!("https://cdn.discordapp.com/attachments/123/17/{}", names[0])
         );
         server.abort();
@@ -634,19 +625,26 @@ mod tests {
         let mut policy = vozen_music::skip::SkipSettings::default();
         let session = Session::new(0, 0, 123, policy.clone(), None);
         let buttons = serde_json::to_value(controls(&session, 2, false).unwrap()).unwrap();
-        assert_eq!(buttons[0]["components"][1]["custom_id"], "vozen:skip:123:2");
-        assert_eq!(buttons[0]["components"][1]["label"], "Skip");
-        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 3);
-        assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 2);
-        assert_eq!(buttons[0]["components"][2]["style"], 4);
+        assert_eq!(buttons[0]["components"][2]["custom_id"], "vozen:skip:123:2");
+        assert_eq!(buttons[0]["components"][2]["emoji"]["name"], "⏭️");
+        assert_eq!(buttons.as_array().unwrap().len(), 1);
+        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 5);
+        assert_eq!(buttons[0]["components"][1]["style"], 3);
         assert_eq!(
-            buttons[1]["components"][0]["custom_id"],
+            buttons[0]["components"][0]["custom_id"],
             "vozen:action:like:123:2"
         );
         policy.mode = SkipMode::Majority;
         *session.policy.lock().unwrap() = policy;
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
-        assert_eq!(buttons[0]["components"][1]["label"], "Vote to skip");
+        assert_eq!(buttons[0]["components"][2]["label"], "Vote");
+        {
+            let mut votes = session.votes.lock().unwrap();
+            votes.voters.insert(456);
+            votes.required = 3;
+        }
+        let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
+        assert_eq!(buttons[0]["components"][2]["label"], "1/3");
         let disabled = serde_json::to_value(controls(&session, 3, true).unwrap()).unwrap();
         for row in disabled.as_array().unwrap() {
             for button in row["components"].as_array().unwrap() {
@@ -660,44 +658,55 @@ mod tests {
         let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         let mut policy = vozen_music::skip::SkipSettings::default();
         let session = Session::new(0, 0, 123, policy.clone(), None);
-        let card = serde_json::to_value(message(&catalog, &session).await.unwrap()).unwrap();
+        let card = payload(&catalog, &session, false, None).unwrap();
         let track = &catalog.stations[0].tracks[0];
-        assert_eq!(card["embeds"][0]["title"], track.title);
-        assert_eq!(
-            card["embeds"][0]["description"],
-            format!("by {}", track.artist)
-        );
+        assert_eq!(card["flags"], 32768);
+        assert!(card.get("embeds").is_none());
+        assert!(card.get("content").is_none());
+        assert_eq!(card["allowed_mentions"]["parse"], serde_json::json!([]));
+        let components = card["components"].as_array().unwrap();
+        assert_eq!(components[0]["type"], 12);
+        assert_eq!(components[1]["type"], 10);
+        let text = components[1]["content"].as_str().unwrap();
+        assert!(text.contains(&track.title));
+        assert!(text.contains(&track.artist));
+        assert!(text.contains("Playing · 100%"));
+        assert_eq!(components[2]["type"], 1);
         assert!(
-            card["embeds"][0]["fields"][2]["value"]
+            components[3]["content"]
                 .as_str()
                 .unwrap()
                 .contains(&track.source_url)
         );
         assert!(
-            card["embeds"][0]["fields"][2]["value"]
+            components[3]["content"]
                 .as_str()
                 .unwrap()
                 .contains(&track.license)
         );
-        assert_eq!(
-            card["embeds"][0]["fields"][1]["value"],
-            "Everyone in the call\nOne click"
-        );
+        assert!(!text.contains("Controls are for"));
         session.paused.store(true, Ordering::SeqCst);
         session.volume.store(40, Ordering::SeqCst);
-        policy.access = SkipAccess::Moderators;
+        policy.access = vozen_music::skip::SkipAccess::Moderators;
         policy.mode = SkipMode::Majority;
-        policy.majority_scope = MajorityScope::Eligible;
+        policy.majority_scope = vozen_music::skip::MajorityScope::Eligible;
         *session.policy.lock().unwrap() = policy;
-        let paused = serde_json::to_value(embed(&catalog, &session, false).unwrap()).unwrap();
-        assert_eq!(paused["fields"][0]["value"], "Paused · Volume 40%");
-        assert_eq!(
-            paused["fields"][1]["value"],
-            "Moderators and server managers\nMajority of eligible members"
+        let paused = payload(&catalog, &session, false, None).unwrap();
+        assert!(
+            paused["components"][1]["content"]
+                .as_str()
+                .unwrap()
+                .contains("Paused · 40%")
         );
-        let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
-        assert_eq!(stopped["title"], "Playback stopped");
-        assert!(stopped.get("fields").is_none());
+        assert_eq!(
+            paused["components"][2]["components"][1]["custom_id"],
+            "vozen:action:resume:123:1"
+        );
+        let stopped = payload(&catalog, &session, true, None).unwrap();
+        assert_eq!(
+            stopped["components"][0]["content"],
+            "Playback stopped. Use /play to start a station."
+        );
     }
 
     #[test]
@@ -716,7 +725,7 @@ mod tests {
             let session = Session::new(station_index, 0, 1, Default::default(), None);
             for (index, track) in station.tracks.iter().enumerate() {
                 session.current.store(index, Ordering::SeqCst);
-                let card = serde_json::to_value(embed(&catalog, &session, false).unwrap()).unwrap();
+                let card = payload(&catalog, &session, false, None).unwrap();
                 let name = track
                     .cover
                     .as_ref()
@@ -725,11 +734,25 @@ mod tests {
                     .unwrap()
                     .to_str()
                     .unwrap();
-                assert_eq!(card["title"], track.title);
-                assert_eq!(card["image"]["url"], format!("attachment://{name}"));
+                assert!(
+                    card["components"][1]["content"]
+                        .as_str()
+                        .unwrap()
+                        .contains(&track.title)
+                );
+                assert_eq!(
+                    card["components"][0]["items"][0]["media"]["url"],
+                    format!("attachment://{name}")
+                );
             }
-            let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
-            assert!(stopped.get("image").is_none());
+            let stopped = payload(&catalog, &session, true, None).unwrap();
+            assert!(
+                !stopped["components"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|c| c["type"] == 12)
+            );
         }
     }
 }
