@@ -167,6 +167,7 @@ pub async fn post(
             return Err("Music needs View Channel, Send Messages and Embed Links in the voice channel to post the player.".into());
         }
     }
+    remove(&ctx.http, session).await?;
     let message = channel.send_message(&ctx.http, message(catalog, session)?).await.map_err(|error| {
         eprintln!("Could not post the voice-channel player: {error}");
         "Could not post the player in voice chat. Check Music's channel permissions and try /panel."
@@ -178,13 +179,59 @@ pub async fn post(
     }))
 }
 
+pub async fn remove(http: &Http, session: &Session) -> Result<(), Error> {
+    let panel = session
+        .panel
+        .lock()
+        .map_err(|_| "Panel unavailable.")?
+        .clone();
+    let Some(panel) = panel else {
+        return Ok(());
+    };
+    let _guard = panel.update.lock().await;
+    if !session
+        .panel
+        .lock()
+        .map_err(|_| "Panel unavailable.")?
+        .as_ref()
+        .is_some_and(|p| Arc::ptr_eq(p, &panel))
+    {
+        return Ok(());
+    }
+    if let Err(error) = panel.channel.delete_message(http, panel.message).await {
+        let missing = matches!(&error, serenity::Error::Http(serenity::http::HttpError::UnsuccessfulRequest(response)) if response.status_code.as_u16() == 404);
+        if !missing {
+            return Err(error.into());
+        }
+    }
+    let mut current = session.panel.lock().map_err(|_| "Panel unavailable.")?;
+    if current.as_ref().is_some_and(|p| Arc::ptr_eq(p, &panel)) {
+        *current = None;
+    }
+    Ok(())
+}
+
 pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, stopped: bool) {
+    if stopped {
+        if let Err(error) = remove(http, session).await {
+            eprintln!("Could not delete the station player: {error}");
+        }
+        return;
+    }
     let panel = session.panel.lock().ok().and_then(|p| p.clone());
     let Some(panel) = panel else {
         return;
     };
     // Shared across manual skips, so an old HTTP edit completes before the new player's edit.
     let panel_guard = panel.update.lock().await;
+    if !session
+        .panel
+        .lock()
+        .ok()
+        .is_some_and(|p| p.as_ref().is_some_and(|p| Arc::ptr_eq(p, &panel)))
+    {
+        return;
+    }
     let (channel, message) = (panel.channel, panel.message);
     if !stopped && !session.active.load(Ordering::SeqCst) {
         return;
@@ -214,6 +261,91 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn stopped_players_are_deleted_and_missing_messages_are_harmless() {
+        use axum::{
+            Router,
+            body::Body,
+            http::{Request, StatusCode},
+            response::IntoResponse,
+        };
+        use std::sync::atomic::AtomicUsize;
+        for status in [204, 404, 403] {
+            let requests = Arc::new(AtomicUsize::new(0));
+            let count = requests.clone();
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let addr = listener.local_addr().unwrap();
+            let app = Router::new().fallback(move |request: Request<Body>| {
+                let count = count.clone();
+                async move {
+                    assert_eq!(request.method(), "DELETE");
+                    assert!(request.uri().path().ends_with("/channels/123/messages/456"));
+                    count.fetch_add(1, Ordering::SeqCst);
+                    (
+                        StatusCode::from_u16(status).unwrap(),
+                        axum::Json(serde_json::json!({"code":10008,"message":"Unknown Message"})),
+                    )
+                        .into_response()
+                }
+            });
+            let server = tokio::spawn(async move {
+                axum::serve(listener, app).await.unwrap();
+            });
+            let http = Arc::new(
+                serenity::http::HttpBuilder::new("synthetic-token")
+                    .proxy(format!("http://{addr}"))
+                    .ratelimiter_disabled(true)
+                    .build(),
+            );
+            let session = Arc::new(Session::new(
+                0,
+                0,
+                1,
+                Default::default(),
+                Some(Arc::new(super::super::PlayerPanel {
+                    channel: ChannelId::new(123),
+                    message: MessageId::new(456),
+                    update: tokio::sync::Mutex::new(()),
+                })),
+            ));
+            let panel = session.panel.lock().unwrap().clone().unwrap();
+            let gate = panel.update.lock().await;
+            let removal = tokio::spawn({
+                let http = http.clone();
+                let session = session.clone();
+                async move { remove(&http, &session).await }
+            });
+            tokio::task::yield_now().await;
+            let update = (status != 403).then(|| {
+                tokio::spawn({
+                    let http = http.clone();
+                    let session = session.clone();
+                    async move {
+                        refresh(&http, &Catalog { stations: vec![] }, &session, false).await;
+                    }
+                })
+            });
+            tokio::task::yield_now().await;
+            assert_eq!(requests.load(Ordering::SeqCst), 0);
+            drop(gate);
+            let result = removal.await.unwrap();
+            if let Some(update) = update {
+                update.await.unwrap();
+            }
+            assert_eq!(
+                result.is_ok(),
+                status != 403,
+                "Delete status {status}: {result:?}"
+            );
+            assert_eq!(session.panel.lock().unwrap().is_none(), status != 403);
+            assert_eq!(requests.load(Ordering::SeqCst), 1);
+            if status != 403 {
+                refresh(&http, &Catalog { stations: vec![] }, &session, true).await;
+                assert_eq!(requests.load(Ordering::SeqCst), 1);
+            }
+            server.abort();
+        }
+    }
     #[test]
     fn rejects_invalid_or_zero_player_targets() {
         assert_eq!(target("vozen:skip:123:2").unwrap(), (123, 2));

@@ -374,6 +374,7 @@ impl Bot {
                 persistence = r.persist(&self.catalog, s, false).await;
             }
             s.active.store(false, Ordering::SeqCst);
+            player::refresh(&ctx.http, &self.catalog, s, true).await;
         }
         if let Some(manager) = songbird::get(ctx).await {
             tokio::time::timeout(Duration::from_secs(5), manager.remove(guild))

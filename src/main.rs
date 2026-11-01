@@ -135,6 +135,9 @@ impl AudioEventHandler for Advance {
     async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
         let Some(call) = self.call.upgrade() else {
             self.session.active.store(false, Ordering::SeqCst);
+            if let Err(error) = player::remove(&self.http, &self.session).await {
+                eprintln!("Could not delete the disconnected player: {error}");
+            }
             return Some(Event::Cancel);
         };
         if !self.session.active.load(Ordering::SeqCst)
@@ -450,6 +453,7 @@ impl Bot {
             locked.stop();
             sessions.remove(&guild_id);
             drop(locked);
+            player::refresh(&ctx.http, &self.catalog, &stopped, true).await;
             tokio::time::timeout(Duration::from_secs(5), manager.remove(guild_id))
                 .await
                 .map_err(|_| "Playback stopped, but leaving the voice channel timed out.")?
@@ -529,6 +533,19 @@ impl EventHandler for Bot {
 
     async fn voice_state_update(&self, ctx: Context, old: Option<VoiceState>, new: VoiceState) {
         if let Some(guild) = new.guild_id {
+            if new.user_id == ctx.cache.current_user().id
+                && old
+                    .as_ref()
+                    .and_then(|s| s.channel_id)
+                    .is_some_and(|channel| Some(channel) != new.channel_id)
+            {
+                let session = self.sessions.lock().await.get(&guild).cloned();
+                if let Some(session) = session
+                    && let Err(error) = player::remove(&ctx.http, &session).await
+                {
+                    eprintln!("Could not delete the previous voice-channel player: {error}");
+                }
+            }
             let entered = new.channel_id.is_some()
                 && old.as_ref().and_then(|s| s.channel_id) != new.channel_id
                 && new
@@ -781,7 +798,8 @@ async fn main() -> Result<(), Error> {
     } else {
         Command::set_global_commands(&client.http, commands).await?;
     }
-    let mut dashboard = dashboard::start(bot, client.cache.clone(), client.http.clone()).await?;
+    let mut dashboard =
+        dashboard::start(bot.clone(), client.cache.clone(), client.http.clone()).await?;
     let shards = client.shard_manager.clone();
     #[cfg(unix)]
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
@@ -796,8 +814,8 @@ async fn main() -> Result<(), Error> {
         let _ = tokio::signal::ctrl_c().await;
         shards.shutdown_all().await;
     });
-    tokio::select! {
-        result = client.start() => { result?; },
+    let outcome: Result<(), Error> = tokio::select! {
+        result = client.start() => { result.map_err(Into::into) },
         result = async {
             match &mut dashboard {
                 Some(task) => task.await.map_err(|_| "Dashboard task stopped unexpectedly.")?,
@@ -805,14 +823,29 @@ async fn main() -> Result<(), Error> {
             }
         } => {
             client.shard_manager.shutdown_all().await;
-            result?;
-            return Err("Dashboard stopped unexpectedly.".into());
+            result.and(Err("Dashboard stopped unexpectedly.".into()))
         }
+    };
+    let sessions: Vec<_> = bot.sessions.lock().await.values().cloned().collect();
+    for session in &sessions {
+        session.active.store(false, Ordering::SeqCst);
+    }
+    if tokio::time::timeout(Duration::from_secs(10), async {
+        for session in sessions {
+            if let Err(error) = player::remove(&client.http, &session).await {
+                eprintln!("Could not delete the player during shutdown: {error}");
+            }
+        }
+    })
+    .await
+    .is_err()
+    {
+        eprintln!("Player cleanup during shutdown timed out.");
     }
     if let Some(task) = dashboard {
         task.abort();
     }
-    Ok(())
+    outcome
 }
 
 #[cfg(test)]
