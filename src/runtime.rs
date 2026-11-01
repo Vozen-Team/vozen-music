@@ -170,6 +170,17 @@ pub async fn humans(
 }
 
 impl Runtime {
+    pub async fn allows_recording(&self, id: &str) -> Result<bool, Error> {
+        let people = humans(&self.cache, &self.http, self.guild, self.channel, false).await?;
+        let ratings = self
+            .settings
+            .lock()
+            .await
+            .db
+            .ratings(self.guild.get(), &people)?;
+        Ok(!ratings.values().any(|r| r.get(id) == Some(&-1)))
+    }
+
     pub async fn next(&self, catalog: &Catalog, session: &Session) -> Result<Option<usize>, Error> {
         let people = humans(&self.cache, &self.http, self.guild, self.channel, false).await?;
         let ratings = self
@@ -843,6 +854,50 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn replay_eligibility_uses_only_the_present_listeners_ratings() {
+        let mut guild = Guild::default();
+        guild.id = GuildId::new(1);
+        guild.voice_states.insert(UserId::new(3), serde_json::from_value(serde_json::json!({
+            "guild_id":"1","channel_id":"2","user_id":"3","session_id":"fixture",
+                "deaf":false,"mute":false,"self_deaf":false,"self_mute":false,"self_video":false,"suppress":false,
+            "member":{"user":{"id":"3","username":"Listener","discriminator":"0","avatar":null,"bot":false},"roles":[],"joined_at":null,"deaf":false,"mute":false,"flags":0}
+        })).unwrap());
+        let cache = Arc::new(Cache::new());
+        let mut event: GuildCreateEvent =
+            serde_json::from_value(serde_json::to_value(&guild).unwrap()).unwrap();
+        cache.update(&mut event);
+        let settings = Arc::new(Mutex::new(
+            SettingsStore::load(
+                std::env::temp_dir().join(format!("vozen-replay-{}.json", rand::random::<u64>())),
+            )
+            .unwrap(),
+        ));
+        settings
+            .lock()
+            .await
+            .db
+            .rate(1, 3, "recording", -1)
+            .unwrap();
+        settings.lock().await.db.rate(1, 4, "another", -1).unwrap();
+        let runtime = Runtime {
+            guild: GuildId::new(1),
+            channel: ChannelId::new(2),
+            text: ChannelId::new(2),
+            cache: cache.clone(),
+            http: Arc::new(Http::new("synthetic-token")),
+            settings,
+            voice: Weak::new(),
+        };
+        assert!(!runtime.allows_recording("recording").await.unwrap());
+        assert!(runtime.allows_recording("another").await.unwrap());
+        guild.voice_states.clear();
+        let mut event: GuildCreateEvent =
+            serde_json::from_value(serde_json::to_value(&guild).unwrap()).unwrap();
+        cache.update(&mut event);
+        assert!(runtime.allows_recording("recording").await.unwrap());
+    }
+
     #[tokio::test]
     async fn timer_boundaries_cancel_and_replacement_session_are_isolated() {
         let catalog = Catalog { stations: vec![] };

@@ -67,9 +67,9 @@ fn attached_cover(file: Option<&std::path::PathBuf>, message: &Message) -> Optio
     })
 }
 
-pub fn target(id: &str) -> Result<(u64, usize), Error> {
+pub fn target(id: &str) -> Result<(u64, usize, bool), Error> {
     let parts: Vec<_> = id.split(':').collect();
-    if parts.len() != 4 || parts[0] != "vozen" || parts[1] != "skip" {
+    if parts.len() != 4 || parts[0] != "vozen" || !matches!(parts[1], "skip" | "previous") {
         return Err("Invalid player control.".into());
     }
     let session = parts[2].parse::<u64>()?;
@@ -77,7 +77,7 @@ pub fn target(id: &str) -> Result<(u64, usize), Error> {
     if session == 0 || generation == 0 {
         return Err("Invalid player control.".into());
     }
-    Ok((session, generation))
+    Ok((session, generation, parts[1] == "previous"))
 }
 
 pub fn controls(
@@ -89,11 +89,8 @@ pub fn controls(
         .policy
         .lock()
         .map_err(|_| "Player settings are unavailable.")?;
-    let votes = session
-        .votes
-        .lock()
-        .map_err(|_| "Skip votes are unavailable.")?;
     let paused = session.paused.load(Ordering::SeqCst);
+    let looping = session.looping.load(Ordering::SeqCst);
     let action = |name: &str| {
         CreateButton::new(format!(
             "vozen:action:{name}:{}:{generation}",
@@ -102,28 +99,53 @@ pub fn controls(
         .style(ButtonStyle::Secondary)
         .disabled(stopped)
     };
-    let mut skip = CreateButton::new(format!("vozen:skip:{}:{generation}", session.control_id))
-        .emoji(ReactionType::Unicode("⏭️".into()))
-        .style(ButtonStyle::Secondary)
-        .disabled(stopped);
-    if policy.mode == SkipMode::Majority {
-        skip = skip.label(if votes.voters.is_empty() {
-            "Vote".to_owned()
+    let navigation = |previous: bool| -> Result<CreateButton, Error> {
+        let votes = session
+            .votes_for(previous)
+            .lock()
+            .map_err(|_| "Skip votes are unavailable.")?;
+        let icon = if previous { "⏮︎" } else { "⏭︎" };
+        let label = if policy.mode == SkipMode::Majority && !votes.voters.is_empty() {
+            format!("{icon} {}/{}", votes.voters.len(), votes.required)
         } else {
-            format!("{}/{}", votes.voters.len(), votes.required)
-        });
-    }
-    Ok(vec![CreateActionRow::Buttons(vec![
-        action("like").label("Like"),
-        action(if paused { "resume" } else { "pause" })
-            .emoji(ReactionType::Unicode(
-                if paused { "▶️" } else { "⏸️" }.into(),
-            ))
-            .style(ButtonStyle::Success),
-        skip,
-        action("stop").emoji(ReactionType::Unicode("⏹️".into())),
-        action("dislike").label("Dislike"),
-    ])])
+            icon.to_owned()
+        };
+        Ok(CreateButton::new(format!(
+            "vozen:{}:{}:{generation}",
+            if previous { "previous" } else { "skip" },
+            session.control_id
+        ))
+        .label(label)
+        .style(ButtonStyle::Secondary)
+        .disabled(
+            stopped
+                || (previous
+                    && session
+                        .history
+                        .lock()
+                        .map_err(|_| "Playback history is unavailable.")?
+                        .is_empty()),
+        ))
+    };
+    Ok(vec![
+        CreateActionRow::Buttons(vec![
+            navigation(true)?,
+            action(if paused { "resume" } else { "pause" })
+                .label(if paused { "▶︎" } else { "⏸︎" })
+                .style(ButtonStyle::Success),
+            navigation(false)?,
+        ]),
+        CreateActionRow::Buttons(vec![
+            action("like").emoji(ReactionType::Unicode("❤".into())),
+            action("dislike").emoji(ReactionType::Unicode("💔".into())),
+            action("loop").label("↻").style(if looping {
+                ButtonStyle::Success
+            } else {
+                ButtonStyle::Secondary
+            }),
+            action("stop").label("⏹︎"),
+        ]),
+    ])
 }
 
 fn payload(
@@ -156,10 +178,11 @@ fn payload(
                 .build()
         };
         components.push(serde_json::json!({"type":10,"content":format!(
-            "### {}\n{}\n-# {} · {} · {}%",
+            "### {}\n{}\n-# {} · {} · {}%{}",
             safe(&track.title), safe(&track.artist), safe(&station.name),
             if session.paused.load(Ordering::SeqCst) { "Paused" } else { "Playing" },
-            session.volume.load(Ordering::SeqCst)
+            session.volume.load(Ordering::SeqCst),
+            if session.looping.load(Ordering::SeqCst) { " · Repeat one" } else { "" }
         )}));
     }
     components.extend(
@@ -470,8 +493,8 @@ mod tests {
                     "id":"456", "channel_id":"123", "author":{"id":"789","username":"Music","discriminator":"0","avatar":null},
                     "content":"", "timestamp":"2026-11-01T20:00:00Z", "edited_timestamp":null, "tts":false,
                     "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"flags":32768,
-                    "components":[{"type":12,"items":[{"media":{"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}])}}]},{"type":10,"content":"Track title"}],
-                    "attachments":[{"id":"17","filename":names[if index<2 {0} else {1}],"size":1024,"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}]),"proxy_url":format!("https://media.discordapp.net/attachments/123/17/{}",names[if index<2 {0} else {1}]),"width":1254,"height":1254}]
+                    "components":[{"type":12,"items":[{"media":{"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index==2 {1} else {0}])}}]},{"type":10,"content":"Track title"}],
+                    "attachments":[{"id":"17","filename":names[if index==2 {1} else {0}],"size":1024,"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index==2 {1} else {0}]),"proxy_url":format!("https://media.discordapp.net/attachments/123/17/{}",names[if index==2 {1} else {0}]),"width":1254,"height":1254}]
                 }))
             }
         });
@@ -499,9 +522,12 @@ mod tests {
         session.current.store(1, Ordering::SeqCst);
         session.generation.store(2, Ordering::SeqCst);
         refresh(&http, &catalog, &session, false).await;
+        session.current.store(0, Ordering::SeqCst);
+        session.generation.store(3, Ordering::SeqCst);
+        refresh(&http, &catalog, &session, false).await;
         let records = requests.lock().unwrap();
-        assert_eq!(records.len(), 3);
-        for (index, name) in [(0, &names[0]), (2, &names[1])] {
+        assert_eq!(records.len(), 4);
+        for (index, name) in [(0, &names[0]), (2, &names[1]), (3, &names[0])] {
             assert!(
                 records[index].0.starts_with("multipart/form-data"),
                 "Track change must upload artwork, got {}",
@@ -609,8 +635,11 @@ mod tests {
     }
     #[test]
     fn rejects_invalid_or_zero_player_targets() {
-        assert_eq!(target("vozen:skip:123:2").unwrap(), (123, 2));
+        assert_eq!(target("vozen:skip:123:2").unwrap(), (123, 2, false));
+        assert_eq!(target("vozen:previous:123:2").unwrap(), (123, 2, true));
         for id in [
+            "vozen:previous:0:1",
+            "vozen:previous:1:0",
             "skip:123:2",
             "vozen:skip:0:1",
             "vozen:skip:1:0",
@@ -627,25 +656,50 @@ mod tests {
         let session = Session::new(0, 0, 123, policy.clone(), None);
         let buttons = serde_json::to_value(controls(&session, 2, false).unwrap()).unwrap();
         assert_eq!(buttons[0]["components"][2]["custom_id"], "vozen:skip:123:2");
-        assert_eq!(buttons[0]["components"][2]["emoji"]["name"], "⏭️");
-        assert_eq!(buttons.as_array().unwrap().len(), 1);
-        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 5);
-        assert_eq!(buttons[0]["components"][1]["style"], 3);
         assert_eq!(
             buttons[0]["components"][0]["custom_id"],
+            "vozen:previous:123:2"
+        );
+        assert_eq!(buttons[0]["components"][0]["disabled"], true);
+        assert_eq!(
+            buttons[0]["components"][1]["custom_id"],
+            "vozen:action:pause:123:2"
+        );
+        assert_eq!(buttons[1]["components"][0]["emoji"]["name"], "❤");
+        assert_eq!(buttons[1]["components"][1]["emoji"]["name"], "💔");
+        assert_eq!(buttons.as_array().unwrap().len(), 2);
+        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 3);
+        assert_eq!(buttons[0]["components"][1]["style"], 3);
+        assert_eq!(buttons[1]["components"][2]["style"], 2);
+        session.looping.store(true, Ordering::SeqCst);
+        session.set_track(1).unwrap();
+        assert_eq!(
+            buttons[1]["components"][0]["custom_id"],
             "vozen:action:like:123:2"
         );
         policy.mode = SkipMode::Majority;
         *session.policy.lock().unwrap() = policy;
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
-        assert_eq!(buttons[0]["components"][2]["label"], "Vote");
+        assert_eq!(buttons[0]["components"][0]["disabled"], false);
+        assert_eq!(buttons[1]["components"][2]["style"], 3);
         {
             let mut votes = session.votes.lock().unwrap();
             votes.voters.insert(456);
             votes.required = 3;
         }
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
-        assert_eq!(buttons[0]["components"][2]["label"], "1/3");
+        assert!(
+            buttons[0]["components"][2]["label"]
+                .as_str()
+                .unwrap()
+                .ends_with("1/3")
+        );
+        assert!(
+            !buttons[0]["components"][0]["label"]
+                .as_str()
+                .unwrap()
+                .contains("1/3")
+        );
         let disabled = serde_json::to_value(controls(&session, 3, true).unwrap()).unwrap();
         for row in disabled.as_array().unwrap() {
             for button in row["components"].as_array().unwrap() {
@@ -675,13 +729,13 @@ mod tests {
         assert!(text.contains("Playing · 100%"));
         assert_eq!(components[2]["type"], 1);
         assert!(
-            components[3]["content"]
+            components[4]["content"]
                 .as_str()
                 .unwrap()
                 .contains(&track.source_url)
         );
         assert!(
-            components[3]["content"]
+            components[4]["content"]
                 .as_str()
                 .unwrap()
                 .contains(&track.license)

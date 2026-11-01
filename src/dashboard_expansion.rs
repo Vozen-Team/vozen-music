@@ -179,10 +179,7 @@ async fn save_expanded(
     let mut warning = None;
     if let Some(s) = &active {
         *s.policy.lock().map_err(|_| unavailable())? = saved.skip.clone();
-        s.votes
-            .lock()
-            .map_err(|_| unavailable())?
-            .reset(s.generation.load(Ordering::SeqCst));
+        s.reset_votes(s.generation.load(Ordering::SeqCst)).map_err(|_| unavailable())?;
         if voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
             let track =
                 &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];

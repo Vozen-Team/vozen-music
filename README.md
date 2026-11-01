@@ -28,6 +28,10 @@ Tracks are selected using the current listeners' ratings, with dislikes excluded
 
 Command replies are private. `/play` and `/station` also post a shared station player with the current recording and a Skip button. The player updates on track changes and shows vote progress; old controls are rejected. `/nowplaying` includes a private copy of the current button. Playback errors are posted in the command's text channel with mentions disabled. Production registers global commands and supports installed servers; the optional `DISCORD_GUILD_ID` restricts a development instance to one server.
 
+The player puts Previous, Pause/Resume and Next in its first row, with Like, Dislike, Repeat one and Stop underneath. Previous uses up to 100 recordings from the current session's playback history and stays disabled until a previous recording exists. Previous and Next use the same skip access and majority policy, with independent votes; changing the track or skip policy clears both vote counts. Successful buttons do not add confirmation messages; errors are private.
+
+Repeat one turns green when enabled and repeats the current recording from its beginning after a normal ending. Manual Previous/Next keeps repeat enabled for the newly selected recording. Present listeners' dislikes still exclude recordings, and decode failures follow the normal bounded error handling instead of forcing a broken recording to repeat. History and repeat are session state: starting a new playback session or restarting Music resets them.
+
 ## Skip buttons and votes
 
 Defaults are **everyone in the bot's voice channel**, **instant skip**, and **whole-call majority scope** (the scope only matters when voting is enabled). Buttons and `/skip` share the same permission and vote checks. Bots never vote or count in the quorum. Server managers and administrators must also be in the bot's voice channel to skip.

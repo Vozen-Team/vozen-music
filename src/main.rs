@@ -11,7 +11,7 @@ use songbird::{
     tracks::{PlayMode, Track, TrackHandle},
 };
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     path::Path,
     sync::{
         Arc, Mutex as SyncMutex, Weak,
@@ -38,6 +38,8 @@ struct Session {
     recovery_attempts: AtomicUsize,
     sleep_until: AtomicUsize,
     paused: AtomicBool,
+    looping: AtomicBool,
+    history: SyncMutex<VecDeque<usize>>,
     tips: AtomicBool,
     station: usize,
     active: AtomicBool,
@@ -49,6 +51,7 @@ struct Session {
     panel: SyncMutex<Option<Arc<PlayerPanel>>>,
     policy: SyncMutex<SkipSettings>,
     votes: SyncMutex<SkipVotes>,
+    previous_votes: SyncMutex<SkipVotes>,
 }
 
 impl Session {
@@ -66,6 +69,8 @@ impl Session {
             recovery_attempts: AtomicUsize::new(0),
             sleep_until: AtomicUsize::new(0),
             paused: AtomicBool::new(false),
+            looping: AtomicBool::new(false),
+            history: SyncMutex::new(VecDeque::new()),
             tips: AtomicBool::new(false),
             station,
             active: AtomicBool::new(true),
@@ -77,7 +82,88 @@ impl Session {
             panel: SyncMutex::new(panel),
             policy: SyncMutex::new(policy),
             votes: SyncMutex::new(SkipVotes::default()),
+            previous_votes: SyncMutex::new(SkipVotes::default()),
         }
+    }
+
+    fn for_track_change(
+        &self,
+        index: usize,
+        control_id: u64,
+        policy: SkipSettings,
+        previous: bool,
+    ) -> Result<Self, Error> {
+        let mut history = self
+            .history
+            .lock()
+            .map_err(|_| "Playback history is unavailable.")?
+            .clone();
+        if previous && history.pop_back() != Some(index) {
+            return Err("The previous recording changed. Please try again.".into());
+        }
+        let mut replacement = Self::new(
+            self.station,
+            if previous {
+                index
+            } else {
+                self.current.load(Ordering::SeqCst)
+            },
+            control_id,
+            policy,
+            self.panel.lock().map_err(|_| "Panel unavailable.")?.clone(),
+        );
+        replacement.runtime = self.runtime.clone();
+        replacement.history = SyncMutex::new(history);
+        replacement
+            .looping
+            .store(self.looping.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .tips
+            .store(self.tips.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .volume
+            .store(self.volume.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .sleep_until
+            .store(self.sleep_until.load(Ordering::SeqCst), Ordering::SeqCst);
+        replacement
+            .turn
+            .store(self.turn.load(Ordering::SeqCst), Ordering::SeqCst);
+        Ok(replacement)
+    }
+
+    fn votes_for(&self, previous: bool) -> &SyncMutex<SkipVotes> {
+        if previous {
+            &self.previous_votes
+        } else {
+            &self.votes
+        }
+    }
+
+    fn reset_votes(&self, generation: usize) -> Result<(), Error> {
+        for previous in [false, true] {
+            self.votes_for(previous)
+                .lock()
+                .map_err(|_| "Skip votes are unavailable.")?
+                .reset(generation);
+        }
+        Ok(())
+    }
+
+    fn set_track(&self, index: usize) -> Result<(), Error> {
+        let current = self.current.load(Ordering::SeqCst);
+        if current != index {
+            let mut history = self
+                .history
+                .lock()
+                .map_err(|_| "Playback history is unavailable.")?;
+            if history.len() == 100 {
+                history.pop_front();
+            }
+            history.push_back(current);
+        }
+        self.current.store(index, Ordering::SeqCst);
+        Ok(())
     }
 }
 
@@ -102,16 +188,11 @@ struct Advance {
 
 fn play_track(call: &mut Call, mut advance: Advance, index: usize) -> Result<(), Error> {
     let track = &advance.catalog.stations[advance.session.station].tracks[index];
-    advance.session.current.store(index, Ordering::SeqCst);
+    advance.session.set_track(index)?;
     advance.session.turn.fetch_add(1, Ordering::SeqCst);
     // Invalidate callbacks before replacing the previous track, including its stop event.
     advance.generation = advance.session.generation.fetch_add(1, Ordering::SeqCst) + 1;
-    advance
-        .session
-        .votes
-        .lock()
-        .map_err(|_| "Skip votes are unavailable.")?
-        .reset(advance.generation);
+    advance.session.reset_votes(advance.generation)?;
     let mut audio = Track::from(File::new(track.file.clone())).volume(
         10.0_f32.powf(track.gain_db / 20.0) * advance.session.volume.load(Ordering::SeqCst) as f32
             / 100.0,
@@ -145,7 +226,20 @@ impl AudioEventHandler for Advance {
         {
             return Some(Event::Cancel);
         }
-        let preferred = if let Some(r) = &self.session.runtime {
+        let errored = matches!(ctx, EventContext::Track(tracks)
+            if tracks.iter().any(|(state, _)| matches!(state.playing, PlayMode::Errored(_))));
+        let preferred = if self.session.looping.load(Ordering::SeqCst) && !errored {
+            let index = self.session.current.load(Ordering::SeqCst);
+            match &self.session.runtime {
+                Some(r) => r
+                    .allows_recording(&self.catalog.stations[self.session.station].tracks[index].id)
+                    .await
+                    .ok()
+                    .filter(|allowed| *allowed)
+                    .map(|_| index),
+                None => Some(index),
+            }
+        } else if let Some(r) = &self.session.runtime {
             r.next(&self.catalog, &self.session).await.unwrap_or(None)
         } else {
             Some(
@@ -167,8 +261,6 @@ impl AudioEventHandler for Advance {
                 return Some(Event::Cancel);
             }
             let count = self.catalog.stations[self.session.station].tracks.len();
-            let errored = matches!(ctx, EventContext::Track(tracks)
-                if tracks.iter().any(|(state, _)| matches!(state.playing, PlayMode::Errored(_))));
             let next = next_after_playback(
                 self.session.current.load(Ordering::SeqCst),
                 count,
@@ -482,6 +574,9 @@ impl Bot {
             .clone()
             .ok_or("No track is currently playing.")?;
         match command.data.name.as_str() {
+            "loop" => {
+                session.looping.fetch_xor(true, Ordering::SeqCst);
+            }
             "pause" => {
                 handle.pause().map_err(|_| "Could not pause playback.")?;
                 session.paused.store(true, Ordering::SeqCst);
@@ -586,7 +681,7 @@ impl EventHandler for Bot {
                             return Err("This player is outdated. Use /panel.".into());
                         }
                     }
-                    if !["pause", "resume", "like", "dislike", "stop"].contains(&parts[2]) {
+                    if !["pause", "resume", "like", "dislike", "stop", "loop"].contains(&parts[2]) {
                         return Err("Unknown player control.".into());
                     }
                     let mut data = serde_json::to_value(&button)?;
@@ -601,7 +696,10 @@ impl EventHandler for Bot {
                 }
                 return;
             }
-            Interaction::Component(button) if button.data.custom_id.starts_with("vozen:skip:") => {
+            Interaction::Component(button)
+                if button.data.custom_id.starts_with("vozen:skip:")
+                    || button.data.custom_id.starts_with("vozen:previous:") =>
+            {
                 if player::acknowledge_button(&ctx.http, &button)
                     .await
                     .is_err()
@@ -940,6 +1038,7 @@ mod tests {
             UserId::new(2),
         )));
         let mut handler = advance(Arc::downgrade(&call), true);
+        handler.session.looping.store(true, Ordering::SeqCst);
         handler.catalog = Arc::new(Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap());
         let old_handle = call
             .lock()
@@ -962,6 +1061,86 @@ mod tests {
         assert_eq!(handler.session.current.load(Ordering::SeqCst), 1);
         handler.session.active.store(false, Ordering::SeqCst);
         call.lock().await.stop();
+    }
+
+    #[tokio::test]
+    async fn natural_end_repeats_only_when_loop_is_enabled_and_stale_events_do_nothing() {
+        let catalog = Arc::new(Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap());
+        for looping in [false, true] {
+            let call = Arc::new(Mutex::new(Call::standalone(
+                GuildId::new(1),
+                UserId::new(2),
+            )));
+            let mut handler = advance(Arc::downgrade(&call), true);
+            handler.catalog = catalog.clone();
+            handler.session.looping.store(looping, Ordering::SeqCst);
+            handler.act(&EventContext::Track(&[])).await;
+            assert_eq!(
+                handler.session.current.load(Ordering::SeqCst),
+                usize::from(!looping)
+            );
+            assert_eq!(handler.session.generation.load(Ordering::SeqCst), 1);
+            assert_eq!(
+                handler.session.history.lock().unwrap().len(),
+                usize::from(!looping)
+            );
+            handler.act(&EventContext::Track(&[])).await;
+            assert_eq!(handler.session.generation.load(Ordering::SeqCst), 1);
+            handler.session.active.store(false, Ordering::SeqCst);
+            call.lock().await.stop();
+        }
+    }
+
+    #[test]
+    fn navigation_keeps_history_loop_and_timer_and_resets_both_vote_directions() {
+        let session = Session::new(0, 0, 1, SkipSettings::default(), None);
+        session.set_track(1).unwrap();
+        session.set_track(2).unwrap();
+        session.set_track(2).unwrap();
+        session.looping.store(true, Ordering::SeqCst);
+        session.volume.store(40, Ordering::SeqCst);
+        session.sleep_until.store(1234, Ordering::SeqCst);
+        session.votes_for(false).lock().unwrap().voters.insert(10);
+        assert!(session.votes_for(true).lock().unwrap().voters.is_empty());
+        session.votes_for(true).lock().unwrap().voters.insert(20);
+        let previous = session
+            .for_track_change(1, 2, SkipSettings::default(), true)
+            .unwrap();
+        previous.set_track(1).unwrap();
+        assert_eq!(previous.current.load(Ordering::SeqCst), 1);
+        assert_eq!(*previous.history.lock().unwrap(), VecDeque::from([0]));
+        assert!(previous.looping.load(Ordering::SeqCst));
+        assert_eq!(previous.volume.load(Ordering::SeqCst), 40);
+        assert_eq!(previous.sleep_until.load(Ordering::SeqCst), 1234);
+        assert_eq!(previous.control_id, 2);
+        assert!(
+            session
+                .for_track_change(0, 2, SkipSettings::default(), true)
+                .is_err()
+        );
+        let next = previous
+            .for_track_change(3, 3, SkipSettings::default(), false)
+            .unwrap();
+        next.set_track(3).unwrap();
+        assert_eq!(*next.history.lock().unwrap(), VecDeque::from([0, 1]));
+        session.reset_votes(7).unwrap();
+        for direction in [false, true] {
+            assert!(
+                session
+                    .votes_for(direction)
+                    .lock()
+                    .unwrap()
+                    .voters
+                    .is_empty()
+            );
+        }
+        for index in 3..=105 {
+            session.set_track(index).unwrap();
+        }
+        let history = session.history.lock().unwrap();
+        assert_eq!(history.len(), 100);
+        assert_eq!(history.back(), Some(&104));
+        assert_eq!(history.front(), Some(&5));
     }
 
     #[tokio::test]

@@ -793,10 +793,8 @@ async fn save(
         if let Some(session) = sessions.get(&guild) {
             *session.policy.lock().map_err(|_| unavailable())? = policy.clone();
             session
-                .votes
-                .lock()
-                .map_err(|_| unavailable())?
-                .reset(session.generation.load(Ordering::SeqCst));
+                .reset_votes(session.generation.load(Ordering::SeqCst))
+                .map_err(|_| unavailable())?;
         }
         sessions.get(&guild).cloned()
     };

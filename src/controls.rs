@@ -166,11 +166,7 @@ impl Bot {
                     .policy
                     .lock()
                     .map_err(|_| "Player settings are unavailable.")? = policy.clone();
-                session
-                    .votes
-                    .lock()
-                    .map_err(|_| "Skip votes are unavailable.")?
-                    .reset(session.generation.load(Ordering::SeqCst));
+                session.reset_votes(session.generation.load(Ordering::SeqCst))?;
             }
             sessions.get(&guild).cloned()
         };
@@ -251,8 +247,9 @@ impl Bot {
         member: &Member,
         text: ChannelId,
         interaction_id: u64,
-        target: Option<(u64, usize)>,
+        target: Option<(u64, usize, bool)>,
     ) -> Result<String, Error> {
+        let previous = target.is_some_and(|t| t.2);
         if self.guild.is_some_and(|allowed| guild != allowed) {
             return Err("This version is limited to the development server.".into());
         }
@@ -288,19 +285,29 @@ impl Bot {
                 .ok_or("No station is active. Use /play first.")?;
             if !session.active.load(Ordering::SeqCst)
                 || target.is_some_and(|t| {
-                    t != (
-                        session.control_id,
-                        session.generation.load(Ordering::SeqCst),
-                    )
+                    (t.0, t.1)
+                        != (
+                            session.control_id,
+                            session.generation.load(Ordering::SeqCst),
+                        )
                 })
             {
                 return Err(
                     "This player is outdated. Use the latest player or /nowplaying.".into(),
                 );
             }
+            if previous
+                && session
+                    .history
+                    .lock()
+                    .map_err(|_| "Playback history is unavailable.")?
+                    .is_empty()
+            {
+                return Err("There is no previous recording in this session.".into());
+            }
             if policy.mode == SkipMode::Majority {
                 session
-                    .votes
+                    .votes_for(previous)
                     .lock()
                     .map_err(|_| "Skip votes are unavailable.")?
                     .begin_request(
@@ -378,7 +385,7 @@ impl Bot {
         if policy.mode == SkipMode::Majority
             && voice_ids != listeners.iter().map(|m| m.user.id.get()).collect()
         {
-            return Err("Voice membership changed. Please press Skip again.".into());
+            return Err("Voice membership changed. Please try again.".into());
         }
         let generation = session.generation.load(Ordering::SeqCst);
         if !session.active.load(Ordering::SeqCst)
@@ -388,7 +395,7 @@ impl Bot {
         }
         let required = policy.required_votes(humans, eligible.len());
         let progress = session
-            .votes
+            .votes_for(previous)
             .lock()
             .map_err(|_| "Skip votes are unavailable.")?
             .cast(generation, member.user.id.get(), &eligible, required)?;
@@ -411,35 +418,31 @@ impl Bot {
             }
             return Ok(reply);
         }
-        let next = self
-            .selection(&session)
-            .await?
-            .ok_or("No recordings match the listeners' preferences.")?;
-        session.active.store(false, Ordering::SeqCst);
-        let mut replacement = Session::new(
-            session.station,
-            next,
-            interaction_id,
-            policy,
-            session
-                .panel
+        let next = if previous {
+            let index = session
+                .history
                 .lock()
-                .map_err(|_| "Panel unavailable.")?
-                .clone(),
-        );
-        replacement.runtime = session.runtime.clone();
-        replacement
-            .tips
-            .store(session.tips.load(Ordering::SeqCst), Ordering::SeqCst);
-        replacement
-            .volume
-            .store(session.volume.load(Ordering::SeqCst), Ordering::SeqCst);
-        replacement
-            .sleep_until
-            .store(session.sleep_until.load(Ordering::SeqCst), Ordering::SeqCst);
-        replacement
-            .turn
-            .store(session.turn.load(Ordering::SeqCst), Ordering::SeqCst);
+                .map_err(|_| "Playback history is unavailable.")?
+                .back()
+                .copied()
+                .ok_or("There is no previous recording in this session.")?;
+            if let Some(runtime) = &session.runtime
+                && !runtime
+                    .allows_recording(&self.catalog.stations[session.station].tracks[index].id)
+                    .await?
+            {
+                return Err(
+                    "The previous recording is excluded by a listener's preferences.".into(),
+                );
+            }
+            index
+        } else {
+            self.selection(&session)
+                .await?
+                .ok_or("No recordings match the listeners' preferences.")?
+        };
+        let replacement = session.for_track_change(next, interaction_id, policy, previous)?;
+        session.active.store(false, Ordering::SeqCst);
         let replacement = Arc::new(replacement);
         let advance = Advance {
             call: Arc::downgrade(&call),
