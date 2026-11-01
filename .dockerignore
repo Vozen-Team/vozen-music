@@ -14,4 +14,6 @@
 !media/**
 !licenses
 !licenses/**
+!covers
+!covers/**
 !Dockerfile

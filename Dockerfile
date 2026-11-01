@@ -21,5 +21,6 @@ COPY --from=build /build/target/release/vozen-music /usr/local/bin/vozen-music
 COPY catalog.json ./catalog.json
 COPY media ./media
 COPY licenses ./licenses
+COPY covers ./covers
 USER 10001:10001
 ENTRYPOINT ["vozen-music"]

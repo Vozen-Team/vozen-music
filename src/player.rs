@@ -77,7 +77,7 @@ pub fn controls(
 
 fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEmbed, Error> {
     let station = &catalog.stations[session.station];
-    let header = CreateEmbed::new().author(CreateEmbedAuthor::new(&station.name));
+    let mut header = CreateEmbed::new().author(CreateEmbedAuthor::new(&station.name));
     if stopped {
         return Ok(header
             .color(0x677286)
@@ -85,6 +85,14 @@ fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEm
             .description("Use /play to start a station."));
     }
     let track = &station.tracks[session.current.load(Ordering::SeqCst)];
+    if let Some(name) = track
+        .cover
+        .as_ref()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+    {
+        header = header.image(format!("https://api.vozen.org/music/covers/{name}"));
+    }
     let policy = session
         .policy
         .lock()
@@ -429,5 +437,41 @@ mod tests {
         let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
         assert_eq!(stopped["title"], "Playback stopped");
         assert!(stopped.get("fields").is_none());
+    }
+
+    #[test]
+    fn player_selects_the_matching_cover_for_every_recording() {
+        let mut catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
+        catalog.stations.push(vozen_music::Station {
+            id: "my".into(),
+            name: "My Station".into(),
+            tracks: catalog
+                .stations
+                .iter()
+                .flat_map(|s| s.tracks.clone())
+                .collect(),
+        });
+        for (station_index, station) in catalog.stations.iter().enumerate() {
+            let session = Session::new(station_index, 0, 1, Default::default(), None);
+            for (index, track) in station.tracks.iter().enumerate() {
+                session.current.store(index, Ordering::SeqCst);
+                let card = serde_json::to_value(embed(&catalog, &session, false).unwrap()).unwrap();
+                let name = track
+                    .cover
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap();
+                assert_eq!(card["title"], track.title);
+                assert_eq!(
+                    card["image"]["url"],
+                    format!("https://api.vozen.org/music/covers/{name}")
+                );
+            }
+            let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
+            assert!(stopped.get("image").is_none());
+        }
     }
 }

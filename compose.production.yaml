@@ -14,6 +14,12 @@ services:
         target: /app/data
         bind:
           create_host_path: false
+      - type: bind
+        source: ./covers
+        target: /app/covers
+        read_only: true
+        bind:
+          create_host_path: false
     init: true
     # systemd owns restarts and waits for the encrypted data mount.
     restart: "no"

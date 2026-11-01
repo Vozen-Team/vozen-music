@@ -13,8 +13,36 @@ import tarfile
 import urllib.request
 
 ROOT = Path('/srv/vozen-secure/music')
-INCOMING = Path('/home/ubuntu/vozen-music-expansion-20261031')
+INCOMING = Path(os.environ.get('MUSIC_RELEASE_INCOMING', '/home/ubuntu/vozen-music-expansion-20261031'))
 CONTAINER = 'vozen-music-music-1'
+
+def cover_mount():
+    return ['-v', str(ROOT / 'covers') + ':/app/covers:ro'] if (ROOT / 'covers').exists() else []
+
+def stage_covers(manifest):
+    expected = manifest.get('cover_files')
+    if not expected:
+        return
+    assert len(expected) == 250
+    assert all(len(sha) == 64 and set(sha) <= set('0123456789abcdef') and name == sha + '.png' for name, sha in expected.items())
+    assert digest(INCOMING / 'covers.tar') == manifest['sha256']['covers.tar']
+    target = ROOT / 'covers'
+    if not target.exists():
+        pending = ROOT / ('covers-stage-' + manifest['source_revision'][:8])
+        pending.mkdir(mode=0o755)
+        with tarfile.open(INCOMING / 'covers.tar') as bundle:
+            members = bundle.getmembers()
+            assert len(members) == len(expected) and {m.name for m in members} == set(expected)
+            for member in members:
+                assert member.isfile() and 0 < member.size <= 8 * 1024 * 1024
+                data = bundle.extractfile(member).read()
+                assert hashlib.sha256(data).hexdigest() == expected[member.name]
+                path = pending / member.name
+                path.write_bytes(data)
+                path.chmod(0o644)
+        pending.rename(target)
+    assert {p.name for p in target.iterdir()} == set(expected)
+    assert all(digest(target / name) == sha for name, sha in expected.items())
 
 def run(*args):
     return subprocess.check_output(args, text=True).strip()
@@ -52,7 +80,7 @@ def migrate_copy(folder, tag, data, database=None):
             source.backup(snapshot)
             expected = {g: json.loads(body)['skip'] for g, body in snapshot.execute('SELECT guild,body FROM settings')}
         os.chown(target, 10001, 10001)
-    run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', '-v', f'{folder}:/app/data', tag, '--check-data')
+    run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', '-v', f'{folder}:/app/data', *cover_mount(), tag, '--check-data')
     verify_migration(folder, expected)
     assert legacy.read_bytes() == data
 
@@ -102,6 +130,7 @@ def main():
     tag = 'vozen-music:expansion-' + manifest['source_revision'][:8]
     legacy_path = ROOT / 'data/skip-settings.json'
     if sys.argv[1] == 'stage':
+        stage_covers(manifest)
         stage.mkdir(mode=0o700)
         for name in ['vozen-music', 'catalog.json']:
             shutil.copy2(INCOMING / name, stage / name)
@@ -122,7 +151,7 @@ def main():
             with (stage / 'Dockerfile').open('a') as dockerfile:
                 dockerfile.write('COPY media/ /app/media/\nCOPY licenses/ /app/licenses/\n')
         subprocess.run(['docker', 'build', '--network=none', '-t', tag, str(stage)], check=True)
-        run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', tag, '--check')
+        run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', *cover_mount(), tag, '--check')
         migrate_copy(stage / 'migration-test', tag, legacy_path.read_bytes() if legacy_path.exists() else b'{}', ROOT / 'data/skip-settings.sqlite3')
         receipt = {'sourceRevision': manifest['source_revision'], 'image': tag, 'imageId': run('docker', 'image', 'inspect', tag, '--format', '{{.Id}}'), 'migrationCopyPassed': True}
         (stage / 'staged.json').write_text(json.dumps(receipt, indent=2))
@@ -134,6 +163,16 @@ def main():
     backup.mkdir(mode=0o700)
     before_siblings = siblings()
     env_bytes = (ROOT / '.env').read_bytes()
+    compose_path = ROOT / 'compose.production.yaml'
+    compose_bytes = compose_path.read_bytes()
+    if manifest.get('cover_files'):
+        assert digest(INCOMING / 'compose.production.yaml') == manifest['sha256']['compose.production.yaml']
+        candidate_compose = (INCOMING / 'compose.production.yaml').read_bytes()
+        addition = b'      - type: bind\n        source: ./covers\n        target: /app/covers\n        read_only: true\n        bind:\n          create_host_path: false\n'
+        assert candidate_compose.replace(addition, b'', 1) == compose_bytes
+    else:
+        candidate_compose = compose_bytes
+    (backup / 'compose.production.yaml').write_bytes(compose_bytes)
     (backup / 'music.env').write_bytes(env_bytes)
     (backup / 'music.env').chmod(0o600)
     subprocess.run(['systemctl', 'stop', 'vozen-music'], check=True)
@@ -144,10 +183,19 @@ def main():
         migrate_copy(stage / 'quiescent-migration-test', tag, original, ROOT / 'data/skip-settings.sqlite3')
         assert (ROOT / '.env').read_bytes() == env_bytes
         set_image(tag)
+        if candidate_compose != compose_bytes:
+            atomic(compose_path, candidate_compose)
         subprocess.run(['systemctl', 'start', 'vozen-music'], check=True)
         healthy()
         assert run('docker', 'inspect', CONTAINER, '--format', '{{.Config.Image}}') == tag
-        assert run('docker', 'inspect', CONTAINER, '--format', '{{range .Mounts}}{{.Source}}:{{.Destination}}{{end}}') == str(ROOT / 'data') + ':/app/data'
+        mounts = json.loads(run('docker', 'inspect', CONTAINER, '--format', '{{json .Mounts}}'))
+        binds = {m['Destination']: (m['Source'], m['RW']) for m in mounts if m['Type'] == 'bind'}
+        expected_binds = {'/app/data': (str(ROOT / 'data'), True)}
+        if cover_mount():
+            expected_binds['/app/covers'] = (str(ROOT / 'covers'), False)
+        assert binds == expected_binds
+        if manifest.get('cover_files'):
+            assert all(digest(ROOT / 'covers' / name) == sha for name, sha in manifest['cover_files'].items())
         assert not legacy_path.exists() or legacy_path.read_bytes() == original
         expected = json.loads(original)
         if (backup / 'data/skip-settings.sqlite3').exists():
@@ -181,7 +229,7 @@ def main():
     except Exception:
         subprocess.run(['systemctl', 'stop', 'vozen-music'], check=True)
         if (ROOT / 'data/skip-settings.sqlite3').exists():
-            exported = run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', '-v', str(ROOT / 'data') + ':/app/data', tag, '--export-skip')
+            exported = run('docker', 'run', '--rm', '--network=none', '--read-only', '--cap-drop=ALL', '-v', str(ROOT / 'data') + ':/app/data', *cover_mount(), tag, '--export-skip')
             json.loads(exported)
             atomic(legacy_path, exported.encode())
             os.chown(legacy_path, 10001, 10001)
@@ -192,6 +240,8 @@ def main():
                     db.execute('UPDATE playback SET body=? WHERE guild=?', (json.dumps(intent), guild))
                 db.commit()
         set_image(previous)
+        if compose_path.read_bytes() == candidate_compose:
+            atomic(compose_path, compose_bytes)
         subprocess.run(['systemctl', 'start', 'vozen-music'], check=True)
         healthy()
         raise

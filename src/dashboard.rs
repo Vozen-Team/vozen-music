@@ -177,8 +177,10 @@ async fn guarded(
         .into_response()
     };
     let headers = response.headers_mut();
+    headers
+        .entry(header::CACHE_CONTROL)
+        .or_insert(HeaderValue::from_static("no-store"));
     for (name, value) in [
-        ("cache-control", "no-store"),
         ("referrer-policy", "no-referrer"),
         ("x-content-type-options", "nosniff"),
         ("x-frame-options", "DENY"),
@@ -806,8 +808,35 @@ async fn save(
 
 include!("dashboard_expansion.rs");
 
+async fn track_cover(
+    State(state): State<Arc<Dashboard>>,
+    RoutePath(name): RoutePath<String>,
+) -> WebResult<Response> {
+    let path = state
+        .bot
+        .catalog
+        .stations
+        .iter()
+        .flat_map(|s| &s.tracks)
+        .filter_map(|t| t.cover.as_ref())
+        .find(|p| p.file_name().and_then(|n| n.to_str()) == Some(name.as_str()))
+        .ok_or(WebError(StatusCode::NOT_FOUND, "Cover not found."))?;
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|_| WebError(StatusCode::NOT_FOUND, "Cover not found."))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
 fn router(state: Arc<Dashboard>) -> Router {
     Router::new()
+        .route("/music/covers/{name}", get(track_cover))
         .route(
             "/music/navigation.js",
             get(|| async {
@@ -1147,6 +1176,60 @@ mod tests {
             secret: "synthetic-client-secret".into(),
             auth: Mutex::new(auth),
         })
+    }
+
+    #[tokio::test]
+    async fn artwork_is_public_but_only_catalog_covers_are_served() {
+        let mut state = fixture();
+        let catalog = Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let cover = catalog.stations[0].tracks[0]
+            .cover
+            .as_ref()
+            .unwrap()
+            .clone();
+        let name = cover.file_name().unwrap().to_str().unwrap();
+        Arc::get_mut(&mut Arc::get_mut(&mut state).unwrap().bot)
+            .unwrap()
+            .catalog = Arc::new(catalog);
+        let app = router(state);
+        let response = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!("/music/covers/{name}"))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::CONTENT_TYPE], "image/png");
+        assert_eq!(
+            response.headers()[header::CACHE_CONTROL],
+            "public, max-age=31536000, immutable"
+        );
+        let bytes = axum::body::to_bytes(response.into_body(), 8 * 1024 * 1024)
+            .await
+            .unwrap();
+        assert_eq!(bytes.as_ref(), std::fs::read(cover).unwrap());
+        for path in [
+            "/music/covers/catalog.json",
+            "/music/covers/.env",
+            "/music/covers/unknown.png",
+            "/music/covers/%2e%2e%2fcatalog.json",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(path)
+                        .body(axum::body::Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NOT_FOUND, "{path}");
+        }
     }
 
     #[tokio::test]

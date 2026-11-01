@@ -1,4 +1,5 @@
 use serde::Deserialize;
+use sha2::Digest;
 pub mod expansion;
 pub mod skip;
 use std::{
@@ -38,6 +39,8 @@ pub struct Track {
     pub title: String,
     pub artist: String,
     pub file: PathBuf,
+    #[serde(default)]
+    pub cover: Option<PathBuf>,
     pub source_url: String,
     pub license: String,
     pub license_evidence: String,
@@ -71,7 +74,6 @@ impl Catalog {
             }
             for track in &mut station.tracks {
                 if track.id.is_empty() {
-                    use sha2::Digest;
                     track.id = format!(
                         "rec-{:x}",
                         sha2::Sha256::digest(track.source_url.as_bytes())
@@ -114,6 +116,24 @@ impl Catalog {
                     return Err("The track must be an audio file inside media/.".into());
                 }
                 track.file = file;
+                if let Some(cover) = &mut track.cover {
+                    let folder = root.join("covers").canonicalize()?;
+                    let file = root.join(&*cover).canonicalize()?;
+                    if cover.is_absolute() || !file.starts_with(&folder) || !file.is_file() {
+                        return Err("Track covers must be files inside covers/.".into());
+                    }
+                    if fs::metadata(&file)?.len() > 8 * 1024 * 1024 {
+                        return Err("Track covers must be no larger than 8 MB.".into());
+                    }
+                    let bytes = fs::read(&file)?;
+                    let name = format!("{:x}.png", sha2::Sha256::digest(&bytes));
+                    if !bytes.starts_with(b"\x89PNG\r\n\x1a\n")
+                        || file.file_name().and_then(|s| s.to_str()) != Some(&name)
+                    {
+                        return Err("Track covers must be PNGs named by their SHA-256.".into());
+                    }
+                    *cover = file;
+                }
             }
         }
         Ok(catalog)
@@ -243,6 +263,43 @@ mod tests {
         assert_eq!(next_track(2, 3), Some(0));
         assert_eq!(next_track(0, 0), None);
         assert_eq!(next_track(3, 3), None);
+    }
+
+    #[test]
+    fn covers_require_local_pngs_with_matching_content_hashes() {
+        let fixture = Fixture::new();
+        assert!(
+            fixture.load(catalog()).unwrap().stations[0].tracks[0]
+                .cover
+                .is_none()
+        );
+        fs::create_dir(fixture.0.join("covers")).unwrap();
+        let temporary = fixture.0.join("covers/test.png");
+        image::RgbaImage::new(1, 1).save(&temporary).unwrap();
+        let bytes = fs::read(&temporary).unwrap();
+        let name = format!("{:x}.png", sha2::Sha256::digest(&bytes));
+        let path = fixture.0.join("covers").join(&name);
+        fs::rename(&temporary, &path).unwrap();
+        let mut input = catalog();
+        input["stations"][0]["tracks"][0]["cover"] = json!(format!("covers/{name}"));
+        assert!(
+            fixture.load(input.clone()).unwrap().stations[0].tracks[0]
+                .cover
+                .as_ref()
+                .unwrap()
+                .is_absolute()
+        );
+        for invalid in [
+            "covers/missing.png".to_owned(),
+            path.to_string_lossy().into_owned(),
+            "media/test.wav".to_owned(),
+        ] {
+            let mut invalid_input = input.clone();
+            invalid_input["stations"][0]["tracks"][0]["cover"] = json!(invalid);
+            assert!(fixture.load(invalid_input).is_err());
+        }
+        fs::write(&path, b"not the approved image").unwrap();
+        assert!(fixture.load(input).is_err());
     }
     #[test]
     fn rejects_missing_approval_and_other_licenses() {

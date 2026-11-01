@@ -193,3 +193,4 @@
 /output/
 /node_modules/
 __pycache__/
+/covers/*.png
