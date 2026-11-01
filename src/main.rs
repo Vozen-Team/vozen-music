@@ -565,14 +565,12 @@ impl EventHandler for Bot {
             Interaction::Component(button)
                 if button.data.custom_id.starts_with("vozen:action:") =>
             {
-                let _ = button
-                    .create_response(
-                        &ctx.http,
-                        CreateInteractionResponse::Defer(
-                            CreateInteractionResponseMessage::new().ephemeral(true),
-                        ),
-                    )
-                    .await;
+                if player::acknowledge_button(&ctx.http, &button)
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
                 let result: Result<String, Error> = async {
                     let parts: Vec<_> = button.data.custom_id.split(':').collect();
                     if parts.len() != 5 {
@@ -598,22 +596,13 @@ impl EventHandler for Bot {
                     self.command(&ctx, &command).await
                 }
                 .await;
-                let _ = button
-                    .edit_response(
-                        &ctx.http,
-                        EditInteractionResponse::new()
-                            .content(result.unwrap_or_else(|e| e.to_string()))
-                            .allowed_mentions(CreateAllowedMentions::new()),
-                    )
-                    .await;
+                if let Err(error) = player::finish_button(&ctx.http, &button, result).await {
+                    eprintln!("Could not respond to a player control: {error}");
+                }
                 return;
             }
             Interaction::Component(button) if button.data.custom_id.starts_with("vozen:skip:") => {
-                let response = CreateInteractionResponseMessage::new()
-                    .ephemeral(true)
-                    .allowed_mentions(CreateAllowedMentions::new());
-                if button
-                    .create_response(&ctx.http, CreateInteractionResponse::Defer(response))
+                if player::acknowledge_button(&ctx.http, &button)
                     .await
                     .is_err()
                 {
@@ -639,18 +628,8 @@ impl EventHandler for Bot {
                     .await
                 }
                 .await;
-                let content = result.unwrap_or_else(|error| error.to_string());
-                if button
-                    .edit_response(
-                        &ctx.http,
-                        EditInteractionResponse::new()
-                            .content(content)
-                            .allowed_mentions(CreateAllowedMentions::new()),
-                    )
-                    .await
-                    .is_err()
-                {
-                    eprintln!("Could not respond to a player control.");
+                if let Err(error) = player::finish_button(&ctx.http, &button, result).await {
+                    eprintln!("Could not respond to a player control: {error}");
                 }
                 return;
             }

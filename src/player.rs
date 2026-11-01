@@ -3,6 +3,34 @@ use serenity::all::*;
 use std::sync::{Arc, atomic::Ordering};
 use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
 
+pub async fn acknowledge_button(
+    http: &Http,
+    button: &ComponentInteraction,
+) -> serenity::Result<()> {
+    button
+        .create_response(http, CreateInteractionResponse::Acknowledge)
+        .await
+}
+
+pub async fn finish_button(
+    http: &Http,
+    button: &ComponentInteraction,
+    result: Result<String, Error>,
+) -> serenity::Result<()> {
+    if let Err(error) = result {
+        button
+            .create_followup(
+                http,
+                CreateInteractionResponseFollowup::new()
+                    .content(error.to_string())
+                    .ephemeral(true)
+                    .allowed_mentions(CreateAllowedMentions::new()),
+            )
+            .await?;
+    }
+    Ok(())
+}
+
 pub(super) struct Artwork {
     file: std::path::PathBuf,
     url: String,
@@ -338,6 +366,79 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn player_buttons_acknowledge_silently_and_only_errors_create_private_messages() {
+        use axum::{
+            Router,
+            body::{Body, to_bytes},
+            http::{Request, StatusCode},
+            response::IntoResponse,
+        };
+        let message = serde_json::json!({"id":"456","channel_id":"123","author":{"id":"789","username":"Music","discriminator":"0","avatar":null},"content":"","timestamp":"2026-11-01T20:00:00Z","edited_timestamp":null,"tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"attachments":[]});
+        let button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:skip:1:1","component_type":2},"message":message})).unwrap();
+        let requests = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = requests.clone();
+        let app = Router::new().fallback(move |request: Request<Body>| {
+            let captured = captured.clone();
+            let message = message.clone();
+            async move {
+                let path = request.uri().path().to_owned();
+                let body = to_bytes(request.into_body(), 1024 * 1024).await.unwrap();
+                let body: serde_json::Value = serde_json::from_slice(&body).unwrap();
+                captured.lock().unwrap().push((path.clone(), body));
+                if path.contains("/interactions/") {
+                    StatusCode::NO_CONTENT.into_response()
+                } else {
+                    axum::Json(message).into_response()
+                }
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let http = serenity::http::HttpBuilder::new("synthetic-token")
+            .application_id(ApplicationId::new(222))
+            .proxy(format!("http://{address}"))
+            .ratelimiter_disabled(true)
+            .build();
+        acknowledge_button(&http, &button).await.unwrap();
+        for result in [
+            "Track skipped.",
+            "Paused.",
+            "Resumed.",
+            "Liked.",
+            "Disliked.",
+            "Stopped.",
+            "Vote recorded. Votes: 1/3.",
+        ] {
+            finish_button(&http, &button, Ok(result.into()))
+                .await
+                .unwrap();
+        }
+        {
+            let records = requests.lock().unwrap();
+            assert_eq!(
+                records[0].1["type"], 6,
+                "A button must acknowledge without creating a reply"
+            );
+            assert_eq!(
+                records.len(),
+                1,
+                "Successful buttons must not add chat messages"
+            );
+            assert!(records[0].1["data"].is_null());
+        }
+        finish_button(&http, &button, Err("Join the same voice channel.".into()))
+            .await
+            .unwrap();
+        let records = requests.lock().unwrap();
+        assert_eq!(records.len(), 2);
+        assert!(records[1].0.contains("/webhooks/222/"));
+        assert_eq!(records[1].1["content"], "Join the same voice channel.");
+        assert_eq!(records[1].1["flags"], 64);
+        server.abort();
+    }
 
     #[tokio::test]
     async fn track_changes_upload_native_covers_and_same_track_edits_keep_them() {
