@@ -70,6 +70,15 @@ impl Default for ServerSettings {
     }
 }
 impl ServerSettings {
+    pub fn permits_message_channel(&self, channel: u64, voice: bool) -> bool {
+        if voice {
+            self.voice_rules.permits(channel)
+                && self.voice_channel.is_none_or(|fixed| fixed == channel)
+        } else {
+            self.text_rules.permits(channel)
+        }
+    }
+
     pub fn validate_resources(
         &self,
         guild: u64,
@@ -419,6 +428,24 @@ pub fn candidates(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn voice_chat_controls_use_voice_rules_without_bypassing_channel_limits() {
+        let mut settings = ServerSettings::default();
+        settings.text_rules.allow = true;
+        settings.text_rules.channels.insert(10);
+        assert!(settings.permits_message_channel(10, false));
+        assert!(!settings.permits_message_channel(20, false));
+        assert!(settings.permits_message_channel(20, true));
+        settings.voice_rules.channels.insert(20);
+        assert!(!settings.permits_message_channel(20, true));
+        settings.voice_rules.allow = true;
+        assert!(settings.permits_message_channel(20, true));
+        assert!(!settings.permits_message_channel(30, true));
+        settings.voice_channel = Some(30);
+        assert!(!settings.permits_message_channel(20, true));
+        assert!(settings.permits_message_channel(10, false));
+    }
+
     fn store() -> Store {
         Store::open(Path::new(":memory:"), Path::new("missing-legacy-test.json")).unwrap()
     }

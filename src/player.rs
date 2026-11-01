@@ -108,6 +108,42 @@ pub fn message(catalog: &Catalog, session: &Session) -> Result<CreateMessage, Er
         .allowed_mentions(CreateAllowedMentions::new()))
 }
 
+pub async fn post(
+    ctx: &Context,
+    catalog: &Catalog,
+    session: &Session,
+) -> Result<Arc<super::PlayerPanel>, Error> {
+    let runtime = session
+        .runtime
+        .as_ref()
+        .ok_or("Voice session unavailable. Use /play again.")?;
+    let channel = runtime.channel;
+    {
+        let guild = ctx
+            .cache
+            .guild(runtime.guild)
+            .ok_or("The server is still loading.")?;
+        let voice = guild
+            .channels
+            .get(&channel)
+            .ok_or("Voice channel unavailable.")?;
+        #[allow(deprecated)]
+        let permissions = voice.permissions_for_user(&ctx.cache, ctx.cache.current_user().id)?;
+        if !permissions.contains(Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES) {
+            return Err("Music needs View Channel and Send Messages in the voice channel to post the player.".into());
+        }
+    }
+    let message = channel.send_message(&ctx.http, message(catalog, session)?).await.map_err(|error| {
+        eprintln!("Could not post the voice-channel player: {error}");
+        "Could not post the player in voice chat. Check Music's channel permissions and try /panel."
+    })?;
+    Ok(Arc::new(super::PlayerPanel {
+        channel,
+        message: message.id,
+        update: tokio::sync::Mutex::new(()),
+    }))
+}
+
 pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, stopped: bool) {
     let panel = session.panel.lock().ok().and_then(|p| p.clone());
     let Some(panel) = panel else {

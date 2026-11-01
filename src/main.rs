@@ -435,17 +435,9 @@ impl Bot {
             return runtime::set_timer(&self.catalog, session, minutes, cancel).await;
         }
         if command.data.name == "panel" {
-            let message = command
-                .channel_id
-                .send_message(&ctx.http, player::message(&self.catalog, session)?)
-                .await?;
-            *session.panel.lock().map_err(|_| "Panel unavailable.")? =
-                Some(Arc::new(PlayerPanel {
-                    channel: command.channel_id,
-                    message: message.id,
-                    update: Mutex::new(()),
-                }));
-            return Ok("Player panel posted.".into());
+            let panel = player::post(ctx, &self.catalog, session).await?;
+            *session.panel.lock().map_err(|_| "Panel unavailable.")? = Some(panel);
+            return Ok("Player panel posted in voice chat.".into());
         }
         if command.data.name == "stop" {
             let stopped = session.clone();

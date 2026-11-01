@@ -184,3 +184,5 @@ Per-server nickname, avatar, banner and bio updates go to Discord, never the glo
 `node scripts/preview.mjs` opens a loopback-only UI fixture on port 4783. It uses sample data and does not connect to Discord or modify production. `scripts/check-ui.mjs` uses the existing Playwright installation via `VOZEN_PLAYWRIGHT_MODULE`. It is not a substitute for real voice tests.
 
 See `docs/EXPANSION-ACCEPTANCE.md` for rollout, verification and unresolved music/listening gates. Unreviewed candidates under `licenses/expansion-review/` are not part of the active catalog.
+
+The shared player is posted in the connected voice channel's text chat, both on `/play` (when automatic player announcements are enabled) and `/panel`. Track changes update that message. Music needs View Channel and Send Messages there; a posting failure is reported instead of silently posting in another channel. The configured Auto-join notification text channel remains available for Auto-join and its notices. Voice-chat controls follow voice allow/block rules and the fixed voice channel; ordinary text commands follow text allow/block rules. DJ, same-call and skip-voting checks still apply.

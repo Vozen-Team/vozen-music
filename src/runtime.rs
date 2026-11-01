@@ -244,7 +244,7 @@ impl Bot {
         }
         let cfg = self.settings.lock().await.db.settings(guild.get())?;
         if !cfg.voice_rules.permits(channel.get())
-            || !cfg.text_rules.permits(text.get())
+            || !self.message_channel_allowed(ctx, guild, &cfg, text)
             || cfg.voice_channel.is_some_and(|id| id != channel.get())
         {
             return Err("This channel is not allowed by the server's Music settings.".into());
@@ -316,27 +316,13 @@ impl Bot {
         };
         s.current.store(index, Ordering::SeqCst);
         if cfg.announcements {
-            let target = cfg.announcement_channel.map(ChannelId::new).unwrap_or(text);
-            if !cfg.text_rules.permits(target.get()) {
-                return Err("The announcement channel is blocked.".into());
-            }
-            match target
-                .send_message(&ctx.http, player::message(&self.catalog, &s)?)
-                .await
-            {
-                Ok(m) => {
-                    *s.panel.lock().map_err(|_| "Panel unavailable.")? =
-                        Some(Arc::new(PlayerPanel {
-                            channel: target,
-                            message: m.id,
-                            update: Mutex::new(()),
-                        }))
-                }
+            match player::post(ctx, &self.catalog, &s).await {
+                Ok(panel) => *s.panel.lock().map_err(|_| "Panel unavailable.")? = Some(panel),
                 Err(e) => {
                     if !sessions.contains_key(&guild) {
                         let _ = manager.remove(guild).await;
                     }
-                    return Err(e.into());
+                    return Err(e);
                 }
             }
         }
@@ -370,8 +356,13 @@ impl Bot {
             player::refresh(&ctx.http, &self.catalog, &old, true).await;
         }
         Ok(format!(
-            "Station selected: {}.",
-            self.catalog.stations[station].name
+            "Station selected: {}.{}",
+            self.catalog.stations[station].name,
+            if cfg.announcements {
+                format!(" Player controls are in <#{channel}>.")
+            } else {
+                String::new()
+            }
         ))
     }
 
@@ -625,8 +616,8 @@ impl Bot {
     ) -> Result<ServerSettings, Error> {
         let settings = self.settings.lock().await.db.settings(guild.get())?;
         let manager = self.member_flags(ctx, guild, member)?.0;
-        if !settings.text_rules.permits(text.get()) {
-            return Err("Music is not allowed in this text channel.".into());
+        if !self.message_channel_allowed(ctx, guild, &settings, text) {
+            return Err("Music is not allowed in this channel.".into());
         }
         if control
             && (member.user.bot
@@ -638,6 +629,25 @@ impl Bot {
             return Err("Only DJs or server managers can use these playback controls.".into());
         }
         Ok(settings)
+    }
+
+    fn message_channel_allowed(
+        &self,
+        ctx: &Context,
+        guild: GuildId,
+        settings: &ServerSettings,
+        channel: ChannelId,
+    ) -> bool {
+        let voice = ctx
+            .cache
+            .guild(guild)
+            .and_then(|g| {
+                g.channels
+                    .get(&channel)
+                    .map(|c| c.kind == ChannelType::Voice)
+            })
+            .unwrap_or(false);
+        settings.permits_message_channel(channel.get(), voice)
     }
 
     pub async fn extra_command(

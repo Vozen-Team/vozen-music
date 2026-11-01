@@ -286,13 +286,13 @@ function playbackFields() {
       "select",
       channelOptions(true),
     ),
-    field("announcements", "Show the shared player automatically", "checkbox"),
+    field("announcements", "Show the player in voice chat automatically", "checkbox"),
     field(
       "announcement_channel",
-      "Player and error text channel",
+      "Auto-join notification channel",
       "select",
       channelOptions(false),
-      "Required for Auto-join.",
+      "Required for Auto-join. Player controls appear in the voice channel's chat.",
     ),
     field("tips", "Show command tips on the player", "checkbox"),
   ];
@@ -462,9 +462,10 @@ function render() {
             ),
             field(
               "announcement_channel",
-              "Text channel",
+              "Auto-join notification channel",
               "select",
               channelOptions(false),
+              "Player controls appear in voice chat. This text channel is required for Auto-join.",
             ),
             field("radio_mode", "Radio mode", "select", [
               ["session", "Session"],
