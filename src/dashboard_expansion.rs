@@ -355,6 +355,83 @@ struct ProfileEdit {
     banner: Option<String>,
     reset: Option<bool>,
 }
+const PROFILE_POLICY: &str = include_str!("../web/profile-policy.json");
+
+fn normalized_profile_text(value: &str) -> String {
+    value
+        .chars()
+        .flat_map(char::to_lowercase)
+        .filter_map(|c| {
+            let c = match c {
+                '\u{ff01}'..='\u{ff5e}' => char::from_u32(c as u32 - 0xfee0).unwrap(),
+                other => other,
+            };
+            Some(match c {
+                '0' | 'ο' | 'о' | 'ò' | 'ó' | 'ô' | 'õ' | 'ö' => 'o',
+                '1' | '!' | 'і' | 'í' | 'ì' | 'î' | 'ï' => 'i',
+                '3' | 'е' | 'é' | 'è' | 'ê' | 'ë' => 'e',
+                '4' | '@' | 'а' | 'à' | 'á' | 'â' | 'ã' | 'ä' => 'a',
+                '5' | '$' => 's',
+                '7' | 'τ' | 'т' => 't',
+                'ç' | 'с' => 'c',
+                'ù' | 'ú' | 'û' | 'ü' => 'u',
+                'ñ' => 'n',
+                'ɡ' => 'g',
+                c if c.is_ascii_alphanumeric() => c,
+                _ => return None,
+            })
+        })
+        .collect()
+}
+
+fn validate_profile_text(edit: &ProfileEdit) -> WebResult<()> {
+    if edit.reset == Some(true) {
+        return Ok(());
+    }
+    if edit.nick.as_ref().is_some_and(|v| {
+        v.chars().count() > 32
+            || (!v.is_empty() && v.trim().is_empty())
+            || v.chars().any(|c| c.is_control())
+    }) || edit.bio.as_ref().is_some_and(|v| v.chars().count() > 190)
+    {
+        return Err(WebError(
+            StatusCode::BAD_REQUEST,
+            "Use a display name up to 32 characters without line breaks, and a description up to 190 characters. Leave the name empty to use Vozen Music.",
+        ));
+    }
+    let policy: serde_json::Value =
+        serde_json::from_str(PROFILE_POLICY).expect("Bundled profile policy is valid JSON");
+    for text in [edit.nick.as_deref(), edit.bio.as_deref()]
+        .into_iter()
+        .flatten()
+    {
+        let compact = normalized_profile_text(text);
+        let words: Vec<_> = text
+            .split(|c: char| !c.is_alphanumeric())
+            .map(normalized_profile_text)
+            .collect();
+        if policy["blocked_terms"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|term| compact.contains(term.as_str().unwrap()))
+            || policy["blocked_words"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|term| {
+                    words.iter().any(|word| word == term.as_str().unwrap())
+                        || compact == term.as_str().unwrap()
+                })
+        {
+            return Err(WebError(
+                StatusCode::BAD_REQUEST,
+                "Choose a different name or description. Discriminatory slurs and hate slogans are not allowed.",
+            ));
+        }
+    }
+    Ok(())
+}
 fn animated_image(bytes: &[u8]) -> bool {
     let png = bytes.starts_with(b"\x89PNG\r\n\x1a\n");
     let webp = bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP";
@@ -446,7 +523,7 @@ async fn bot_profile(
     }
     let member: serde_json::Value = response.json().await.map_err(|_| unavailable())?;
     Ok(Json(
-        serde_json::json!({"nick":member["nick"],"bio":member["bio"],"avatar":member["avatar"],"banner":member["banner"]}),
+        serde_json::json!({"nick":member["nick"],"bio":member["bio"],"avatar":member["avatar"],"banner":member["banner"],"bot_id":bot_id.to_string(),"default_name":state.cache.current_user().name,"default_avatar_url":state.cache.current_user().avatar_url().unwrap_or_else(||"/music/avatar.png".into()),"policy":serde_json::from_str::<serde_json::Value>(PROFILE_POLICY).map_err(|_|unavailable())?}),
     ))
 }
 async fn save_bot_profile(
@@ -458,14 +535,7 @@ async fn save_bot_profile(
     let login = state.login(&headers, true).await?;
     let g = GuildId::new(parse_id(&value)?);
     state.manager(g, &login).await?;
-    if edit.nick.as_ref().is_some_and(|v| v.chars().count() > 32)
-        || edit.bio.as_ref().is_some_and(|v| v.chars().count() > 190)
-    {
-        return Err(WebError(
-            StatusCode::BAD_REQUEST,
-            "Name: up to 32 characters. Bio: up to 190.",
-        ));
-    }
+    validate_profile_text(&edit)?;
     let mut body = serde_json::Map::new();
     if edit.reset == Some(true) {
         for field in ["nick", "bio", "avatar", "banner"] {
@@ -473,7 +543,14 @@ async fn save_bot_profile(
         }
     } else {
         if let Some(v) = edit.nick {
-            body.insert("nick".into(), v.into());
+            body.insert(
+                "nick".into(),
+                if v.is_empty() {
+                    serde_json::Value::Null
+                } else {
+                    v.into()
+                },
+            );
         }
         if let Some(v) = edit.bio {
             body.insert("bio".into(), v.into());
@@ -505,6 +582,55 @@ async fn save_bot_profile(
 #[cfg(test)]
 mod expansion_web_tests {
     use super::*;
+    #[test]
+    fn profile_text_rejects_slurs_before_discord_and_preserves_normal_names() {
+        for name in [
+            "nigger",
+            "NIGGER",
+            "n1gg3r",
+            "n.i.g.g.e.r",
+            "n i g g e r",
+            "ｎｉｇｇｅｒ",
+            "n\u{200b}igger",
+            "nіggеr",
+            "faggot",
+            "white power",
+            "   ",
+            "Music\nBot",
+            &"x".repeat(33),
+        ] {
+            let edit: ProfileEdit =
+                serde_json::from_value(serde_json::json!({"nick":name})).unwrap();
+            assert!(
+                validate_profile_text(&edit).is_err(),
+                "Invalid profile text was accepted"
+            );
+        }
+        for name in [
+            "",
+            "Vozen Music",
+            "Night Radio",
+            "Nigel",
+            "Niger Music",
+            "Pakistan Radio",
+            "Scunthorpe",
+            "Música da chuva",
+            "音楽",
+            "DJ 🌧️",
+        ] {
+            let edit: ProfileEdit =
+                serde_json::from_value(serde_json::json!({"nick":name})).unwrap();
+            assert!(
+                validate_profile_text(&edit).is_ok(),
+                "Ordinary profile text was rejected"
+            );
+        }
+        let bio: ProfileEdit = serde_json::from_value(serde_json::json!({"bio":"n1gg3r"})).unwrap();
+        assert!(validate_profile_text(&bio).is_err());
+        let reset: ProfileEdit =
+            serde_json::from_value(serde_json::json!({"reset":true,"nick":"nigger"})).unwrap();
+        assert!(validate_profile_text(&reset).is_ok());
+    }
     use tower::ServiceExt;
     #[tokio::test]
     async fn every_new_resource_requires_a_session_and_csrf() {

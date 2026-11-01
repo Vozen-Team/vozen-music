@@ -1,5 +1,6 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
+let profileView = null;
 let csrf = "",
   current = "",
   saving = false,
@@ -676,39 +677,7 @@ function render() {
     loadPersonal(current, sequence);
   }
   if (page === "profile") {
-    const c = card(
-      "Server profile",
-      "Changes affect this server only and are sent to Discord when you apply them.",
-    );
-    const form = el("form");
-    form.id = "profile-form";
-    for (const [key, label, type, max] of [
-      ["nick", "Display name", "text", 32],
-      ["bio", "Description", "text", 190],
-      ["avatar", "Avatar", "file"],
-      ["banner", "Banner", "file"],
-    ]) {
-      const wrap = el("div", undefined, "music-field"),
-        input = el("input");
-      input.name = key;
-      input.id = `profile-${key}`;
-      input.type = type;
-      if (max) input.maxLength = max;
-      if (type === "file") input.accept = "image/png,image/jpeg,image/webp";
-      const lab = el("label", label);
-      lab.htmlFor = input.id;
-      wrap.append(lab, input);
-      form.append(wrap);
-    }
-    form.append(
-      button("Apply profile", () => saveProfile(false), true),
-      button("Restore Vozen profile", () => {
-        if (confirm("Restore the default bot profile in this server?"))
-          return saveProfile(true);
-      }),
-    );
-    c.append(form);
-    editor.append(c);
+    renderProfile(editor);
     loadProfile(current, sequence);
   }
   const bar = el("div", undefined, "savebar");
@@ -728,6 +697,113 @@ function render() {
   if (page !== "setup" || step === 3) editor.append(bar);
   dependent();
   updateSave();
+}
+function normalizedProfileText(value) {
+  const groups = { o: "0οоòóôõö", i: "1!іíìîï", e: "3еéèêë", a: "4@аàáâãä", s: "5$", t: "7τт", c: "çс", u: "ùúûü", n: "ñ", g: "ɡ" };
+  return [...value.toLowerCase()].map(c => {
+    const code = c.codePointAt(0);
+    if (code >= 0xff01 && code <= 0xff5e) c = String.fromCodePoint(code - 0xfee0);
+    for (const [letter, chars] of Object.entries(groups)) if (chars.includes(c)) return letter;
+    return /^[a-z0-9]$/.test(c) ? c : "";
+  }).join("");
+}
+function profileTextError(text, policy) {
+  const compact = normalizedProfileText(text);
+  const words = text.split(/[^\p{L}\p{N}]+/u).map(normalizedProfileText);
+  return policy?.blocked_terms.some(term => compact.includes(term)) || policy?.blocked_words.some(term => words.includes(term) || compact === term)
+    ? "Choose a different name or description. Discriminatory slurs and hate slogans are not allowed." : "";
+}
+function renderProfile(editor) {
+  const c = card("Server profile", "Personalise Music for this server. Review the preview before applying changes.");
+  const layout = el("div", undefined, "profile-layout"), form = el("form"), preview = el("aside", undefined, "profile-preview");
+  const view = { form, saved: {}, uploads: {}, pending: 0, loading: true };
+  profileView = view;
+  form.id = "profile-form";
+  form.addEventListener("submit", e => { e.preventDefault(); saveProfile(false).catch(e => notice(e.message, "error")); });
+  for (const [key, label, type, max] of [["nick", "Display name", "text", 32], ["bio", "Description", "textarea", 190], ["avatar", "Avatar", "file"], ["banner", "Banner", "file"]]) {
+    const wrap = el("div", undefined, "music-field"), input = el(type === "textarea" ? "textarea" : "input"), lab = el("label", label), help = el("small");
+    input.name = key; input.id = `profile-${key}`; input.disabled = true;
+    if (type !== "textarea") input.type = type;
+    if (max) input.maxLength = max;
+    if (type === "file") input.accept = "image/png,image/jpeg,image/webp";
+    lab.htmlFor = input.id;
+    help.id = `profile-${key}-help`;
+    input.setAttribute("aria-describedby", help.id);
+    help.textContent = type === "file" ? "Static PNG, JPEG or WebP · up to 2 MB. Changes are previewed before upload." : "";
+    wrap.append(lab, input, help);
+    if (type === "file") {
+      const clear = button("Clear selection", () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); updateProfilePreview(view); });
+      clear.disabled = true;
+      wrap.append(clear);
+      input.addEventListener("change", async () => {
+        delete view.uploads[key]; input.setCustomValidity("");
+        const file = input.files[0];
+        if (!file) { updateProfilePreview(view); return; }
+        view.pending++;
+        updateProfilePreview(view);
+        try {
+          const data = await readProfileFile(file);
+          const image = new Image(); image.src = data; await image.decode();
+          if (image.naturalWidth > 4096 || image.naturalHeight > 4096) throw Error("Images must be no larger than 4096 pixels on either side.");
+          if (profileView === view && input.files[0] === file) view.uploads[key] = data;
+        } catch (e) {
+          if (profileView === view && input.files[0] === file) input.setCustomValidity(e.message || "Choose a valid image.");
+        } finally { view.pending--; updateProfilePreview(view); }
+      });
+    } else input.addEventListener("input", () => { updateProfilePreview(view); });
+    form.append(wrap);
+  }
+  view.apply = button("Apply profile", () => saveProfile(false), true); view.apply.disabled = true;
+  const actions = el("div", undefined, "profile-actions");
+  actions.append(view.apply, button("Restore Vozen profile", () => { if (confirm("Restore the default bot profile in this server?")) return saveProfile(true); }));
+  form.append(el("p", "Applies to this server only. Discriminatory names and descriptions are not allowed.", "help"), actions);
+  preview.append(el("h3", "Profile preview"), el("p", "Approximate Discord appearance. Nothing changes until you apply.", "help"));
+  const surface = el("div", undefined, "discord-profile"), banner = el("div", undefined, "profile-banner");
+  view.banner = el("img"); view.banner.alt = "Banner preview"; view.banner.hidden = true; banner.append(view.banner);
+  view.avatar = el("img", undefined, "profile-avatar"); view.avatar.alt = "Avatar preview"; view.avatar.src = "/music/avatar.png";
+  const body = el("div", undefined, "profile-preview-body"), name = el("div", undefined, "profile-preview-name");
+  view.name = el("strong", "Vozen Music"); name.append(view.name, el("span", "APP", "profile-app-badge"));
+  view.bio = el("p", "No description", "profile-preview-bio");
+  body.append(name, view.bio, el("p", "Server profile", "profile-server-label"));
+  surface.append(banner, view.avatar, body); preview.append(surface);
+  view.error = el("p", "", "profile-error"); view.error.setAttribute("role", "status"); view.error.hidden = true;
+  view.retry = button("Retry loading profile", () => loadProfile(current, sequence)); view.retry.hidden = true;
+  preview.append(view.error, view.retry);
+  layout.append(form, preview); c.append(layout); editor.append(c);
+}
+function updateProfilePreview(view) {
+  if (profileView !== view || !view.form.isConnected) return;
+  const nick = $("profile-nick"), bio = $("profile-bio");
+  for (const input of [nick, bio]) {
+    const message = profileTextError(input.value, view.saved.policy) || (input === nick && input.value && (!input.value.trim() || /[\u0000-\u001f\u007f]/.test(input.value)) ? "Use a visible name without line breaks." : "");
+    input.setCustomValidity(message);
+    input.setAttribute("aria-invalid", String(!!message));
+    $(`${input.id}-help`).textContent = `${[...input.value].length}/${input.maxLength} characters${input === nick ? " · Leave empty for the default name." : ""}`;
+  }
+  view.name.textContent = nick.value || view.saved.default_name || "Vozen Music";
+  view.bio.textContent = bio.value || "No description";
+  const image = key => {
+    if (view.uploads[key]) return view.uploads[key];
+    const hash = view.saved[key], bot = view.saved.bot_id;
+    return /^(a_)?[a-f0-9]{32}$/.test(hash || "") && /^\d+$/.test(bot || "") && /^\d+$/.test(current)
+      ? `https://cdn.discordapp.com/guilds/${current}/users/${bot}/${key}s/${hash}.png?size=512` : "";
+  };
+  view.avatar.src = image("avatar") || view.saved.default_avatar_url || "/music/avatar.png";
+  const banner = image("banner");
+  view.banner.hidden = !banner;
+  if (banner) view.banner.src = banner; else view.banner.removeAttribute("src");
+  const invalid = [...view.form.querySelectorAll("input,textarea")].find(i => !i.validity.valid);
+  view.error.textContent = invalid?.validationMessage || (view.pending ? "Preparing your image preview…" : "");
+  view.error.hidden = !view.error.textContent;
+  view.apply.disabled = view.loading || !!view.pending || !!view.saving || !!invalid;
+}
+async function readProfileFile(file) {
+  if (file.size > 2 * 1024 * 1024) throw Error("Images must be no larger than 2 MB.");
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw Error("Choose a PNG, JPEG or WebP image.");
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader(); reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(Error("The image could not be read.")); reader.readAsDataURL(file);
+  });
 }
 async function loadPersonal(id, seq) {
   try {
@@ -778,16 +854,26 @@ async function loadPersonal(id, seq) {
   }
 }
 async function loadProfile(id, seq) {
+  const view = profileView;
   try {
     const p = await api(`/api/guilds/${id}/profile`);
-    if (seq !== sequence || page !== "profile") return;
+    if (seq !== sequence || page !== "profile" || view !== profileView) return false;
+    view.saved = p;
     $("profile-nick").value = p.nick || "";
     $("profile-bio").value = p.bio || "";
+    for (const input of view.form.querySelectorAll("input,textarea,button")) input.disabled = !!view.saving;
+    view.loading = false; view.retry.hidden = true;
+    updateProfilePreview(view);
+    return true;
   } catch (e) {
-    if (id === current) notice(e.message, "error");
+    if (id === current && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
+    return false;
   }
 }
 async function saveProfile(reset) {
+  const view = profileView;
+  if (view.saving) return;
+  if (!reset && (view.loading || view.pending || !view.form.reportValidity())) return;
   const id = current,
     body = { reset };
   if (!reset) {
@@ -796,18 +882,12 @@ async function saveProfile(reset) {
     for (const key of ["avatar", "banner"]) {
       const file = $(`profile-${key}`).files[0];
       if (file) {
-        if (file.size > 2 * 1024 * 1024)
-          throw Error("Images must be no larger than 2 MB.");
-        body[key] = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(Error("The image could not be read."));
-          reader.readAsDataURL(file);
-        });
+        body[key] = view.uploads[key] || await readProfileFile(file);
       }
     }
   }
-  const buttons = [...$("profile-form").querySelectorAll("button")];
+  const buttons = [...view.form.querySelectorAll("input,textarea,button")];
+  view.saving = true;
   buttons.forEach((b) => (b.disabled = true));
   try {
     await api(`/api/guilds/${id}/profile`, {
@@ -815,10 +895,17 @@ async function saveProfile(reset) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (id === current)
+    if (id === current && profileView === view) {
       notice("Discord applied the profile to this server.", "success");
+      if (await loadProfile(id, sequence)) {
+        view.uploads = {};
+        for (const key of ["avatar", "banner"]) $(`profile-${key}`).value = "";
+      }
+    }
   } finally {
-    buttons.forEach((b) => (b.disabled = false));
+    view.saving = false;
+    buttons.forEach((b) => (b.disabled = view.loading));
+    updateProfilePreview(view);
   }
 }
 function renderServers() {

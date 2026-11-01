@@ -121,7 +121,7 @@ const server = http.createServer(async (req, res) => {
       );
     if (action === "profile")
       return req.method === "GET"
-        ? json({ nick: "Vozen Music", bio: "" })
+        ? json({ nick: "Vozen Music", bio: "Instrumental radio for your server.", default_name: "Vozen Music", default_avatar_url: "/music/avatar.png", bot_id: "1", policy: JSON.parse(fs.readFileSync(path.join(root, "web/profile-policy.json"), "utf8")) })
         : json(
             {
               error:
