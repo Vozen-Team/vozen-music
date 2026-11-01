@@ -145,7 +145,7 @@ docker compose down
 
 The installation link with the four permissions listed above is:
 
-[Install Vozen Music](https://discord.com/oauth2/authorize?client_id=1564573935234973817&scope=bot%20applications.commands&permissions=3148800&integration_type=0)
+[Install Vozen Music](https://discord.com/oauth2/authorize?client_id=1564573935234973817&scope=bot%20applications.commands&permissions=3165184&integration_type=0)
 
 The owner chooses the development server and authorizes the installation. The configured `DISCORD_GUILD_ID` must match that server.
 
@@ -185,4 +185,4 @@ Per-server nickname, avatar, banner and bio updates go to Discord, never the glo
 
 See `docs/EXPANSION-ACCEPTANCE.md` for rollout, verification and unresolved music/listening gates. Unreviewed candidates under `licenses/expansion-review/` are not part of the active catalog.
 
-The shared player is posted in the connected voice channel's text chat, both on `/play` (when automatic player announcements are enabled) and `/panel`. Track changes update that message. Music needs View Channel and Send Messages there; a posting failure is reported instead of silently posting in another channel. The configured Auto-join notification text channel remains available for Auto-join and its notices. Voice-chat controls follow voice allow/block rules and the fixed voice channel; ordinary text commands follow text allow/block rules. DJ, same-call and skip-voting checks still apply.
+The shared player is posted in the connected voice channel's text chat, both on `/play` (when automatic player announcements are enabled) and `/panel`. Track changes update that message. Music needs View Channel, Send Messages and Embed Links there; a posting failure is reported instead of silently posting in another channel. The configured Auto-join notification text channel remains available for Auto-join and its notices. Voice-chat controls follow voice allow/block rules and the fixed voice channel; ordinary text commands follow text allow/block rules. DJ, same-call and skip-voting checks still apply.

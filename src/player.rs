@@ -1,7 +1,7 @@
 use super::{Catalog, Error, Session};
 use serenity::all::*;
 use std::sync::{Arc, atomic::Ordering};
-use vozen_music::skip::SkipMode;
+use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
 
 pub fn target(id: &str) -> Result<(u64, usize), Error> {
     let parts: Vec<_> = id.split(':').collect();
@@ -42,64 +42,96 @@ pub fn controls(
             session.control_id
         ))
         .label(label)
+        .style(if name == "stop" {
+            ButtonStyle::Danger
+        } else if matches!(name, "pause" | "resume") {
+            ButtonStyle::Primary
+        } else {
+            ButtonStyle::Secondary
+        })
         .disabled(stopped)
     };
-    Ok(vec![CreateActionRow::Buttons(vec![
-        action(
-            if session.paused.load(Ordering::SeqCst) {
-                "resume"
-            } else {
-                "pause"
-            },
-            if session.paused.load(Ordering::SeqCst) {
-                "Resume"
-            } else {
-                "Pause"
-            },
-        ),
-        CreateButton::new(format!("vozen:skip:{}:{generation}", session.control_id))
-            .label(label)
-            .style(ButtonStyle::Primary)
-            .disabled(stopped),
-        action("like", "Like"),
-        action("dislike", "Dislike"),
-        action("stop", "Stop"),
-    ])])
+    Ok(vec![
+        CreateActionRow::Buttons(vec![
+            action(
+                if session.paused.load(Ordering::SeqCst) {
+                    "resume"
+                } else {
+                    "pause"
+                },
+                if session.paused.load(Ordering::SeqCst) {
+                    "Resume"
+                } else {
+                    "Pause"
+                },
+            ),
+            CreateButton::new(format!("vozen:skip:{}:{generation}", session.control_id))
+                .label(label)
+                .style(ButtonStyle::Secondary)
+                .disabled(stopped),
+            action("stop", "Stop"),
+        ]),
+        CreateActionRow::Buttons(vec![action("like", "Like"), action("dislike", "Dislike")]),
+    ])
 }
 
-fn content(catalog: &Catalog, session: &Session, stopped: bool) -> Result<String, Error> {
+fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEmbed, Error> {
     let station = &catalog.stations[session.station];
+    let header = CreateEmbed::new().author(CreateEmbedAuthor::new(&station.name));
     if stopped {
-        return Ok(format!(
-            "### {}\nPlayback stopped. Use /play to start a station.",
-            station.name
-        ));
+        return Ok(header
+            .color(0x677286)
+            .title("Playback stopped")
+            .description("Use /play to start a station."));
     }
     let track = &station.tracks[session.current.load(Ordering::SeqCst)];
     let policy = session
         .policy
         .lock()
         .map_err(|_| "Player settings are unavailable.")?;
-    let tip = if session.tips.load(Ordering::SeqCst) {
-        "\nTip: /like and /dislike shape future tracks; /library shows your ratings."
-    } else {
-        ""
+    let access = match policy.access {
+        SkipAccess::Everyone => "Everyone in the call",
+        SkipAccess::Moderators => "Moderators and server managers",
     };
-    Ok(format!(
-        "### {}\n**{}** — {}\n{}\nSource: <{}> • {}\nJoin the same voice channel • One vote per person • Votes reset every track{}",
-        station.name,
-        track.title,
-        track.artist,
-        policy.summary(),
-        track.source_url,
-        track.license,
-        tip
-    ))
+    let mode = match (policy.mode, policy.majority_scope) {
+        (SkipMode::Instant, _) => "One click",
+        (SkipMode::Majority, MajorityScope::Call) => "Majority of the call",
+        (SkipMode::Majority, MajorityScope::Eligible) => "Majority of eligible members",
+    };
+    let paused = session.paused.load(Ordering::SeqCst);
+    let footer = if session.tips.load(Ordering::SeqCst) {
+        "Controls are for this call · Like and Dislike shape future tracks · /library shows your ratings"
+    } else {
+        "Controls are for this call · /skip-settings shows the full skip rules"
+    };
+    Ok(header
+        .color(if paused { 0x9B8AFB } else { 0x59D6CB })
+        .title(&track.title)
+        .description(format!("by {}", track.artist))
+        .field(
+            "Playback",
+            format!(
+                "{} · Volume {}%",
+                if paused { "Paused" } else { "Playing" },
+                session.volume.load(Ordering::SeqCst)
+            ),
+            true,
+        )
+        .field("Skip", format!("{access}\n{mode}"), true)
+        .field(
+            "Credits",
+            format!(
+                "[Source & licence]({}) · {}",
+                track.source_url, track.license
+            ),
+            false,
+        )
+        .footer(CreateEmbedFooter::new(footer)))
 }
 
 pub fn message(catalog: &Catalog, session: &Session) -> Result<CreateMessage, Error> {
     Ok(CreateMessage::new()
-        .content(content(catalog, session, false)?)
+        .embed(embed(catalog, session, false)?)
         .components(controls(
             session,
             session.generation.load(Ordering::SeqCst).max(1),
@@ -129,8 +161,10 @@ pub async fn post(
             .ok_or("Voice channel unavailable.")?;
         #[allow(deprecated)]
         let permissions = voice.permissions_for_user(&ctx.cache, ctx.cache.current_user().id)?;
-        if !permissions.contains(Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES) {
-            return Err("Music needs View Channel and Send Messages in the voice channel to post the player.".into());
+        if !permissions.contains(
+            Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::EMBED_LINKS,
+        ) {
+            return Err("Music needs View Channel, Send Messages and Embed Links in the voice channel to post the player.".into());
         }
     }
     let message = channel.send_message(&ctx.http, message(catalog, session)?).await.map_err(|error| {
@@ -158,7 +192,8 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
     let generation = session.generation.load(Ordering::SeqCst);
     let update = (|| -> Result<EditMessage, Error> {
         Ok(EditMessage::new()
-            .content(content(catalog, session, stopped)?)
+            .content("")
+            .embeds(vec![embed(catalog, session, stopped)?])
             .components(controls(session, generation, stopped)?)
             .allowed_mentions(CreateAllowedMentions::new()))
     })();
@@ -200,11 +235,67 @@ mod tests {
         let buttons = serde_json::to_value(controls(&session, 2, false).unwrap()).unwrap();
         assert_eq!(buttons[0]["components"][1]["custom_id"], "vozen:skip:123:2");
         assert_eq!(buttons[0]["components"][1]["label"], "Skip");
+        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 3);
+        assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 2);
+        assert_eq!(buttons[0]["components"][2]["style"], 4);
+        assert_eq!(
+            buttons[1]["components"][0]["custom_id"],
+            "vozen:action:like:123:2"
+        );
         policy.mode = SkipMode::Majority;
         *session.policy.lock().unwrap() = policy;
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
         assert_eq!(buttons[0]["components"][1]["label"], "Vote to skip");
         let disabled = serde_json::to_value(controls(&session, 3, true).unwrap()).unwrap();
-        assert_eq!(disabled[0]["components"][1]["disabled"], true);
+        for row in disabled.as_array().unwrap() {
+            for button in row["components"].as_array().unwrap() {
+                assert_eq!(button["disabled"], true);
+            }
+        }
+    }
+
+    #[test]
+    fn player_card_keeps_credits_and_tracks_playback_and_voting_states() {
+        let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
+        let mut policy = vozen_music::skip::SkipSettings::default();
+        let session = Session::new(0, 0, 123, policy.clone(), None);
+        let card = serde_json::to_value(message(&catalog, &session).unwrap()).unwrap();
+        let track = &catalog.stations[0].tracks[0];
+        assert_eq!(card["embeds"][0]["title"], track.title);
+        assert_eq!(
+            card["embeds"][0]["description"],
+            format!("by {}", track.artist)
+        );
+        assert!(
+            card["embeds"][0]["fields"][2]["value"]
+                .as_str()
+                .unwrap()
+                .contains(&track.source_url)
+        );
+        assert!(
+            card["embeds"][0]["fields"][2]["value"]
+                .as_str()
+                .unwrap()
+                .contains(&track.license)
+        );
+        assert_eq!(
+            card["embeds"][0]["fields"][1]["value"],
+            "Everyone in the call\nOne click"
+        );
+        session.paused.store(true, Ordering::SeqCst);
+        session.volume.store(40, Ordering::SeqCst);
+        policy.access = SkipAccess::Moderators;
+        policy.mode = SkipMode::Majority;
+        policy.majority_scope = MajorityScope::Eligible;
+        *session.policy.lock().unwrap() = policy;
+        let paused = serde_json::to_value(embed(&catalog, &session, false).unwrap()).unwrap();
+        assert_eq!(paused["fields"][0]["value"], "Paused · Volume 40%");
+        assert_eq!(
+            paused["fields"][1]["value"],
+            "Moderators and server managers\nMajority of eligible members"
+        );
+        let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
+        assert_eq!(stopped["title"], "Playback stopped");
+        assert!(stopped.get("fields").is_none());
     }
 }
