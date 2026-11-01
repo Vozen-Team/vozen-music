@@ -732,10 +732,11 @@ function renderProfile(editor) {
     help.textContent = type === "file" ? "Static PNG, JPEG or WebP · up to 2 MB. Changes are previewed before upload." : "";
     wrap.append(lab, input, help);
     if (type === "file") {
-      const clear = button("Clear selection", () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); updateProfilePreview(view); });
+      const clear = button("Clear selection", () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); notice(""); updateProfilePreview(view); });
       clear.disabled = true;
       wrap.append(clear);
       input.addEventListener("change", async () => {
+        notice("");
         delete view.uploads[key]; input.setCustomValidity("");
         const file = input.files[0];
         if (!file) { updateProfilePreview(view); return; }
@@ -750,7 +751,7 @@ function renderProfile(editor) {
           if (profileView === view && input.files[0] === file) input.setCustomValidity(e.message || "Choose a valid image.");
         } finally { view.pending--; updateProfilePreview(view); }
       });
-    } else input.addEventListener("input", () => { updateProfilePreview(view); });
+    } else input.addEventListener("input", () => { notice(""); updateProfilePreview(view); });
     form.append(wrap);
   }
   view.apply = button("Apply profile", () => saveProfile(false), true); view.apply.disabled = true;

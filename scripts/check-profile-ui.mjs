@@ -47,6 +47,9 @@ try {
     fail = false;
     await page.getByRole("button", { name: "Apply profile", exact: true }).click();
     await page.getByText("Discord applied the profile to this server.", { exact: true }).waitFor();
+    await page.waitForFunction(() => document.getElementById("profile-nick")?.disabled === false);
+    await name.fill("Another draft");
+    assert.equal(await page.getByText("Discord applied the profile to this server.", { exact: true }).isVisible(), false);
     await page.reload(); await page.waitForFunction(() => document.getElementById("profile-nick")?.disabled === false);
     assert.equal(await name.inputValue(), "Rain Radio");
     await page.locator("#profile-avatar").setInputFiles({ name: "large.png", mimeType: "image/png", buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
