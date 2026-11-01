@@ -43,6 +43,7 @@ try {
   guilds = [];
   await page.goto("http://localhost:4783/music/dashboard");
   await page.getByRole("heading", { name: "No servers to manage yet" }).waitFor();
+  assert.match(await page.locator("#empty .install").getAttribute("href"), /discord.com\/oauth2\/authorize/);
   assert.equal(await page.locator("#sidebar").isVisible(), false);
   assert.equal(await page.locator("#server-picker").isVisible(), false);
   assert.deepEqual(errors, []);

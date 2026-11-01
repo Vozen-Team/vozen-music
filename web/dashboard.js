@@ -926,6 +926,8 @@ async function refreshServers() {
     serverList = data.guilds;
     renderServers();
     if (!serverList.length) {
+      if (!$("empty").querySelector(".install"))
+        $("empty").append($("sidebar").querySelector('a[href*="discord.com/oauth2"]').cloneNode(true));
       $("empty").hidden = false;
       return;
     }
