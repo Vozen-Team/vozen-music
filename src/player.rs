@@ -176,7 +176,9 @@ fn payload(
         }
     }
     // Serenity's typed builders predate V2; its HTTP client still handles uploads and rate limits.
-    Ok(serde_json::json!({"flags":1 << 15,"components":components,"allowed_mentions":{"parse":[]}}))
+    Ok(
+        serde_json::json!({"flags":1 << 15,"components":[{"type":17,"components":components}],"allowed_mentions":{"parse":[]}}),
+    )
 }
 
 pub async fn message(
@@ -345,8 +347,7 @@ mod tests {
         let body = payload(&catalog, &session, false, None).unwrap();
         let message = serde_json::json!({"id":"456","channel_id":"123","author":{"id":"789","username":"Music","discriminator":"0","avatar":null},"content":"","timestamp":"2026-11-01T20:00:00Z","edited_timestamp":null,"tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"attachments":[],"components":body["components"],"flags":32768});
         let button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:action:pause:123:1","component_type":2},"message":message})).unwrap();
-        assert_eq!(button.message.components.len(), 1);
-        assert_eq!(button.message.components[0].components.len(), 5);
+        assert!(button.message.components.is_empty());
         assert_eq!(button.message.id, MessageId::new(456));
         assert_eq!(button.data.custom_id, "vozen:action:pause:123:1");
         let mut data = serde_json::to_value(&button).unwrap();
@@ -515,7 +516,7 @@ mod tests {
         let same: serde_json::Value = serde_json::from_slice(&records[1].1).unwrap();
         assert!(same.get("attachments").is_none());
         assert_eq!(
-            same["components"][0]["items"][0]["media"]["url"],
+            same["components"][0]["components"][0]["items"][0]["media"]["url"],
             format!("https://cdn.discordapp.com/attachments/123/17/{}", names[0])
         );
         server.abort();
@@ -664,7 +665,8 @@ mod tests {
         assert!(card.get("embeds").is_none());
         assert!(card.get("content").is_none());
         assert_eq!(card["allowed_mentions"]["parse"], serde_json::json!([]));
-        let components = card["components"].as_array().unwrap();
+        assert_eq!(card["components"][0]["type"], 17);
+        let components = card["components"][0]["components"].as_array().unwrap();
         assert_eq!(components[0]["type"], 12);
         assert_eq!(components[1]["type"], 10);
         let text = components[1]["content"].as_str().unwrap();
@@ -693,18 +695,18 @@ mod tests {
         *session.policy.lock().unwrap() = policy;
         let paused = payload(&catalog, &session, false, None).unwrap();
         assert!(
-            paused["components"][1]["content"]
+            paused["components"][0]["components"][1]["content"]
                 .as_str()
                 .unwrap()
                 .contains("Paused · 40%")
         );
         assert_eq!(
-            paused["components"][2]["components"][1]["custom_id"],
+            paused["components"][0]["components"][2]["components"][1]["custom_id"],
             "vozen:action:resume:123:1"
         );
         let stopped = payload(&catalog, &session, true, None).unwrap();
         assert_eq!(
-            stopped["components"][0]["content"],
+            stopped["components"][0]["components"][0]["content"],
             "Playback stopped. Use /play to start a station."
         );
     }
@@ -735,19 +737,19 @@ mod tests {
                     .to_str()
                     .unwrap();
                 assert!(
-                    card["components"][1]["content"]
+                    card["components"][0]["components"][1]["content"]
                         .as_str()
                         .unwrap()
                         .contains(&track.title)
                 );
                 assert_eq!(
-                    card["components"][0]["items"][0]["media"]["url"],
+                    card["components"][0]["components"][0]["items"][0]["media"]["url"],
                     format!("attachment://{name}")
                 );
             }
             let stopped = payload(&catalog, &session, true, None).unwrap();
             assert!(
-                !stopped["components"]
+                !stopped["components"][0]["components"]
                     .as_array()
                     .unwrap()
                     .iter()
