@@ -19,6 +19,6 @@ for station in catalog['stations']:
         path.write_bytes(data)
 ```
 
-Production mounts `./covers` at `/app/covers` read-only. The player uploads the current cover as a Discord attachment for normal stations and My Station. Track changes replace the attachment; pause, volume and vote updates retain it without uploading again. Track credits and existing controls are preserved. Requests can read only catalogued images, not arbitrary files.
+Production mounts `./covers` at `/app/covers` read-only. The player uploads the current cover as a Discord attachment for normal stations and My Station. Track changes replace the attachment; pause, volume and vote updates retain the Discord-hosted image without uploading again. Track credits and existing controls are preserved. Requests can read only catalogued images, not arbitrary files.
 
 The existing release script accepts `MUSIC_RELEASE_INCOMING` and an optional `covers.tar`/`cover_files` manifest, validates all image hashes before staging, and checks the Compose change is limited to the read-only artwork mount. Rollback retains the original images and data, restores the previous Music image and Compose file, and does not overwrite newer SQLite writes.

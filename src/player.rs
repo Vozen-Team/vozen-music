@@ -5,16 +5,37 @@ use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
 
 pub(super) struct Artwork {
     file: std::path::PathBuf,
-    attachment: AttachmentId,
+    url: String,
 }
 
 fn attached_cover(file: Option<&std::path::PathBuf>, message: &Message) -> Option<Artwork> {
     let file = file?;
     let name = file.file_name()?.to_str()?;
-    let attachment = message.attachments.iter().find(|a| a.filename == name)?.id;
+    // Discord may consume an embed upload without listing it in message.attachments.
+    let url = message
+        .embeds
+        .iter()
+        .filter_map(|e| e.image.as_ref().map(|i| i.url.as_str()))
+        .chain(
+            message
+                .attachments
+                .iter()
+                .filter(|a| a.filename == name)
+                .map(|a| a.url.as_str()),
+        )
+        .find(|url| {
+            reqwest::Url::parse(url).is_ok_and(|u| {
+                u.scheme() == "https"
+                    && matches!(
+                        u.host_str(),
+                        Some("cdn.discordapp.com" | "media.discordapp.net")
+                    )
+                    && u.path_segments().and_then(|mut parts| parts.next_back()) == Some(name)
+            })
+        })?;
     Some(Artwork {
         file: file.clone(),
-        attachment,
+        url: url.to_owned(),
     })
 }
 
@@ -281,22 +302,24 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
         .cover
         .as_ref();
     let update = async {
-        let mut attachments = EditAttachments::new();
-        if let Some(file) = file {
-            if let Some(artwork) = panel_guard.as_ref().filter(|a| a.file == *file) {
-                attachments = attachments.keep(artwork.attachment);
-            } else {
+        let mut card = embed(catalog, session, stopped)?;
+        let existing = panel_guard.as_ref().filter(|a| Some(&a.file) == file);
+        if let Some(artwork) = existing {
+            card = card.image(&artwork.url);
+        }
+        let mut update = EditMessage::new()
+            .content("")
+            .embeds(vec![card])
+            .components(controls(session, generation, stopped)?)
+            .allowed_mentions(CreateAllowedMentions::new());
+        if existing.is_none() {
+            let mut attachments = EditAttachments::new();
+            if let Some(file) = file {
                 attachments = attachments.add(CreateAttachment::path(file).await?);
             }
+            update = update.attachments(attachments);
         }
-        Ok::<_, Error>(
-            EditMessage::new()
-                .content("")
-                .embeds(vec![embed(catalog, session, stopped)?])
-                .components(controls(session, generation, stopped)?)
-                .attachments(attachments)
-                .allowed_mentions(CreateAllowedMentions::new()),
-        )
+        Ok::<_, Error>(update)
     }
     .await;
     if !stopped && generation != session.generation.load(Ordering::SeqCst) {
@@ -354,8 +377,8 @@ mod tests {
                 axum::Json(serde_json::json!({
                     "id":"456", "channel_id":"123", "author":{"id":"789","username":"Music","discriminator":"0","avatar":null},
                     "content":"", "timestamp":"2026-11-01T20:00:00Z", "edited_timestamp":null, "tts":false,
-                    "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],
-                    "attachments":[{"id":if index<2 {"17"} else {"18"},"filename":names[if index<2 {0} else {1}],"size":100,"url":"https://cdn.discordapp.com/fixture.png","proxy_url":"https://media.discordapp.net/fixture.png"}]
+                    "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[{"image":{"url":format!("https://cdn.discordapp.com/attachments/123/17/{}",names[if index<2 {0} else {1}]),"width":1254,"height":1254}}],
+                    "attachments":[]
                 }))
             }
         });
@@ -398,10 +421,10 @@ mod tests {
         }
         assert!(records[1].0.starts_with("application/json"));
         let same: serde_json::Value = serde_json::from_slice(&records[1].1).unwrap();
-        assert_eq!(same["attachments"][0]["id"], "17");
+        assert!(same.get("attachments").is_none());
         assert_eq!(
             same["embeds"][0]["image"]["url"],
-            format!("attachment://{}", names[0])
+            format!("https://cdn.discordapp.com/attachments/123/17/{}", names[0])
         );
         server.abort();
     }
