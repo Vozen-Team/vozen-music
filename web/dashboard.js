@@ -67,7 +67,7 @@ function signedOut() {
   csrf = "";
   current = "";
   sequence++;
-  for (const id of ["editor", "sidebar", "loading", "empty"])
+  for (const id of ["editor", "sidebar", "loading", "empty", "server-picker"])
     $(id).hidden = true;
   $("welcome").hidden = false;
   renderAccount(null);
@@ -113,11 +113,13 @@ function persistDraft() {
     if (changed())
       localStorage.setItem(`music-draft:${current}`, JSON.stringify(draft));
     else localStorage.removeItem(`music-draft:${current}`);
+    return true;
   } catch {
     notice(
       "This browser could not preserve your draft. Keep this tab open until you save.",
       "error",
     );
+    return false;
   }
 }
 function button(text, action, primary = false) {
@@ -406,6 +408,7 @@ function render() {
     $("music-pages").append(b);
   }
   editor.append(
+    button("← Choose another server", showServerPicker),
     el("h1", pages[page] || pages.overview),
     el("p", descriptions[page] || descriptions.overview, "intro"),
   );
@@ -824,11 +827,55 @@ function renderServers() {
     select.add(new Option(s.name, s.id, false, s.id === current));
   select.disabled = saving;
 }
+function showServerPicker() {
+  if (saving) return;
+  if (current && !persistDraft() && changed()) return;
+  sequence++;
+  current = "";
+  draft = null;
+  baseline = "";
+  closeSections(false);
+  for (const id of ["editor", "sidebar", "loading", "empty"])
+    $(id).hidden = true;
+  notice("");
+  const url = new URL(location.href);
+  url.searchParams.delete("server");
+  url.searchParams.delete("page");
+  history.replaceState(null, "", url);
+  const choices = $("server-choices");
+  choices.replaceChildren();
+  for (const server of serverList) {
+    const row = button("", () => {
+      page = "overview";
+      return loadServer(server.id);
+    });
+    row.className = "server-choice";
+    const avatar = el("span", server.name.slice(0, 1).toUpperCase(), "server-avatar");
+    if (/^\d+$/.test(server.id) && /^(a_)?[a-f0-9]{32}$/.test(server.icon || "")) {
+      const image = el("img");
+      image.alt = "";
+      image.src = `https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=64`;
+      image.addEventListener("error", () => image.remove());
+      avatar.append(image);
+    }
+    row.append(avatar, el("span", server.name));
+    const arrow = el("span", "›", "server-arrow");
+    arrow.setAttribute("aria-hidden", "true");
+    row.append(arrow);
+    choices.append(row);
+  }
+  $("picker-invite").href = $("sidebar").querySelector('a[href*="discord.com/oauth2"]').href;
+  $("server-picker").hidden = false;
+  $("main").scrollTop = 0;
+  $("main").focus();
+}
 async function loadServer(id) {
   const seq = ++sequence;
   current = id;
   baseline = "";
   draft = null;
+  $("server-picker").hidden = true;
+  $("sidebar").hidden = false;
   renderServers();
   $("editor").hidden = true;
   $("empty").hidden = true;
@@ -883,9 +930,8 @@ async function refreshServers() {
       return;
     }
     const wanted = new URLSearchParams(location.search).get("server");
-    await loadServer(
-      serverList.find((s) => s.id === wanted)?.id || serverList[0].id,
-    );
+    if (serverList.some((s) => s.id === wanted)) await loadServer(wanted);
+    else showServerPicker();
   } catch (e) {
     notice(e.message, "error");
   } finally {
@@ -957,7 +1003,6 @@ if (window.visualViewport) {
     const me = await api("/api/me");
     csrf = me.csrf;
     renderAccount(me.user);
-    $("sidebar").hidden = false;
     await refreshServers();
   } catch (e) {
     signedOut();

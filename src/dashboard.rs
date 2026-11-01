@@ -599,6 +599,7 @@ async fn me(
 struct GuildInfo {
     id: String,
     name: String,
+    icon: Option<String>,
     owner: bool,
     permissions: String,
 }
@@ -641,7 +642,7 @@ async fn guilds(
                                     && state.cache.guild(id).is_some()
                             })
                 })
-                .map(|guild| serde_json::json!({"id": guild.id, "name": guild.name})),
+                .map(|guild| serde_json::json!({"id": guild.id, "name": guild.name, "icon": guild.icon})),
         );
         if complete {
             return Ok(Json(serde_json::json!({"guilds": managed})));

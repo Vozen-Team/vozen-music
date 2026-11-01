@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+const { chromium } = await import(process.env.VOZEN_PLAYWRIGHT_MODULE || "playwright");
+const browser = await chromium.launch();
+try {
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  const errors = [];
+  page.on("pageerror", e => errors.push(e.message));
+  page.on("dialog", dialog => dialog.accept());
+  let guilds = [{ id: "1", name: "Example server" }, { id: "2", name: "Another server with a long name to check wrapping" }];
+  let settingsRequests = 0;
+  await page.route("**/music/api/guilds", route => route.fulfill({ json: { guilds } }));
+  await page.route("**/music/api/guilds/*/server-settings", route => {
+    settingsRequests++;
+    return route.continue();
+  });
+  await page.goto("http://localhost:4783/music/dashboard?server=unknown");
+  await page.locator("#server-picker").waitFor({ state: "visible" });
+  assert.equal(await page.locator(".server-choice").count(), 2);
+  assert.equal(settingsRequests, 0, "No server is silently selected");
+  await page.locator(".server-choice").first().click();
+  await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+  await page.locator("#sections-trigger").click();
+  await page.locator("#music-pages").getByRole("button", { name: "Playback", exact: true }).click();
+  await page.getByLabel("Default and current volume", { exact: true }).fill("42");
+  await page.getByRole("button", { name: "← Choose another server", exact: true }).click();
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("music-draft:1")).volume), 42);
+  await page.reload();
+  await page.locator("#server-picker").waitFor({ state: "visible" });
+  await page.locator(".server-choice").first().click();
+  await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+  assert.match(await page.locator("#notice").innerText(), /draft was restored/);
+  await page.goto("http://localhost:4783/music/dashboard?server=1&page=playback");
+  await page.getByLabel("Default and current volume", { exact: true }).waitFor();
+  assert.equal(await page.locator("#server-picker").isVisible(), false);
+  assert.equal(await page.getByLabel("Default and current volume", { exact: true }).inputValue(), "42");
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw Error("unavailable"); }; });
+  await page.getByLabel("Default and current volume", { exact: true }).fill("43");
+  await page.getByRole("button", { name: "← Choose another server", exact: true }).click();
+  assert.equal(await page.locator("#editor").isVisible(), true, "Keep draft open if storage fails");
+  await page.goto("http://localhost:4783/music/dashboard?server=1");
+  await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+  await page.locator("#music-discard").click();
+  guilds = [];
+  await page.goto("http://localhost:4783/music/dashboard");
+  await page.getByRole("heading", { name: "No servers to manage yet" }).waitFor();
+  assert.equal(await page.locator("#sidebar").isVisible(), false);
+  assert.equal(await page.locator("#server-picker").isVisible(), false);
+  assert.deepEqual(errors, []);
+  console.log("Server picker: multiple/empty guilds, invalid/direct links, keyboard entry, drafts and storage failure passed.");
+} finally {
+  await browser.close();
+}
