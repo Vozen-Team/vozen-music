@@ -3,6 +3,21 @@ use serenity::all::*;
 use std::sync::{Arc, atomic::Ordering};
 use vozen_music::skip::{MajorityScope, SkipAccess, SkipMode};
 
+pub(super) struct Artwork {
+    file: std::path::PathBuf,
+    attachment: AttachmentId,
+}
+
+fn attached_cover(file: Option<&std::path::PathBuf>, message: &Message) -> Option<Artwork> {
+    let file = file?;
+    let name = file.file_name()?.to_str()?;
+    let attachment = message.attachments.iter().find(|a| a.filename == name)?.id;
+    Some(Artwork {
+        file: file.clone(),
+        attachment,
+    })
+}
+
 pub fn target(id: &str) -> Result<(u64, usize), Error> {
     let parts: Vec<_> = id.split(':').collect();
     if parts.len() != 4 || parts[0] != "vozen" || parts[1] != "skip" {
@@ -91,7 +106,7 @@ fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEm
         .and_then(|p| p.file_name())
         .and_then(|n| n.to_str())
     {
-        header = header.image(format!("https://api.vozen.org/music/covers/{name}"));
+        header = header.image(format!("attachment://{name}"));
     }
     let policy = session
         .policy
@@ -137,15 +152,21 @@ fn embed(catalog: &Catalog, session: &Session, stopped: bool) -> Result<CreateEm
         .footer(CreateEmbedFooter::new(footer)))
 }
 
-pub fn message(catalog: &Catalog, session: &Session) -> Result<CreateMessage, Error> {
-    Ok(CreateMessage::new()
+pub async fn message(catalog: &Catalog, session: &Session) -> Result<CreateMessage, Error> {
+    let mut message = CreateMessage::new()
         .embed(embed(catalog, session, false)?)
         .components(controls(
             session,
             session.generation.load(Ordering::SeqCst).max(1),
             false,
         )?)
-        .allowed_mentions(CreateAllowedMentions::new()))
+        .allowed_mentions(CreateAllowedMentions::new());
+    if let Some(file) =
+        &catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)].cover
+    {
+        message = message.add_file(CreateAttachment::path(file).await?);
+    }
+    Ok(message)
 }
 
 pub async fn post(
@@ -169,21 +190,32 @@ pub async fn post(
             .ok_or("Voice channel unavailable.")?;
         #[allow(deprecated)]
         let permissions = voice.permissions_for_user(&ctx.cache, ctx.cache.current_user().id)?;
-        if !permissions.contains(
-            Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::EMBED_LINKS,
-        ) {
-            return Err("Music needs View Channel, Send Messages and Embed Links in the voice channel to post the player.".into());
+        let mut required =
+            Permissions::VIEW_CHANNEL | Permissions::SEND_MESSAGES | Permissions::EMBED_LINKS;
+        if catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)]
+            .cover
+            .is_some()
+        {
+            required |= Permissions::ATTACH_FILES;
+        }
+        if !permissions.contains(required) {
+            return Err("Check Music's View Channel, Send Messages, Embed Links and Attach Files permissions in the voice channel.".into());
         }
     }
     remove(&ctx.http, session).await?;
-    let message = channel.send_message(&ctx.http, message(catalog, session)?).await.map_err(|error| {
+    let message = channel.send_message(&ctx.http, message(catalog, session).await?).await.map_err(|error| {
         eprintln!("Could not post the voice-channel player: {error}");
         "Could not post the player in voice chat. Check Music's channel permissions and try /panel."
     })?;
     Ok(Arc::new(super::PlayerPanel {
         channel,
         message: message.id,
-        update: tokio::sync::Mutex::new(()),
+        update: tokio::sync::Mutex::new(attached_cover(
+            catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)]
+                .cover
+                .as_ref(),
+            &message,
+        )),
     }))
 }
 
@@ -231,7 +263,7 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
         return;
     };
     // Shared across manual skips, so an old HTTP edit completes before the new player's edit.
-    let panel_guard = panel.update.lock().await;
+    let mut panel_guard = panel.update.lock().await;
     if !session
         .panel
         .lock()
@@ -245,23 +277,37 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
         return;
     }
     let generation = session.generation.load(Ordering::SeqCst);
-    let update = (|| -> Result<EditMessage, Error> {
-        Ok(EditMessage::new()
-            .content("")
-            .embeds(vec![embed(catalog, session, stopped)?])
-            .components(controls(session, generation, stopped)?)
-            .allowed_mentions(CreateAllowedMentions::new()))
-    })();
+    let file = catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)]
+        .cover
+        .as_ref();
+    let update = async {
+        let mut attachments = EditAttachments::new();
+        if let Some(file) = file {
+            if let Some(artwork) = panel_guard.as_ref().filter(|a| a.file == *file) {
+                attachments = attachments.keep(artwork.attachment);
+            } else {
+                attachments = attachments.add(CreateAttachment::path(file).await?);
+            }
+        }
+        Ok::<_, Error>(
+            EditMessage::new()
+                .content("")
+                .embeds(vec![embed(catalog, session, stopped)?])
+                .components(controls(session, generation, stopped)?)
+                .attachments(attachments)
+                .allowed_mentions(CreateAllowedMentions::new()),
+        )
+    }
+    .await;
     if !stopped && generation != session.generation.load(Ordering::SeqCst) {
         return;
     }
     match update {
-        Ok(update) => {
-            if channel.edit_message(http, message, update).await.is_err() {
-                eprintln!("Could not update the station player message.");
-            }
-        }
-        Err(_) => eprintln!("Could not read station player state."),
+        Ok(update) => match channel.edit_message(http, message, update).await {
+            Ok(message) => *panel_guard = attached_cover(file, &message),
+            Err(error) => eprintln!("Could not update the station player message: {error}"),
+        },
+        Err(error) => eprintln!("Could not prepare the station player: {error}"),
     }
     drop(panel_guard);
 }
@@ -269,6 +315,97 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn track_changes_upload_native_covers_and_same_track_edits_keep_them() {
+        use axum::{
+            Router,
+            body::{Body, to_bytes},
+            http::Request,
+        };
+        let catalog =
+            Arc::new(Catalog::load(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap());
+        let names: Vec<String> = catalog.stations[0].tracks[..2]
+            .iter()
+            .map(|t| {
+                t.cover
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect();
+        let requests = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = requests.clone();
+        let response_names = names.clone();
+        let app = Router::new().fallback(move |request: Request<Body>| {
+            let recorded = recorded.clone();
+            let names = response_names.clone();
+            async move {
+                assert_eq!(request.method(), "PATCH");
+                let content_type = request.headers()["content-type"].to_str().unwrap().to_owned();
+                let body = to_bytes(request.into_body(), 8 * 1024 * 1024).await.unwrap();
+                let mut records = recorded.lock().unwrap();
+                let index = records.len();
+                records.push((content_type, body));
+                axum::Json(serde_json::json!({
+                    "id":"456", "channel_id":"123", "author":{"id":"789","username":"Music","discriminator":"0","avatar":null},
+                    "content":"", "timestamp":"2026-11-01T20:00:00Z", "edited_timestamp":null, "tts":false,
+                    "mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],
+                    "attachments":[{"id":if index<2 {"17"} else {"18"},"filename":names[if index<2 {0} else {1}],"size":100,"url":"https://cdn.discordapp.com/fixture.png","proxy_url":"https://media.discordapp.net/fixture.png"}]
+                }))
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let http = serenity::http::HttpBuilder::new("synthetic-token")
+            .proxy(format!("http://{addr}"))
+            .ratelimiter_disabled(true)
+            .build();
+        let session = Arc::new(Session::new(
+            0,
+            0,
+            1,
+            Default::default(),
+            Some(Arc::new(super::super::PlayerPanel {
+                channel: ChannelId::new(123),
+                message: MessageId::new(456),
+                update: tokio::sync::Mutex::new(None),
+            })),
+        ));
+        refresh(&http, &catalog, &session, false).await;
+        session.paused.store(true, Ordering::SeqCst);
+        refresh(&http, &catalog, &session, false).await;
+        session.current.store(1, Ordering::SeqCst);
+        session.generation.store(2, Ordering::SeqCst);
+        refresh(&http, &catalog, &session, false).await;
+        let records = requests.lock().unwrap();
+        assert_eq!(records.len(), 3);
+        for (index, name) in [(0, &names[0]), (2, &names[1])] {
+            assert!(
+                records[index].0.starts_with("multipart/form-data"),
+                "Track change must upload artwork, got {}",
+                records[index].0
+            );
+            let body = String::from_utf8_lossy(&records[index].1);
+            assert!(body.contains(&format!("attachment://{name}")));
+            assert!(body.contains(&format!("filename=\"{name}\"")));
+            assert!(!body.contains("https://api.vozen.org/music/covers/"));
+        }
+        assert!(records[1].0.starts_with("application/json"));
+        let same: serde_json::Value = serde_json::from_slice(&records[1].1).unwrap();
+        assert_eq!(same["attachments"][0]["id"], "17");
+        assert_eq!(
+            same["embeds"][0]["image"]["url"],
+            format!("attachment://{}", names[0])
+        );
+        server.abort();
+    }
+
     #[tokio::test]
     async fn stopped_players_are_deleted_and_missing_messages_are_harmless() {
         use axum::{
@@ -313,7 +450,7 @@ mod tests {
                 Some(Arc::new(super::super::PlayerPanel {
                     channel: ChannelId::new(123),
                     message: MessageId::new(456),
-                    update: tokio::sync::Mutex::new(()),
+                    update: tokio::sync::Mutex::new(None),
                 })),
             ));
             let panel = session.panel.lock().unwrap().clone().unwrap();
@@ -394,12 +531,12 @@ mod tests {
         }
     }
 
-    #[test]
-    fn player_card_keeps_credits_and_tracks_playback_and_voting_states() {
+    #[tokio::test]
+    async fn player_card_keeps_credits_and_tracks_playback_and_voting_states() {
         let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         let mut policy = vozen_music::skip::SkipSettings::default();
         let session = Session::new(0, 0, 123, policy.clone(), None);
-        let card = serde_json::to_value(message(&catalog, &session).unwrap()).unwrap();
+        let card = serde_json::to_value(message(&catalog, &session).await.unwrap()).unwrap();
         let track = &catalog.stations[0].tracks[0];
         assert_eq!(card["embeds"][0]["title"], track.title);
         assert_eq!(
@@ -465,10 +602,7 @@ mod tests {
                     .to_str()
                     .unwrap();
                 assert_eq!(card["title"], track.title);
-                assert_eq!(
-                    card["image"]["url"],
-                    format!("https://api.vozen.org/music/covers/{name}")
-                );
+                assert_eq!(card["image"]["url"], format!("attachment://{name}"));
             }
             let stopped = serde_json::to_value(embed(&catalog, &session, true).unwrap()).unwrap();
             assert!(stopped.get("image").is_none());

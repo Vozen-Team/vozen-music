@@ -28,7 +28,7 @@ use vozen_music::{
 struct PlayerPanel {
     channel: ChannelId,
     message: MessageId,
-    update: Mutex<()>,
+    update: Mutex<Option<player::Artwork>>,
 }
 
 struct Session {

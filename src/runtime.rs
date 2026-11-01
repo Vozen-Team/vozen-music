@@ -686,7 +686,7 @@ impl Bot {
                 .application_id()
                 .ok_or("Application unavailable.")?;
             return Ok(Some(format!(
-                "https://discord.com/oauth2/authorize?client_id={application}&scope=bot%20applications.commands&permissions=3165184"
+                "https://discord.com/oauth2/authorize?client_id={application}&scope=bot%20applications.commands&permissions=3197952"
             )));
         }
         if name == "settings" {
