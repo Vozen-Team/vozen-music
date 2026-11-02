@@ -137,7 +137,7 @@ pub fn controls(
         ]),
         CreateActionRow::Buttons(vec![
             action("like").label("♡"),
-            action("loop").label("↻ 1").style(if looping {
+            action("loop").label("↻").style(if looping {
                 ButtonStyle::Success
             } else {
                 ButtonStyle::Secondary
@@ -225,7 +225,7 @@ fn payload(
             },
             session.volume.load(Ordering::SeqCst),
             if session.looping.load(Ordering::SeqCst) {
-                " · Repeat one"
+                " · Loop on"
             } else {
                 ""
             }
@@ -735,7 +735,7 @@ mod tests {
         assert_eq!(buttons[0]["components"][0]["disabled"], false);
         assert_eq!(buttons[0]["components"][4]["disabled"], true);
         assert_eq!(buttons[1]["components"][0]["label"], "♡");
-        assert_eq!(buttons[1]["components"][1]["label"], "↻ 1");
+        assert_eq!(buttons[1]["components"][1]["label"], "↻");
         assert_eq!(buttons[1]["components"][2]["label"], "Leave");
         assert_eq!(buttons[1]["components"][2]["style"], 4);
         assert_eq!(buttons.as_array().unwrap().len(), 2);

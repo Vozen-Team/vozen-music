@@ -1116,6 +1116,23 @@ mod tests {
             );
             handler.act(&EventContext::Track(&[])).await;
             assert_eq!(handler.session.generation.load(Ordering::SeqCst), 1);
+            if looping {
+                for generation in 1..=3 {
+                    handler.generation = generation;
+                    handler.act(&EventContext::Track(&[])).await;
+                    assert_eq!(handler.session.current.load(Ordering::SeqCst), 0);
+                    assert!(handler.session.looping.load(Ordering::SeqCst));
+                    assert_eq!(
+                        handler.session.generation.load(Ordering::SeqCst),
+                        generation + 1
+                    );
+                }
+                handler.session.looping.fetch_xor(true, Ordering::SeqCst);
+                handler.generation = 4;
+                handler.act(&EventContext::Track(&[])).await;
+                assert_eq!(handler.session.current.load(Ordering::SeqCst), 1);
+                assert!(!handler.session.looping.load(Ordering::SeqCst));
+            }
             handler.session.active.store(false, Ordering::SeqCst);
             call.lock().await.stop();
         }
