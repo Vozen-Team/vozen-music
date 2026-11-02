@@ -38,7 +38,7 @@ pub(super) struct Artwork {
 
 fn attached_cover(file: Option<&std::path::PathBuf>, message: &Message) -> Option<Artwork> {
     let file = file?;
-    let name = file.file_name()?.to_str()?;
+    let name = super::player_artwork::filename(file);
     // Discord may consume an embed upload without listing it in message.attachments.
     let url = message
         .embeds
@@ -58,7 +58,8 @@ fn attached_cover(file: Option<&std::path::PathBuf>, message: &Message) -> Optio
                         u.host_str(),
                         Some("cdn.discordapp.com" | "media.discordapp.net")
                     )
-                    && u.path_segments().and_then(|mut parts| parts.next_back()) == Some(name)
+                    && u.path_segments().and_then(|mut parts| parts.next_back())
+                        == Some(name.as_str())
             })
         })?;
     Some(Artwork {
@@ -161,16 +162,12 @@ fn payload(
         components.push(serde_json::json!({"type":10,"content":"Playback stopped. Use /play to start a station."}));
     } else {
         let track = &station.tracks[session.current.load(Ordering::SeqCst)];
-        if let Some(name) = track
-            .cover
-            .as_ref()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-        {
+        if let Some(file) = &track.cover {
+            let name = super::player_artwork::filename(file);
             let url = artwork_url
                 .map(str::to_owned)
                 .unwrap_or_else(|| format!("attachment://{name}"));
-            components.push(serde_json::json!({"type":12,"items":[{"media":{"url":url},"description":format!("Cover art for {} by {}", track.title, track.artist)}]}));
+            components.push(serde_json::json!({"type":12,"items":[{"media":{"url":url},"description":format!("{} by {}", track.title, track.artist)}]}));
         }
         let safe = |text: &str| {
             serenity::utils::MessageBuilder::new()
@@ -178,8 +175,9 @@ fn payload(
                 .build()
         };
         components.push(serde_json::json!({"type":10,"content":format!(
-            "### {}\n{}\n-# {} · {} · {}%{}",
-            safe(&track.title), safe(&track.artist), safe(&station.name),
+            "{}-# {} · {} · {}%{}",
+            if track.cover.is_none() { format!("### {}\n{}\n", safe(&track.title), safe(&track.artist)) } else { String::new() },
+            safe(&station.name),
             if session.paused.load(Ordering::SeqCst) { "Paused" } else { "Playing" },
             session.volume.load(Ordering::SeqCst),
             if session.looping.load(Ordering::SeqCst) { " · Repeat one" } else { "" }
@@ -210,10 +208,9 @@ pub async fn message(
 ) -> Result<(serde_json::Value, Vec<CreateAttachment>), Error> {
     let mut body = payload(catalog, session, false, None)?;
     let mut files = Vec::new();
-    if let Some(file) =
-        &catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)].cover
-    {
-        files.push(CreateAttachment::path(file).await?);
+    let track = &catalog.stations[session.station].tracks[session.current.load(Ordering::SeqCst)];
+    if track.cover.is_some() {
+        files.push(super::player_artwork::attachment(track).await?);
         body["attachments"] = serde_json::to_value(&files)?;
     }
     Ok((body, files))
@@ -338,8 +335,10 @@ pub async fn refresh(http: &Http, catalog: &Catalog, session: &Arc<Session>, sto
         body["embeds"] = serde_json::json!([]);
         let mut files = Vec::new();
         if existing.is_none() {
-            if let Some(file) = file {
-                files.push(CreateAttachment::path(file).await?);
+            if file.is_some() {
+                let track = &catalog.stations[session.station].tracks
+                    [session.current.load(Ordering::SeqCst)];
+                files.push(super::player_artwork::attachment(track).await?);
             }
             body["attachments"] = serde_json::to_value(&files)?;
         }
@@ -465,16 +464,7 @@ mod tests {
             Arc::new(Catalog::load(std::path::Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap());
         let names: Vec<String> = catalog.stations[0].tracks[..2]
             .iter()
-            .map(|t| {
-                t.cover
-                    .as_ref()
-                    .unwrap()
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_owned()
-            })
+            .map(|t| super::super::player_artwork::filename(t.cover.as_ref().unwrap()))
             .collect();
         let requests = Arc::new(std::sync::Mutex::new(Vec::new()));
         let recorded = requests.clone();
@@ -724,8 +714,12 @@ mod tests {
         assert_eq!(components[0]["type"], 12);
         assert_eq!(components[1]["type"], 10);
         let text = components[1]["content"].as_str().unwrap();
-        assert!(text.contains(&track.title));
-        assert!(text.contains(&track.artist));
+        assert_eq!(
+            components[0]["items"][0]["description"],
+            format!("{} by {}", track.title, track.artist)
+        );
+        assert!(!text.contains(&track.title));
+        assert!(!text.contains(&track.artist));
         assert!(text.contains("Playing · 100%"));
         assert_eq!(components[2]["type"], 1);
         assert!(
@@ -763,6 +757,16 @@ mod tests {
             stopped["components"][0]["components"][0]["content"],
             "Playback stopped. Use /play to start a station."
         );
+        let mut legacy = catalog.clone();
+        legacy.stations[0].tracks[0].cover = None;
+        let legacy = payload(&legacy, &session, false, None).unwrap();
+        assert_eq!(legacy["components"][0]["components"][0]["type"], 10);
+        assert!(
+            legacy["components"][0]["components"][0]["content"]
+                .as_str()
+                .unwrap()
+                .contains(&track.title)
+        );
     }
 
     #[test]
@@ -782,19 +786,10 @@ mod tests {
             for (index, track) in station.tracks.iter().enumerate() {
                 session.current.store(index, Ordering::SeqCst);
                 let card = payload(&catalog, &session, false, None).unwrap();
-                let name = track
-                    .cover
-                    .as_ref()
-                    .unwrap()
-                    .file_name()
-                    .unwrap()
-                    .to_str()
-                    .unwrap();
-                assert!(
-                    card["components"][0]["components"][1]["content"]
-                        .as_str()
-                        .unwrap()
-                        .contains(&track.title)
+                let name = super::super::player_artwork::filename(track.cover.as_ref().unwrap());
+                assert_eq!(
+                    card["components"][0]["components"][0]["items"][0]["description"],
+                    format!("{} by {}", track.title, track.artist)
                 );
                 assert_eq!(
                     card["components"][0]["components"][0]["items"][0]["media"]["url"],

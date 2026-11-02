@@ -30,6 +30,8 @@ Command replies are private. `/play` and `/station` also post a shared station p
 
 The player puts Previous, Pause/Resume and Next in its first row, with Like, Dislike, Repeat one and Stop underneath. Previous uses up to 100 recordings from the current session's playback history and stays disabled until a previous recording exists. Previous and Next use the same skip access and majority policy, with independent votes; changing the track or skip policy clears both vote counts. Successful buttons do not add confirmation messages; errors are private.
 
+The player image combines the original artwork with centered title/artist text on a plain dark background. Rust renders the PNG in memory using the bundled OFL-licensed Outfit fonts; no external image-generation service is involved. Long metadata wraps within the card, and its accessible image description retains title and artist. Playback state, station, volume and controls remain native Discord components. Same-track edits reuse the existing Discord image; a track change uploads its matching card. Original cover files and the public cover catalog remain unchanged. Legacy recordings without artwork retain native text metadata.
+
 Repeat one turns green when enabled and repeats the current recording from its beginning after a normal ending. Manual Previous/Next keeps repeat enabled for the newly selected recording. Present listeners' dislikes still exclude recordings, and decode failures follow the normal bounded error handling instead of forcing a broken recording to repeat. History and repeat are session state: starting a new playback session or restarting Music resets them.
 
 ## Skip buttons and votes

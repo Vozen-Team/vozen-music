@@ -147,6 +147,12 @@ def main():
                     assert digest(target) == manifest['bundle_files'][member.name]
         (stage / 'vozen-music').chmod(0o755)
         (stage / 'Dockerfile').write_text(f'FROM {previous}\nCOPY vozen-music /usr/local/bin/vozen-music\nCOPY catalog.json /app/catalog.json\nLABEL org.opencontainers.image.revision="{manifest["source_revision"]}"\n')
+        font_license = 'OFL-Outfit-player.txt'
+        if font_license in manifest['sha256']:
+            assert digest(INCOMING / font_license) == manifest['sha256'][font_license]
+            shutil.copy2(INCOMING / font_license, stage / font_license)
+            with (stage / 'Dockerfile').open('a') as dockerfile:
+                dockerfile.write(f'COPY {font_license} /app/licenses/{font_license}\n')
         if manifest.get('bundle_files'):
             with (stage / 'Dockerfile').open('a') as dockerfile:
                 dockerfile.write('COPY media/ /app/media/\nCOPY licenses/ /app/licenses/\n')

@@ -1,6 +1,7 @@
 mod controls;
 mod dashboard;
 mod player;
+mod player_artwork;
 mod runtime;
 
 use serenity::{all::*, async_trait};

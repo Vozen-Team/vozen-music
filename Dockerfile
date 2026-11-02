@@ -6,6 +6,7 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 COPY web ./web
+COPY assets/fonts ./assets/fonts
 COPY assets/brand/v4/vozen-music-avatar.png ./assets/brand/v4/vozen-music-avatar.png
 RUN cargo build --release --locked
 
@@ -21,6 +22,7 @@ COPY --from=build /build/target/release/vozen-music /usr/local/bin/vozen-music
 COPY catalog.json ./catalog.json
 COPY media ./media
 COPY licenses ./licenses
+COPY assets/fonts/OFL-Outfit.txt ./licenses/OFL-Outfit-player.txt
 COPY covers ./covers
 USER 10001:10001
 ENTRYPOINT ["vozen-music"]
