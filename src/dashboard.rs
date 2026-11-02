@@ -887,7 +887,7 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
-            "/assets/fonts/{font}",
+            "/music/assets/fonts/{font}",
             get(|RoutePath(font): RoutePath<String>| async move {
                 let bytes = match font.as_str() {
                     "unbounded-500-latin.woff2" => {
@@ -1295,6 +1295,32 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn picker_fonts_stay_inside_the_public_music_prefix() {
+        let app = router(fixture());
+        for (font, status) in [
+            ("unbounded-500-latin.woff2", StatusCode::OK),
+            ("unbounded-500-latin-ext.woff2", StatusCode::OK),
+            ("not-a-public-font.woff2", StatusCode::NOT_FOUND),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(format!("/music/assets/fonts/{font}"))
+                        .body(axum::body::Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), status);
+            if status == StatusCode::OK {
+                assert_eq!(response.headers()["content-type"], "font/woff2");
+            }
+        }
+        assert!(include_str!("../web/server-picker.css").contains("url('assets/fonts/"));
     }
 
     #[tokio::test]
