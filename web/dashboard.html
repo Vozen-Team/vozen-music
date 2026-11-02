@@ -65,7 +65,20 @@
         <p class="small">Requires Manage Server permission.</p>
       </section>
       <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
-      <section id="loading" class="loading" aria-live="polite"><h1>Loading your dashboard…</h1><p>Checking your Discord session.</p></section>
+      <section id="loading" class="loading vozen-server-picker vp-loading" role="status" aria-live="polite" aria-busy="true">
+        <span class="vp-sr">Loading available servers</span>
+        <div class="vp-initial-skeleton" aria-hidden="true">
+          <div class="vp-intro"><div><div class="vp-product"><span class="vp-pulse vp-loading-mark"></span><span class="vp-pulse vp-loading-product"></span></div><div class="vp-title vp-loading-title vp-pulse">Your servers.</div></div><div class="vp-symbol"><i class="vp-pulse vp-loading-orb"></i><span></span><span></span></div></div>
+          <div class="vp-list">
+            <div class="vp-server"><span class="vp-avatar vp-pulse"></span><span class="vp-pulse vp-loading-name"></span><span class="vp-arrow vp-pulse"></span></div>
+            <div class="vp-server"><span class="vp-avatar vp-pulse"></span><span class="vp-pulse vp-loading-name"></span><span class="vp-arrow vp-pulse"></span></div>
+            <div class="vp-server"><span class="vp-avatar vp-pulse"></span><span class="vp-pulse vp-loading-name"></span><span class="vp-arrow vp-pulse"></span></div>
+            <div class="vp-server"><span class="vp-avatar vp-pulse"></span><span class="vp-pulse vp-loading-name"></span><span class="vp-arrow vp-pulse"></span></div>
+          </div>
+          <div class="vp-add"><span class="vp-pulse vp-loading-add"></span></div>
+        </div>
+        <div class="music-workspace-loading" hidden><h1>Loading your dashboard…</h1><p>Loading server settings.</p></div>
+      </section>
       <section id="empty" hidden><h1>No servers to manage yet</h1><p>You need Manage Server permission and Vozen Music must be installed. After adding the bot, refresh this list.</p><button id="refresh" type="button">Refresh servers</button></section>
       <section id="server-picker" class="vozen-server-picker" hidden aria-labelledby="picker-title">
         <div class="vp-intro"><div><p class="vp-product"><img src="/music/avatar.png" alt="">Vozen Music</p><h1 id="picker-title" class="vp-title">Your servers<span>.</span></h1></div><div class="vp-symbol" aria-hidden="true"><img src="/music/vozen.svg" alt=""><span></span><span></span></div></div>

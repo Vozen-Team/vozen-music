@@ -968,6 +968,10 @@ async function loadServer(id) {
   renderServers();
   $("editor").hidden = true;
   $("empty").hidden = true;
+  $("loading").classList.remove("vozen-server-picker", "vp-loading");
+  $("loading").querySelector(".vp-initial-skeleton").hidden = true;
+  $("loading").querySelector(".vp-sr").hidden = true;
+  $("loading").querySelector(".music-workspace-loading").hidden = false;
   $("loading").hidden = false;
   try {
     const [data, stations] = await Promise.all([
