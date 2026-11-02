@@ -236,19 +236,19 @@ fn payload(
         }
         components.push(serde_json::json!({"type":10,"content":status}));
     }
-    components.extend(
+    if !stopped && session.tips.load(Ordering::SeqCst) {
+        components.push(serde_json::json!({"type":10,"content":"-# Tap the heart to add or remove your like. Only you see the confirmation. /library shows your ratings; /dislike excludes a recording."}));
+    }
+    // Keep controls outside the container's side padding in narrow voice chats.
+    let mut layout = vec![serde_json::json!({"type":17,"components":components})];
+    layout.extend(
         controls(session, generation, stopped)?
             .into_iter()
             .map(serde_json::to_value)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    if !stopped && session.tips.load(Ordering::SeqCst) {
-        components.push(serde_json::json!({"type":10,"content":"-# Tap the heart to add or remove your like. Only you see the confirmation. /library shows your ratings; /dislike excludes a recording."}));
-    }
     // Serenity's typed builders predate V2; its HTTP client still handles uploads and rate limits.
-    Ok(
-        serde_json::json!({"flags":1 << 15,"components":[{"type":17,"components":components}],"allowed_mentions":{"parse":[]}}),
-    )
+    Ok(serde_json::json!({"flags":1 << 15,"components":layout,"allowed_mentions":{"parse":[]}}))
 }
 
 pub async fn message(
@@ -418,7 +418,7 @@ mod tests {
         let body = payload(&catalog, &session, false, None).unwrap();
         let message = serde_json::json!({"id":"456","channel_id":"123","author":{"id":"789","username":"Music","discriminator":"0","avatar":null},"content":"","timestamp":"2026-11-01T20:00:00Z","edited_timestamp":null,"tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"attachments":[],"components":body["components"],"flags":32768});
         let button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:action:pause:123:1","component_type":2},"message":message})).unwrap();
-        assert!(button.message.components.is_empty());
+        assert_eq!(button.message.components.len(), 2);
         assert_eq!(button.message.id, MessageId::new(456));
         assert_eq!(button.data.custom_id, "vozen:action:pause:123:1");
         let mut data = serde_json::to_value(&button).unwrap();
@@ -863,8 +863,17 @@ mod tests {
         assert!(!text.contains(&track.title));
         assert!(!text.contains(&track.artist));
         assert!(text.contains("Playing · 100%"));
-        assert_eq!(components[2]["type"], 1);
-        assert_eq!(components.len(), 4);
+        assert_eq!(components.len(), 2);
+        assert_eq!(card["components"].as_array().unwrap().len(), 3);
+        assert_eq!(card["components"][1]["type"], 1);
+        assert_eq!(card["components"][2]["type"], 1);
+        assert_eq!(
+            card["components"][1]["components"]
+                .as_array()
+                .unwrap()
+                .len(),
+            5
+        );
         assert!(!card.to_string().contains(&track.source_url));
         assert!(!card.to_string().contains("Credits & licence"));
         assert!(!card.to_string().contains(&track.license));
@@ -883,7 +892,7 @@ mod tests {
                 .contains("Paused · 40%")
         );
         assert_eq!(
-            paused["components"][0]["components"][2]["components"][2]["custom_id"],
+            paused["components"][1]["components"][2]["custom_id"],
             "vozen:action:resume:123:1"
         );
         let stopped = payload(&catalog, &session, true, None).unwrap();
