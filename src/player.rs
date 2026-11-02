@@ -91,10 +91,6 @@ pub fn controls(
     generation: usize,
     stopped: bool,
 ) -> Result<Vec<CreateActionRow>, Error> {
-    let policy = session
-        .policy
-        .lock()
-        .map_err(|_| "Player settings are unavailable.")?;
     let paused = session.paused.load(Ordering::SeqCst);
     let looping = session.looping.load(Ordering::SeqCst);
     let volume = session.volume.load(Ordering::SeqCst);
@@ -107,22 +103,13 @@ pub fn controls(
         .disabled(stopped)
     };
     let navigation = |previous: bool| -> Result<CreateButton, Error> {
-        let votes = session
-            .votes_for(previous)
-            .lock()
-            .map_err(|_| "Skip votes are unavailable.")?;
-        let icon = if previous { "⏮︎" } else { "⏭︎" };
-        let label = if policy.mode == SkipMode::Majority && !votes.voters.is_empty() {
-            format!("{icon} {}/{}", votes.voters.len(), votes.required)
-        } else {
-            icon.to_owned()
-        };
+        let icon = if previous { "⏮" } else { "⏭" };
         Ok(CreateButton::new(format!(
             "vozen:{}:{}:{generation}",
             if previous { "previous" } else { "skip" },
             session.control_id
         ))
-        .label(label)
+        .emoji(ReactionType::Unicode(icon.into()))
         .style(ButtonStyle::Secondary)
         .disabled(
             stopped
@@ -137,15 +124,15 @@ pub fn controls(
     Ok(vec![
         CreateActionRow::Buttons(vec![
             action("volume-down")
-                .label("🔉 −")
+                .emoji(ReactionType::Unicode("🔉".into()))
                 .disabled(stopped || volume == 0),
             navigation(true)?,
             action(if paused { "resume" } else { "pause" })
-                .label(if paused { "▶︎" } else { "⏸︎" })
+                .emoji(ReactionType::Unicode(if paused { "▶" } else { "⏸" }.into()))
                 .style(ButtonStyle::Success),
             navigation(false)?,
             action("volume-up")
-                .label("🔊 +")
+                .emoji(ReactionType::Unicode("🔊".into()))
                 .disabled(stopped || volume >= 100),
         ]),
         CreateActionRow::Buttons(vec![
@@ -161,6 +148,33 @@ pub fn controls(
                 .style(ButtonStyle::Danger),
         ]),
     ])
+}
+
+pub fn vote_progress(session: &Session) -> Result<String, Error> {
+    if session
+        .policy
+        .lock()
+        .map_err(|_| "Player settings are unavailable.")?
+        .mode
+        != SkipMode::Majority
+    {
+        return Ok(String::new());
+    }
+    let mut progress = Vec::new();
+    for (previous, name) in [(true, "Previous"), (false, "Next")] {
+        let votes = session
+            .votes_for(previous)
+            .lock()
+            .map_err(|_| "Skip votes are unavailable.")?;
+        if !votes.voters.is_empty() {
+            progress.push(format!(
+                "{name}: {}/{} votes",
+                votes.voters.len(),
+                votes.required
+            ));
+        }
+    }
+    Ok(progress.join(" · "))
 }
 
 pub fn button_volume(action: &str, current: usize) -> Option<i64> {
@@ -196,14 +210,31 @@ fn payload(
                 .push_safe(text)
                 .build()
         };
-        components.push(serde_json::json!({"type":10,"content":format!(
+        let mut status = format!(
             "{}-# {} · {} · {}%{}",
-            if track.cover.is_none() { format!("### {}\n{}\n", safe(&track.title), safe(&track.artist)) } else { String::new() },
+            if track.cover.is_none() {
+                format!("### {}\n{}\n", safe(&track.title), safe(&track.artist))
+            } else {
+                String::new()
+            },
             safe(&station.name),
-            if session.paused.load(Ordering::SeqCst) { "Paused" } else { "Playing" },
+            if session.paused.load(Ordering::SeqCst) {
+                "Paused"
+            } else {
+                "Playing"
+            },
             session.volume.load(Ordering::SeqCst),
-            if session.looping.load(Ordering::SeqCst) { " · Repeat one" } else { "" }
-        )}));
+            if session.looping.load(Ordering::SeqCst) {
+                " · Repeat one"
+            } else {
+                ""
+            }
+        );
+        let votes = vote_progress(session)?;
+        if !votes.is_empty() {
+            status.push_str(&format!("\n-# {votes}"));
+        }
+        components.push(serde_json::json!({"type":10,"content":status}));
     }
     components.extend(
         controls(session, generation, stopped)?
@@ -709,6 +740,18 @@ mod tests {
         assert_eq!(buttons[1]["components"][2]["style"], 4);
         assert_eq!(buttons.as_array().unwrap().len(), 2);
         assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 5);
+        for (button, icon) in buttons[0]["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(["🔉", "⏮", "⏸", "⏭", "🔊"])
+        {
+            assert_eq!(button["emoji"]["name"], icon);
+            assert!(
+                button.get("label").is_none(),
+                "Transport buttons stay icon-only"
+            );
+        }
         assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 3);
         assert_eq!(buttons[0]["components"][2]["style"], 3);
         assert_eq!(buttons[1]["components"][1]["style"], 2);
@@ -744,18 +787,34 @@ mod tests {
             votes.required = 3;
         }
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
+        assert_eq!(buttons[0]["components"][2]["emoji"]["name"], "▶");
         assert!(
-            buttons[0]["components"][3]["label"]
+            buttons[0]["components"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|b| b.get("label").is_none())
+        );
+        assert_eq!(vote_progress(&session).unwrap(), "Next: 1/3 votes");
+        {
+            let mut votes = session.previous_votes.lock().unwrap();
+            votes.voters.extend([789, 987]);
+            votes.required = 4;
+        }
+        assert_eq!(
+            vote_progress(&session).unwrap(),
+            "Previous: 2/4 votes · Next: 1/3 votes"
+        );
+        let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
+        let card = payload(&catalog, &session, false, None).unwrap();
+        assert!(
+            card["components"][0]["components"][1]["content"]
                 .as_str()
                 .unwrap()
-                .ends_with("1/3")
+                .contains("Previous: 2/4 votes · Next: 1/3 votes")
         );
-        assert!(
-            !buttons[0]["components"][1]["label"]
-                .as_str()
-                .unwrap()
-                .contains("1/3")
-        );
+        session.policy.lock().unwrap().mode = SkipMode::Instant;
+        assert!(vote_progress(&session).unwrap().is_empty());
         let disabled = serde_json::to_value(controls(&session, 3, true).unwrap()).unwrap();
         for row in disabled.as_array().unwrap() {
             for button in row["components"].as_array().unwrap() {

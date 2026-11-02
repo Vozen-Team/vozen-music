@@ -774,7 +774,7 @@ impl EventHandler for Bot {
         }
         let result = self.command(&ctx, &command).await;
         let success = result.is_ok();
-        let content = match result {
+        let mut content = match result {
             Ok(message) => message,
             Err(error) => error.to_string(),
         };
@@ -788,6 +788,11 @@ impl EventHandler for Bot {
             components =
                 player::controls(session, session.generation.load(Ordering::SeqCst), false)
                     .unwrap_or_default();
+            if let Ok(votes) = player::vote_progress(session)
+                && !votes.is_empty()
+            {
+                content.push_str(&format!("\n{votes}"));
+            }
         }
         if command
             .edit_response(
