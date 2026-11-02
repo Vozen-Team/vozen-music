@@ -30,7 +30,7 @@ try{
   assert.equal(await page.locator('.track-preview').count(),25);
   assert.equal(await page.getByRole('button',{name:'← Choose another server',exact:true}).count(),0);
   assert.equal(await page.locator('#editor h1').innerText(),'Vozen Rain');
-  assert.equal(await page.getByRole('link',{name:'← All stations',exact:true}).count(),1);
+  assert.equal(await page.getByRole('link',{name:'All stations',exact:true}).count(),1);
   assert.equal(await page.locator('.station-album-header .album-back').count(),1);
   assert.equal(await page.locator('.station-album-header').evaluate(e=>getComputedStyle(e.closest('main')).paddingTop),'0px');
   const geometry=await page.locator('.station-album-header').evaluate(hero=>{
@@ -48,7 +48,7 @@ try{
    await page.screenshot({path:`output/station-rain-${width}.png`,fullPage:true});
   }
   await page.reload();await page.locator('.station-tracks tbody tr').first().waitFor();
-  await page.getByRole('link',{name:'← All stations',exact:true}).click();await page.locator('.station-albums').waitFor();
+  await page.getByRole('link',{name:'All stations',exact:true}).click();await page.locator('.station-albums').waitFor();
   await page.locator('.station-album').filter({hasText:'My Station'}).click();await page.getByText(/My Station has no fixed tracklist/).waitFor();
   assert.equal(await page.locator('.station-tracks').count(),0);
   assert.deepEqual(errors,[]);await page.close();

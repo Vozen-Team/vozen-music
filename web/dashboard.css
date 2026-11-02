@@ -154,14 +154,22 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .station-album strong{font-size:16px;font-weight:600;line-height:1.4}
 .station-album span{font-size:12px;color:var(--muted);line-height:1.5}
 .music-dashboard main:has(.station-album-header){padding-top:0}
-.album-back{position:absolute;top:24px;left:var(--album-gutter);display:inline-flex;align-items:center;min-height:44px;margin:0;background:#080f1bd9;border-color:#ffffff33;color:#91e7dc;font-size:13px}
+.album-back{position:absolute;top:24px;left:var(--album-gutter);display:inline-flex;align-items:center;gap:10px;min-height:44px;margin:0;padding:8px 18px 8px 14px;background:#07101b99;border:1px solid #ffffff29;border-radius:999px;backdrop-filter:blur(16px);box-shadow:0 3px 14px #03091426;color:#f4f7fb;font-size:13px;font-weight:500;transition:background-color .16s,border-color .16s}
+.album-back:hover{background:#07101bd9;border-color:#ffffff66;color:#fff}
+.album-back-icon{display:grid;place-items:center;width:20px;height:20px;flex:none}
+.album-back-icon::before{content:"";width:8px;height:8px;border-left:1.7px solid currentColor;border-bottom:1.7px solid currentColor;transform:rotate(45deg);margin-left:4px}
 .station-album-header{--album-gutter:clamp(24px,3.4vw,52px);position:relative;isolation:isolate;display:flex;align-items:flex-end;min-height:clamp(420px,50svh,560px);padding:100px var(--album-gutter) 40px;margin:0 calc(-1 * var(--album-gutter)) 28px;overflow:hidden}
 .station-album-header>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 45%;z-index:-2}
 .station-album-header::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#080f1b 0%,#080f1be6 12%,#080f1b66 65%,#080f1b18 100%)}
 .station-album-header>div{min-width:0;text-shadow:0 2px 16px #03091480}
-.station-album-header h1{font-size:clamp(38px,5.5vw,76px);line-height:1.05;letter-spacing:-.035em;margin:12px 0 14px;overflow-wrap:anywhere;color:#fff}
-.station-album-header p{font-size:13px;margin:0;color:#e1e9f3}
-.station-album-header .album-label{font-size:10px;letter-spacing:.15em;color:#8fe4d9;font-weight:600}
+.station-album-header h1{font-size:clamp(40px,6vw,88px);font-weight:700;line-height:1;letter-spacing:-.045em;margin:14px 0 22px;overflow-wrap:anywhere;color:#fff;text-wrap:balance}
+.station-album-header p{font-size:14px;margin:0;color:#e1e9f3}
+.station-album-header .album-label{display:flex;align-items:center;gap:10px;font-size:13px;letter-spacing:.035em;color:#e5f5f1;font-weight:500}
+.album-label::before{content:"♪";font-size:20px;line-height:1;color:#94e3d4}
+.album-metadata{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:14px}
+.album-metadata strong{font-weight:550;color:#fff}
+.album-metadata span{display:flex;align-items:center;gap:10px;color:#c2cbd5}
+.album-metadata span::before{content:"";width:3px;height:3px;border-radius:50%;background:#c2cbd5}
 .station-tracks{width:100%;border-collapse:collapse;table-layout:fixed;font-size:14px}
 .station-tracks th{text-align:left;color:var(--muted);font-size:12px;font-weight:450;height:44px;border-bottom:1px solid #2a3e56;padding:8px}
 .station-tracks td{padding:9px 8px;vertical-align:middle;border-bottom:1px solid #22324660}

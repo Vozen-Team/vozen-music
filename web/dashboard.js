@@ -461,11 +461,17 @@ function stationLibrary(editor) {
     editor.append(grid);
     return;
   }
-  const back = el("a", "← All stations", "button quiet album-back");
+  const back = el("a", undefined, "button quiet album-back");
+  const arrow = el("span", undefined, "album-back-icon");
+  arrow.setAttribute("aria-hidden", "true");
+  back.append(arrow, el("span", "All stations"));
   back.href = linkTo(null);
   const hero = el("section", undefined, "station-album-header");
   const info = el("div");
-  info.append(el("p", "STATION COLLECTION", "album-label"), el("h1", selected.name), el("p", selected.id === "my" ? "Built from the listeners in your call." : `${selected.tracks.length} tracks · Various artists`));
+  const metadata = el("p", undefined, "album-metadata");
+  if (selected.id === "my") metadata.textContent = "Built from the listeners in your call.";
+  else metadata.append(el("strong", `${selected.tracks.length} tracks`), el("span", "Various artists"));
+  info.append(el("p", selected.id === "my" ? "Personalized radio" : "Instrumental radio", "album-label"), el("h1", selected.name), metadata);
   const cover = art(selected);
   cover.loading = "eager";
   hero.append(cover, back, info);
