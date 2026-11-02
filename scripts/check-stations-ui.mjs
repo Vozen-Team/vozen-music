@@ -28,6 +28,17 @@ try{
   assert.equal(await page.locator('.album-credits a').first().getAttribute('href'),first.source_url);
   assert.equal(await page.locator('.album-credits a').count(),25);
   assert.equal(await page.locator('.track-preview').count(),25);
+  assert.equal(await page.getByRole('button',{name:'← Choose another server',exact:true}).count(),0);
+  assert.equal(await page.locator('#editor h1').innerText(),'Vozen Rain');
+  assert.equal(await page.getByRole('link',{name:'← All stations',exact:true}).count(),1);
+  const geometry=await page.locator('.station-album-header').evaluate(hero=>{
+   const cover=hero.querySelector('img').getBoundingClientRect(),banner=hero.getBoundingClientRect();
+   const cell=document.querySelector('.track-number:has(.track-preview)').getBoundingClientRect(),play=document.querySelector('.track-preview').getBoundingClientRect();
+   return {imageWidth:cover.width,bannerWidth:banner.width,imageHeight:cover.height,bannerHeight:banner.height,leftGap:play.left-cell.left,topGap:play.top-cell.top,gradient:getComputedStyle(hero,'::after').backgroundImage};
+  });
+  assert.equal(geometry.imageWidth,geometry.bannerWidth);assert.equal(geometry.imageHeight,geometry.bannerHeight);
+  assert.ok(geometry.leftGap>=7.9&&geometry.topGap>=5.9,'Play has space within the highlighted row');
+  assert.match(geometry.gradient,/linear-gradient/);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`track overflow ${width}`);
   if([390,1440].includes(width)){
    await page.locator('.track-identity img').evaluateAll(images=>Promise.all(images.map(i=>{i.loading='eager';return i.decode();})));

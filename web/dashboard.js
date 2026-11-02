@@ -461,12 +461,14 @@ function stationLibrary(editor) {
     editor.append(grid);
     return;
   }
-  const back = el("a", "← All stations", "album-back");
+  const back = el("a", "← All stations", "button quiet album-back");
   back.href = linkTo(null);
   const hero = el("section", undefined, "station-album-header");
   const info = el("div");
-  info.append(el("p", "STATION COLLECTION", "album-label"), el("h2", selected.name), el("p", selected.id === "my" ? "Built from the listeners in your call." : `${selected.tracks.length} tracks · Various artists`));
-  hero.append(art(selected), info);
+  info.append(el("p", "STATION COLLECTION", "album-label"), el("h1", selected.name), el("p", selected.id === "my" ? "Built from the listeners in your call." : `${selected.tracks.length} tracks · Various artists`));
+  const cover = art(selected);
+  cover.loading = "eager";
+  hero.append(cover, info);
   editor.append(back, hero);
   if (selected.id === "my") {
     editor.append(card("A station that follows your listeners", "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library. My Station has no fixed tracklist."));
@@ -563,8 +565,9 @@ function render() {
     b.setAttribute("aria-current", key === page ? "page" : "false");
     $("music-pages").append(b);
   }
-  editor.append(
-    button("← Choose another server", showServerPicker),
+  const albumOpen = page === "stations" && [...catalog.map(s => s.id), "my"].includes(new URLSearchParams(location.search).get("album"));
+  if (page !== "stations") editor.append(button("← Choose another server", showServerPicker));
+  if (!albumOpen) editor.append(
     el("h1", pages[page] || pages.overview),
     el("p", descriptions[page] || descriptions.overview, "intro"),
   );
