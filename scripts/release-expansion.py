@@ -222,7 +222,7 @@ def main():
                 assert run('docker', 'exec', CONTAINER, 'sha256sum', '/app/' + name).split()[0] == expected_hash
         legacy_commands = discord(env, f'applications/{app}/guilds/1524199248248176751/commands')
         legacy_names = {'play', 'station', 'nowplaying', 'pause', 'resume', 'skip', 'stop', 'skip-settings'}
-        if legacy_commands and {c['name'] for c in legacy_commands} <= legacy_names:
+        if manifest.get('remove_legacy_commands', False) and legacy_commands and {c['name'] for c in legacy_commands} <= legacy_names:
             (backup / 'legacy-guild-commands.json').write_text(json.dumps(legacy_commands, indent=2))
             discord(env, f'applications/{app}/guilds/1524199248248176751/commands', 'PUT', [])
         assert siblings() == before_siblings

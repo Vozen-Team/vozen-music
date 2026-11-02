@@ -475,6 +475,19 @@ impl Bot {
         if matches!(command.data.name.as_str(), "like" | "dislike") {
             let track = &self.catalog.stations[session.station].tracks
                 [session.current.load(Ordering::SeqCst)];
+            if command.data.name == "like" && expected_id.is_some() {
+                let liked = self.settings.lock().await.db.toggle_like(
+                    guild_id.get(),
+                    command.user.id.get(),
+                    &track.id,
+                )?;
+                return Ok(if liked {
+                    "❤️ Added this recording to your likes."
+                } else {
+                    "♡ Removed this recording from your likes."
+                }
+                .into());
+            }
             self.settings.lock().await.db.rate(
                 guild_id.get(),
                 command.user.id.get(),
@@ -483,14 +496,21 @@ impl Bot {
             )?;
             return Ok("Your rating was saved for this server.".into());
         }
-        if command.data.name == "volume" {
-            if let Some(level) = command
-                .data
-                .options
-                .iter()
-                .find(|o| o.name == "level")
-                .and_then(|o| o.value.as_i64())
-            {
+        if matches!(
+            command.data.name.as_str(),
+            "volume" | "volume-down" | "volume-up"
+        ) {
+            let level =
+                player::button_volume(&command.data.name, session.volume.load(Ordering::SeqCst))
+                    .or_else(|| {
+                        command
+                            .data
+                            .options
+                            .iter()
+                            .find(|o| o.name == "level")
+                            .and_then(|o| o.value.as_i64())
+                    });
+            if let Some(level) = level {
                 if !(0..=100).contains(&level) {
                     return Err("Volume must be between 0 and 100.".into());
                 }
@@ -511,10 +531,14 @@ impl Bot {
                 }
                 session.volume.store(level as usize, Ordering::SeqCst);
             }
-            return Ok(format!(
-                "Volume: {}%.",
-                session.volume.load(Ordering::SeqCst)
-            ));
+            let response = format!("Volume: {}%.", session.volume.load(Ordering::SeqCst));
+            let refreshed = session.clone();
+            drop(locked);
+            drop(sessions);
+            if level.is_some() {
+                player::refresh(&ctx.http, &self.catalog, &refreshed, false).await;
+            }
+            return Ok(response);
         }
         if command.data.name == "sleep" {
             let cancel = command
@@ -682,7 +706,7 @@ impl EventHandler for Bot {
                             return Err("This player is outdated. Use /panel.".into());
                         }
                     }
-                    if !["pause", "resume", "like", "dislike", "stop", "loop"].contains(&parts[2]) {
+                    if !["pause", "resume", "like", "dislike", "stop", "loop", "volume-down", "volume-up"].contains(&parts[2]) {
                         return Err("Unknown player control.".into());
                     }
                     let mut data = serde_json::to_value(&button)?;

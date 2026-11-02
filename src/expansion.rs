@@ -314,6 +314,15 @@ impl Store {
         }
         Ok(result)
     }
+    pub fn toggle_like(&self, g: u64, u: u64, track: &str) -> Result<bool, Error> {
+        let liked: bool = self.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM ratings WHERE guild=?1 AND user=?2 AND track=?3 AND value=1)",
+            params![g.to_string(), u.to_string(), track],
+            |row| row.get(0),
+        )?;
+        self.rate(g, u, track, if liked { 0 } else { 1 })?;
+        Ok(!liked)
+    }
     pub fn privacy(&self, g: u64, u: u64) -> Result<(Privacy, u64), Error> {
         Ok(self
             .db
@@ -667,5 +676,26 @@ mod persistence_tests {
         assert_eq!(s.privacy(1, 2).unwrap().1, 20);
         s.set_privacy(1, 2, Privacy::default(), true).unwrap();
         assert_eq!(s.privacy(1, 2).unwrap().1, 0);
+    }
+
+    #[test]
+    fn like_toggles_only_the_selected_person_server_and_recording() {
+        let s = Store::open(Path::new(":memory:"), Path::new("nonexistent-import.json")).unwrap();
+        s.rate(1, 2, "a", 1).unwrap();
+        s.rate(2, 3, "a", 1).unwrap();
+        s.rate(1, 3, "b", 1).unwrap();
+        s.rate(1, 3, "a", -1).unwrap();
+        assert!(s.toggle_like(1, 3, "a").unwrap());
+        assert_eq!(s.ratings(1, &BTreeSet::from([3])).unwrap()[&3]["a"], 1);
+        assert!(!s.toggle_like(1, 3, "a").unwrap());
+        let ratings = s.ratings(1, &BTreeSet::from([2, 3])).unwrap();
+        assert!(!ratings[&3].contains_key("a"));
+        assert_eq!(ratings[&3]["b"], 1);
+        assert_eq!(ratings[&2]["a"], 1);
+        assert_eq!(s.ratings(2, &BTreeSet::from([3])).unwrap()[&3]["a"], 1);
+        assert!(s.toggle_like(1, 3, "a").unwrap());
+        for (g, u, track) in [(0, 3, "a"), (1, 0, "a"), (1, 3, "")] {
+            assert!(s.toggle_like(g, u, track).is_err());
+        }
     }
 }

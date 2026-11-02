@@ -17,12 +17,17 @@ pub async fn finish_button(
     button: &ComponentInteraction,
     result: Result<String, Error>,
 ) -> serenity::Result<()> {
-    if let Err(error) = result {
+    let content = match result {
+        Err(error) => Some(error.to_string()),
+        Ok(message) if button.data.custom_id.starts_with("vozen:action:like:") => Some(message),
+        _ => None,
+    };
+    if let Some(content) = content {
         button
             .create_followup(
                 http,
                 CreateInteractionResponseFollowup::new()
-                    .content(error.to_string())
+                    .content(content)
                     .ephemeral(true)
                     .allowed_mentions(CreateAllowedMentions::new()),
             )
@@ -92,6 +97,7 @@ pub fn controls(
         .map_err(|_| "Player settings are unavailable.")?;
     let paused = session.paused.load(Ordering::SeqCst);
     let looping = session.looping.load(Ordering::SeqCst);
+    let volume = session.volume.load(Ordering::SeqCst);
     let action = |name: &str| {
         CreateButton::new(format!(
             "vozen:action:{name}:{}:{generation}",
@@ -130,23 +136,39 @@ pub fn controls(
     };
     Ok(vec![
         CreateActionRow::Buttons(vec![
+            action("volume-down")
+                .label("🔉 −")
+                .disabled(stopped || volume == 0),
             navigation(true)?,
             action(if paused { "resume" } else { "pause" })
                 .label(if paused { "▶︎" } else { "⏸︎" })
                 .style(ButtonStyle::Success),
             navigation(false)?,
+            action("volume-up")
+                .label("🔊 +")
+                .disabled(stopped || volume >= 100),
         ]),
         CreateActionRow::Buttons(vec![
-            action("like").emoji(ReactionType::Unicode("❤".into())),
-            action("dislike").emoji(ReactionType::Unicode("💔".into())),
-            action("loop").label("↻").style(if looping {
+            action("like").label("♡"),
+            action("loop").label("↻ 1").style(if looping {
                 ButtonStyle::Success
             } else {
                 ButtonStyle::Secondary
             }),
-            action("stop").label("⏹︎"),
+            action("stop")
+                .label("Leave")
+                .emoji(ReactionType::Unicode("🚪".into()))
+                .style(ButtonStyle::Danger),
         ]),
     ])
+}
+
+pub fn button_volume(action: &str, current: usize) -> Option<i64> {
+    match action {
+        "volume-down" => Some(current.saturating_sub(10).min(100) as i64),
+        "volume-up" => Some(current.saturating_add(10).min(100) as i64),
+        _ => None,
+    }
 }
 
 fn payload(
@@ -190,7 +212,7 @@ fn payload(
             .collect::<Result<Vec<_>, _>>()?,
     );
     if !stopped && session.tips.load(Ordering::SeqCst) {
-        components.push(serde_json::json!({"type":10,"content":"-# Like and Dislike shape future tracks. /library shows your ratings. /skip-settings shows the skip rules."}));
+        components.push(serde_json::json!({"type":10,"content":"-# Tap the heart to add or remove your like. Only you see the confirmation. /library shows your ratings; /dislike excludes a recording."}));
     }
     // Serenity's typed builders predate V2; its HTTP client still handles uploads and rate limits.
     Ok(
@@ -377,7 +399,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn player_buttons_acknowledge_silently_and_only_errors_create_private_messages() {
+    async fn player_buttons_keep_playback_silent_and_like_confirmations_private() {
         use axum::{
             Router,
             body::{Body, to_bytes},
@@ -385,7 +407,7 @@ mod tests {
             response::IntoResponse,
         };
         let message = serde_json::json!({"id":"456","channel_id":"123","author":{"id":"789","username":"Music","discriminator":"0","avatar":null},"content":"","timestamp":"2026-11-01T20:00:00Z","edited_timestamp":null,"tts":false,"mention_everyone":false,"mentions":[],"mention_roles":[],"pinned":false,"type":0,"embeds":[],"attachments":[]});
-        let button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:skip:1:1","component_type":2},"message":message})).unwrap();
+        let mut button: ComponentInteraction = serde_json::from_value(serde_json::json!({"id":"111","application_id":"222","channel_id":"123","token":"synthetic-interaction","version":1,"locale":"en-US","entitlements":[],"attachment_size_limit":8388608,"user":{"id":"789","username":"Test","discriminator":"0","avatar":null},"data":{"custom_id":"vozen:skip:1:1","component_type":2},"message":message})).unwrap();
         let requests = Arc::new(std::sync::Mutex::new(Vec::new()));
         let captured = requests.clone();
         let app = Router::new().fallback(move |request: Request<Body>| {
@@ -438,14 +460,34 @@ mod tests {
             );
             assert!(records[0].1["data"].is_null());
         }
+        button.data.custom_id = "vozen:action:like:1:1".into();
+        for text in [
+            "Added this recording to your likes.",
+            "Removed this recording from your likes.",
+        ] {
+            finish_button(&http, &button, Ok(text.into()))
+                .await
+                .unwrap();
+        }
         finish_button(&http, &button, Err("Join the same voice channel.".into()))
             .await
             .unwrap();
         let records = requests.lock().unwrap();
-        assert_eq!(records.len(), 2);
-        assert!(records[1].0.contains("/webhooks/222/"));
-        assert_eq!(records[1].1["content"], "Join the same voice channel.");
-        assert_eq!(records[1].1["flags"], 64);
+        assert_eq!(records.len(), 4);
+        assert_eq!(
+            records[1].1["content"],
+            "Added this recording to your likes."
+        );
+        assert_eq!(
+            records[2].1["content"],
+            "Removed this recording from your likes."
+        );
+        assert_eq!(records[3].1["content"], "Join the same voice channel.");
+        for (path, body) in &records[1..] {
+            assert!(path.contains("/webhooks/222/"));
+            assert_eq!(body["flags"], 64);
+            assert_eq!(body["allowed_mentions"]["parse"], serde_json::json!([]));
+        }
         server.abort();
     }
 
@@ -641,22 +683,36 @@ mod tests {
         let mut policy = vozen_music::skip::SkipSettings::default();
         let session = Session::new(0, 0, 123, policy.clone(), None);
         let buttons = serde_json::to_value(controls(&session, 2, false).unwrap()).unwrap();
-        assert_eq!(buttons[0]["components"][2]["custom_id"], "vozen:skip:123:2");
-        assert_eq!(
-            buttons[0]["components"][0]["custom_id"],
-            "vozen:previous:123:2"
-        );
-        assert_eq!(buttons[0]["components"][0]["disabled"], true);
+        assert_eq!(buttons[0]["components"][3]["custom_id"], "vozen:skip:123:2");
         assert_eq!(
             buttons[0]["components"][1]["custom_id"],
+            "vozen:previous:123:2"
+        );
+        assert_eq!(buttons[0]["components"][1]["disabled"], true);
+        assert_eq!(
+            buttons[0]["components"][2]["custom_id"],
             "vozen:action:pause:123:2"
         );
-        assert_eq!(buttons[1]["components"][0]["emoji"]["name"], "❤");
-        assert_eq!(buttons[1]["components"][1]["emoji"]["name"], "💔");
+        assert_eq!(
+            buttons[0]["components"][0]["custom_id"],
+            "vozen:action:volume-down:123:2"
+        );
+        assert_eq!(
+            buttons[0]["components"][4]["custom_id"],
+            "vozen:action:volume-up:123:2"
+        );
+        assert_eq!(buttons[0]["components"][0]["disabled"], false);
+        assert_eq!(buttons[0]["components"][4]["disabled"], true);
+        assert_eq!(buttons[1]["components"][0]["label"], "♡");
+        assert_eq!(buttons[1]["components"][1]["label"], "↻ 1");
+        assert_eq!(buttons[1]["components"][2]["label"], "Leave");
+        assert_eq!(buttons[1]["components"][2]["style"], 4);
         assert_eq!(buttons.as_array().unwrap().len(), 2);
-        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 3);
-        assert_eq!(buttons[0]["components"][1]["style"], 3);
-        assert_eq!(buttons[1]["components"][2]["style"], 2);
+        assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 5);
+        assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 3);
+        assert_eq!(buttons[0]["components"][2]["style"], 3);
+        assert_eq!(buttons[1]["components"][1]["style"], 2);
+        assert!(!buttons.to_string().contains("dislike"));
         session.looping.store(true, Ordering::SeqCst);
         session.set_track(1).unwrap();
         assert_eq!(
@@ -666,8 +722,22 @@ mod tests {
         policy.mode = SkipMode::Majority;
         *session.policy.lock().unwrap() = policy;
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
+        assert_eq!(buttons[0]["components"][1]["disabled"], false);
+        assert_eq!(buttons[1]["components"][1]["style"], 3);
+        assert_eq!(buttons[1]["components"][0]["style"], 2);
+        session.volume.store(0, Ordering::SeqCst);
+        let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
+        assert_eq!(buttons[0]["components"][0]["disabled"], true);
+        assert_eq!(buttons[0]["components"][4]["disabled"], false);
+        session.volume.store(50, Ordering::SeqCst);
+        session.paused.store(true, Ordering::SeqCst);
+        let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
         assert_eq!(buttons[0]["components"][0]["disabled"], false);
-        assert_eq!(buttons[1]["components"][2]["style"], 3);
+        assert_eq!(buttons[0]["components"][4]["disabled"], false);
+        assert_eq!(
+            buttons[0]["components"][2]["custom_id"],
+            "vozen:action:resume:123:3"
+        );
         {
             let mut votes = session.votes.lock().unwrap();
             votes.voters.insert(456);
@@ -675,13 +745,13 @@ mod tests {
         }
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
         assert!(
-            buttons[0]["components"][2]["label"]
+            buttons[0]["components"][3]["label"]
                 .as_str()
                 .unwrap()
                 .ends_with("1/3")
         );
         assert!(
-            !buttons[0]["components"][0]["label"]
+            !buttons[0]["components"][1]["label"]
                 .as_str()
                 .unwrap()
                 .contains("1/3")
@@ -692,6 +762,22 @@ mod tests {
                 assert_eq!(button["disabled"], true);
             }
         }
+    }
+
+    #[test]
+    fn volume_buttons_step_ten_points_and_clamp_at_both_limits() {
+        for (level, down, up) in [
+            (0, 0, 10),
+            (5, 0, 15),
+            (50, 40, 60),
+            (95, 85, 100),
+            (100, 90, 100),
+        ] {
+            assert_eq!(button_volume("volume-down", level), Some(down));
+            assert_eq!(button_volume("volume-up", level), Some(up));
+        }
+        assert_eq!(button_volume("volume", 50), None);
+        assert_eq!(button_volume("unknown", 50), None);
     }
 
     #[tokio::test]
@@ -738,7 +824,7 @@ mod tests {
                 .contains("Paused · 40%")
         );
         assert_eq!(
-            paused["components"][0]["components"][2]["components"][1]["custom_id"],
+            paused["components"][0]["components"][2]["components"][2]["custom_id"],
             "vozen:action:resume:123:1"
         );
         let stopped = payload(&catalog, &session, true, None).unwrap();
