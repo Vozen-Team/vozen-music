@@ -733,7 +733,7 @@ function profileTextError(text, policy) {
   const compact = normalizedProfileText(text);
   const words = text.split(/[^\p{L}\p{N}]+/u).map(normalizedProfileText);
   return policy?.blocked_terms.some(term => compact.includes(term)) || policy?.blocked_words.some(term => words.includes(term) || compact === term)
-    ? "Choose a different name or description. Discriminatory slurs and hate slogans are not allowed." : "";
+    ? "Choose a different name. Discriminatory slurs and hate slogans are not allowed." : "";
 }
 function renderProfile(editor) {
   const c = card("Server profile", "Edit your profile below. Nothing changes in Discord until you apply.");
@@ -743,10 +743,10 @@ function renderProfile(editor) {
   profileView = view;
   form.id = "profile-form";
   form.addEventListener("submit", e => { e.preventDefault(); saveProfile(false).catch(e => notice(e.message, "error")); });
-  for (const [key, label, type, max] of [["nick", "Display name", "text", 32], ["bio", "Description", "textarea", 190], ["avatar", "Avatar", "file"], ["banner", "Banner", "file"]]) {
-    const wrap = el("div", undefined, "music-field"), input = el(type === "textarea" ? "textarea" : "input"), lab = el("label", label), help = el("small");
+  for (const [key, label, type, max] of [["nick", "Display name", "text", 32], ["avatar", "Avatar", "file"], ["banner", "Banner", "file"]]) {
+    const wrap = el("div", undefined, "music-field"), input = el("input"), lab = el("label", label), help = el("small");
     input.name = key; input.id = `profile-${key}`; input.disabled = true;
-    if (type !== "textarea") input.type = type;
+    input.type = type;
     if (max) input.maxLength = max;
     if (type === "file") { input.accept = "image/png,image/jpeg,image/webp"; input.hidden = true; }
     lab.htmlFor = input.id;
@@ -794,13 +794,15 @@ function renderProfile(editor) {
   const body = el("div", undefined, "profile-preview-body");
   const name = el("div", undefined, "profile-preview-name");
   name.append(view.fields.nick, el("span", "APP", "profile-app-badge"));
-  body.append(name, view.fields.bio, el("p", "Server profile · Preview", "profile-server-label"));
+  view.bio = el("p", "", "profile-description");
+  view.bio.hidden = true;
+  body.append(name, view.bio, el("p", "Server profile · Preview", "profile-server-label"));
   surface.append(view.fields.banner, view.fields.avatar, body);
   form.append(surface, el("p", "Select the banner or avatar to change it. Static PNG, JPEG or WebP, up to 2 MB. This preview approximates Discord.", "help"));
   view.apply = button("Apply profile", () => saveProfile(false), true); view.apply.disabled = true;
   const actions = el("div", undefined, "profile-actions");
   actions.append(view.apply, button("Restore Vozen profile", () => { if (confirm("Restore the default bot profile in this server?")) return saveProfile(true); }));
-  form.append(el("p", "Applies to this server only. Discriminatory names and descriptions are not allowed.", "help"), actions);
+  form.append(el("p", "Applies to this server only. Discriminatory names are not allowed.", "help"), actions);
   view.error = el("p", "", "profile-error"); view.error.setAttribute("role", "status"); view.error.hidden = true;
   view.retry = button("Retry loading profile", () => loadProfile(current, sequence)); view.retry.hidden = true;
   form.append(view.error, view.retry);
@@ -808,15 +810,14 @@ function renderProfile(editor) {
 }
 function updateProfilePreview(view) {
   if (profileView !== view || !view.form.isConnected) return;
-  const nick = $("profile-nick"), bio = $("profile-bio");
-  for (const input of [nick, bio]) {
-    const message = profileTextError(input.value, view.saved.policy) || (input === nick && input.value && (!input.value.trim() || /[\u0000-\u001f\u007f]/.test(input.value)) ? "Use a visible name without line breaks." : "");
-    input.setCustomValidity(message);
-    input.setAttribute("aria-invalid", String(!!message));
-    $(`${input.id}-help`).textContent = `${[...input.value].length}/${input.maxLength} characters${input === nick ? " · Leave empty for the default name." : ""}`;
-  }
+  const nick = $("profile-nick");
+  const message = profileTextError(nick.value, view.saved.policy) || (nick.value && (!nick.value.trim() || /[\u0000-\u001f\u007f]/.test(nick.value)) ? "Use a visible name without line breaks." : "");
+  nick.setCustomValidity(message);
+  nick.setAttribute("aria-invalid", String(!!message));
+  $("profile-nick-help").textContent = `${[...nick.value].length}/${nick.maxLength} characters · Leave empty for the default name.`;
   nick.placeholder = view.saved.default_name || "Vozen Music";
-  bio.placeholder = "Add a description for this server…";
+  view.bio.textContent = view.saved.bio || "";
+  view.bio.hidden = !view.saved.bio;
   const image = key => {
     if (view.uploads[key]) return view.uploads[key];
     const hash = view.saved[key], bot = view.saved.bot_id;
@@ -896,7 +897,6 @@ async function loadProfile(id, seq) {
     if (seq !== sequence || page !== "profile" || view !== profileView) return false;
     view.saved = p;
     $("profile-nick").value = p.nick || "";
-    $("profile-bio").value = p.bio || "";
     for (const input of view.form.querySelectorAll("input,textarea,button")) input.disabled = !!view.saving;
     view.loading = false; view.retry.hidden = true;
     updateProfilePreview(view);
@@ -914,7 +914,6 @@ async function saveProfile(reset) {
     body = { reset };
   if (!reset) {
     body.nick = $("profile-nick").value;
-    body.bio = $("profile-bio").value;
     for (const key of ["avatar", "banner"]) {
       const file = $(`profile-${key}`).files[0];
       if (file) {

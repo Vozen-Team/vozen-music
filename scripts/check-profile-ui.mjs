@@ -10,14 +10,15 @@ try {
     const errors = []; page.on("pageerror", e => errors.push(e.message));
     page.on("dialog", dialog => dialog.accept());
     let puts = 0, fail = true;
-    let current = { nick: "Vozen Music", bio: "Instrumental radio for your server.", bot_id: "1", default_name: "Vozen Music", default_avatar_url: "/music/avatar.png", policy };
+    let current = { nick: "Vozen Music", bio: "<b>Instrumental radio</b> for your server.", bot_id: "1", default_name: "Vozen Music", default_avatar_url: "/music/avatar.png", policy };
     await page.route("**/music/api/guilds/1/profile", async route => {
       if (route.request().method() === "GET") return route.fulfill({ json: current });
       puts++;
       assert.equal(route.request().headers()["x-csrf-token"], "local-fixture");
+      assert.equal(Object.hasOwn(route.request().postDataJSON(), "bio"), false, "Profile updates must not send descriptions");
       if (fail) return route.fulfill({ status: 502, json: { error: "Discord did not apply the profile. Try again." } });
       const body = route.request().postDataJSON();
-      current = body.reset ? { ...current, nick: null, bio: "" } : { ...current, nick: body.nick, bio: body.bio };
+      current = { ...current, nick: body.reset ? null : body.nick };
       return route.fulfill({ json: { saved: true } });
     });
     await page.goto(`${process.env.VOZEN_PREVIEW_URL || "http://localhost:4783"}/music/dashboard?server=1&page=profile`);
@@ -30,9 +31,9 @@ try {
     }
     assert.equal(puts, 0);
     await name.fill("Rain Radio");
-    await page.getByLabel("Description", { exact: true }).fill("<b>Calm music</b>\nFor our server.");
+    assert.equal(await page.locator("#profile-bio").count(), 0);
     assert.equal(await page.locator(".discord-profile #profile-nick").inputValue(), "Rain Radio");
-    assert.equal(await page.locator(".discord-profile #profile-bio").inputValue(), "<b>Calm music</b>\nFor our server.");
+    assert.equal(await page.locator(".profile-description").innerText(), current.bio);
     assert.equal(await page.locator(".discord-profile b").count(), 0);
     assert.equal(await page.locator(".profile-layout").count(), 0, "No separate editor/preview columns");
     for (const key of ["avatar", "banner"]) {
@@ -74,8 +75,13 @@ try {
     await page.getByRole("button", { name: "Restore Vozen profile", exact: true }).click();
     await page.waitForFunction(() => document.getElementById("profile-nick").value === "");
     assert.equal(await name.getAttribute("placeholder"), "Vozen Music");
+    assert.equal(await page.locator(".profile-description").innerText(), current.bio, "Reset preserves the description");
+    current.bio = "";
+    await page.reload();
+    await page.waitForFunction(() => document.getElementById("profile-nick")?.disabled === false);
+    assert.equal(await page.locator(".profile-description").isVisible(), false, "Empty descriptions have no editable placeholder");
     assert.deepEqual(errors, []);
     await page.close();
   }
-  console.log("Profile UI: seven widths, live text/images, blocked names, no early uploads, failures, retry, reload, reset and size validation passed.");
+  console.log("Profile UI: seven widths, read-only descriptions, no bio in writes/reset, live name/images, validation, failures, retry and reload passed.");
 } finally { await browser.close(); }

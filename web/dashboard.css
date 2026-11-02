@@ -121,12 +121,12 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .profile-app-badge{font-size:10px;font-weight:650;padding:2px 5px;border-radius:4px;background:#5865f2;color:white;flex:none;margin-top:3px}
 .profile-preview-body .music-field>label{font-size:12px;color:#a5b9d1}
 .profile-preview-body .music-field{gap:4px}
-.profile-preview-body #profile-nick,.profile-preview-body #profile-bio{width:100%;min-width:0;font:inherit;color:var(--text);border:1px solid transparent;border-radius:6px;background:transparent;padding:8px;margin-left:-8px;transition:border-color .15s,background .15s}
+.profile-preview-body #profile-nick{width:100%;min-width:0;font:inherit;color:var(--text);border:1px solid transparent;border-radius:6px;background:transparent;padding:8px;margin-left:-8px;transition:border-color .15s,background .15s}
 .profile-preview-body #profile-nick{font-size:24px;font-weight:650;line-height:1.3;min-height:48px}
-.profile-preview-body #profile-bio{font-size:14px;line-height:1.6;resize:vertical;min-height:100px}
-.profile-preview-body :is(#profile-nick,#profile-bio):hover{border-color:#344b68;background:#0b1321}
-.profile-preview-body :is(#profile-nick,#profile-bio):focus{border-color:var(--focus);outline:2px solid var(--focus);outline-offset:1px;background:#080f1b}
-.profile-preview-body :is(#profile-nick,#profile-bio)[aria-invalid=true]{border-color:#d77f8e}
+.profile-description{font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+.profile-preview-body #profile-nick:hover{border-color:#344b68;background:#0b1321}
+.profile-preview-body #profile-nick:focus{border-color:var(--focus);outline:2px solid var(--focus);outline-offset:1px;background:#080f1b}
+.profile-preview-body #profile-nick[aria-invalid=true]{border-color:#d77f8e}
 .profile-preview-body input::placeholder,.profile-preview-body textarea::placeholder{color:#9bacbf;opacity:1}
 .profile-preview-body small{font-size:11px;color:#9bacbf}
 .profile-server-label{font-size:11px;border-top:1px solid #2b4059;padding-top:14px;margin:0;color:#a5b9d1}

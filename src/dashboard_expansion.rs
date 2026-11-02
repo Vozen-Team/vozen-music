@@ -347,7 +347,6 @@ async fn community(
 #[serde(deny_unknown_fields)]
 struct ProfileEdit {
     nick: Option<String>,
-    bio: Option<String>,
     avatar: Option<String>,
     banner: Option<String>,
     reset: Option<bool>,
@@ -389,19 +388,15 @@ fn validate_profile_text(edit: &ProfileEdit) -> WebResult<()> {
         v.chars().count() > 32
             || (!v.is_empty() && v.trim().is_empty())
             || v.chars().any(|c| c.is_control())
-    }) || edit.bio.as_ref().is_some_and(|v| v.chars().count() > 190)
-    {
+    }) {
         return Err(WebError(
             StatusCode::BAD_REQUEST,
-            "Use a display name up to 32 characters without line breaks, and a description up to 190 characters. Leave the name empty to use Vozen Music.",
+            "Use a display name up to 32 characters without line breaks. Leave the name empty to use Vozen Music.",
         ));
     }
     let policy: serde_json::Value =
         serde_json::from_str(PROFILE_POLICY).expect("Bundled profile policy is valid JSON");
-    for text in [edit.nick.as_deref(), edit.bio.as_deref()]
-        .into_iter()
-        .flatten()
-    {
+    if let Some(text) = edit.nick.as_deref() {
         let compact = normalized_profile_text(text);
         let words: Vec<_> = text
             .split(|c: char| !c.is_alphanumeric())
@@ -535,7 +530,7 @@ async fn save_bot_profile(
     validate_profile_text(&edit)?;
     let mut body = serde_json::Map::new();
     if edit.reset == Some(true) {
-        for field in ["nick", "bio", "avatar", "banner"] {
+        for field in ["nick", "avatar", "banner"] {
             body.insert(field.into(), serde_json::Value::Null);
         }
     } else {
@@ -548,9 +543,6 @@ async fn save_bot_profile(
                     v.into()
                 },
             );
-        }
-        if let Some(v) = edit.bio {
-            body.insert("bio".into(), v.into());
         }
         for (field, data) in [("avatar", edit.avatar), ("banner", edit.banner)] {
             if let Some(data) = data {
@@ -622,11 +614,19 @@ mod expansion_web_tests {
                 "Ordinary profile text was rejected"
             );
         }
-        let bio: ProfileEdit = serde_json::from_value(serde_json::json!({"bio":"n1gg3r"})).unwrap();
-        assert!(validate_profile_text(&bio).is_err());
         let reset: ProfileEdit =
             serde_json::from_value(serde_json::json!({"reset":true,"nick":"nigger"})).unwrap();
         assert!(validate_profile_text(&reset).is_ok());
+    }
+    #[test]
+    fn profile_description_cannot_be_changed_or_reset() {
+        for payload in [
+            serde_json::json!({"bio":"A new description"}),
+            serde_json::json!({"bio":null}),
+            serde_json::json!({"reset":true,"bio":""}),
+        ] {
+            assert!(serde_json::from_value::<ProfileEdit>(payload).is_err());
+        }
     }
     use tower::ServiceExt;
     #[tokio::test]
