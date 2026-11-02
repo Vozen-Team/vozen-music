@@ -136,7 +136,7 @@ pub fn controls(
                 .disabled(stopped || volume >= 100),
         ]),
         CreateActionRow::Buttons(vec![
-            action("like").label("♡"),
+            action("like").emoji(ReactionType::Unicode("❤️".into())),
             action("loop").label("↻").style(if looping {
                 ButtonStyle::Success
             } else {
@@ -734,7 +734,8 @@ mod tests {
         );
         assert_eq!(buttons[0]["components"][0]["disabled"], false);
         assert_eq!(buttons[0]["components"][4]["disabled"], true);
-        assert_eq!(buttons[1]["components"][0]["label"], "♡");
+        assert_eq!(buttons[1]["components"][0]["emoji"]["name"], "❤️");
+        assert!(buttons[1]["components"][0].get("label").is_none());
         assert_eq!(buttons[1]["components"][1]["label"], "↻");
         assert_eq!(buttons[1]["components"][2]["label"], "Leave");
         assert_eq!(buttons[1]["components"][2]["style"], 4);
