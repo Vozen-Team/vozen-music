@@ -564,7 +564,16 @@ function stationLibrary(editor) {
   for (const track of selected.tracks) {
     const item = el("li"), link = el("a", `${track.title} — ${track.artist}`);
     if (track.source?.startsWith("https://")) { link.href = track.source; link.target = "_blank"; link.rel = "noopener noreferrer"; }
-    item.append(link, el("span", ` · ${track.license}`)); sources.append(item);
+    item.append(link, el("span", ` · ${track.license}`));
+    if (track.license !== "CC0-1.0") {
+      const full = el("a", "Full attribution & licence");
+      full.href = `/music/credits/${encodeURIComponent(track.id)}`;
+      full.target = "_blank"; full.rel = "noopener noreferrer";
+      item.append(el("span", " · "), full);
+      if (track.credit_notice) item.append(el("p", track.credit_notice, "small"));
+      if (track.changes) item.append(el("p", `Changes: ${track.changes}`, "small"));
+    }
+    sources.append(item);
   }
   credits.append(sources);
   editor.append(table, credits);

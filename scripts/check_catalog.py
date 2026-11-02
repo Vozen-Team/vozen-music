@@ -12,9 +12,12 @@ by_file = {record["file"]: record for record in records}
 quality = json.loads((root / "licenses/audio-quality.json").read_text(encoding="utf8"))
 by_quality = {record["file"]: record for record in quality["tracks"]}
 assert len(by_file) == len(records), "Duplicate provenance records"
-assert {s["id"] for s in catalog["stations"]} == {
+required_stations = {
     "lofi", "ambient", "jazz", "electronic", "piano", "cinematic", "rock", "night", "rain", "sleep"
 }
+proposed = {s['id'] for s in json.loads((root / 'web/station-proposals.json').read_text(encoding='utf8'))}
+assert required_stations <= {s['id'] for s in catalog['stations']} <= required_stations | proposed
+license_urls = {'CC0-1.0': 'https://creativecommons.org/publicdomain/zero/1.0/', 'CC-BY-3.0': 'https://creativecommons.org/licenses/by/3.0/', 'CC-BY-4.0': 'https://creativecommons.org/licenses/by/4.0/'}
 seen_files, seen_audio = set(), set()
 total_seconds = 0
 for station in catalog["stations"]:
@@ -31,7 +34,11 @@ for station in catalog["stations"]:
         assert record["title"] == track["title"] and record["artist"] == track["artist"], relative
         assert record["source_url"] == track["source_url"], relative
         assert track["approved"] and track["instrumental"] and track["instrumental_evidence"], relative
-        assert track["license"] == record["selected_license"] == "CC0-1.0", relative
+        assert track["license"] == record["selected_license"] and track['license'] in license_urls, relative
+        if track['license'] != 'CC0-1.0':
+            assert track.get('credit_notice', '').strip() == record.get('credit_notice', '').strip() != '', relative
+            assert track.get('changes', '').strip() == record.get('changes', '').strip() != '', relative
+            assert license_urls[track['license']] in [u.replace('http://', 'https://', 1).rstrip('/')+'/' for u in record['license_urls']], relative
         assert record["sha256"] == hashlib.sha256(path.read_bytes()).hexdigest(), relative
         assert record["bytes"] == path.stat().st_size, relative
         measured = by_quality[track["file"]]

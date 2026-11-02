@@ -241,6 +241,12 @@ fn payload(
         if !votes.is_empty() {
             status.push_str(&format!("\n-# {votes}"));
         }
+        if track.license != "CC0-1.0" {
+            status.push_str(&format!(
+                "\n-# [Credits & licence]({})",
+                track.credits_url()
+            ));
+        }
         components.push(serde_json::json!({"type":10,"content":status}));
     }
     if !stopped && session.tips.load(Ordering::SeqCst) {
@@ -861,6 +867,34 @@ mod tests {
         }
         assert_eq!(button_volume("volume", 50), None);
         assert_eq!(button_volume("unknown", 50), None);
+    }
+
+    #[tokio::test]
+    async fn by_recordings_link_to_public_credits_without_adding_controls() {
+        let mut catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
+        catalog.stations[0].tracks[0].license = "CC-BY-4.0".into();
+        let session = Session::new(0, 0, 123, vozen_music::skip::SkipSettings::default(), None);
+        let card = payload(&catalog, &session, false, None).unwrap();
+        assert!(
+            card["components"][0]["components"][1]["content"]
+                .as_str()
+                .unwrap()
+                .contains(&catalog.stations[0].tracks[0].credits_url())
+        );
+        assert_eq!(
+            card["components"][1]["components"]
+                .as_array()
+                .unwrap()
+                .len(),
+            5
+        );
+        assert_eq!(
+            card["components"][2]["components"]
+                .as_array()
+                .unwrap()
+                .len(),
+            4
+        );
     }
 
     #[tokio::test]

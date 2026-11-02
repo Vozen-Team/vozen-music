@@ -588,8 +588,13 @@ impl Bot {
         if command.data.name == "nowplaying" {
             let track = &station.tracks[current];
             return Ok(format!(
-                "{}\n{} — {}\nLicense: {}\nSource: {}",
-                station.name, track.title, track.artist, track.license, track.source_url
+                "{}\n{} — {}\nLicense: {}\nSource: {}\nCredits: {}",
+                station.name,
+                track.title,
+                track.artist,
+                track.license,
+                track.source_url,
+                track.credits_url()
             ));
         }
         let handle = session

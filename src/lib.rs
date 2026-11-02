@@ -44,11 +44,49 @@ pub struct Track {
     pub source_url: String,
     pub license: String,
     pub license_evidence: String,
+    #[serde(default)]
+    pub credit_notice: Option<String>,
+    #[serde(default)]
+    pub changes: Option<String>,
     pub instrumental: bool,
     pub instrumental_evidence: String,
     pub approved: bool,
     #[serde(default)]
     pub gain_db: f32,
+}
+
+impl Track {
+    pub fn license_url(&self) -> Option<&'static str> {
+        match self.license.as_str() {
+            "CC0-1.0" => Some("https://creativecommons.org/publicdomain/zero/1.0/"),
+            "CC-BY-3.0" => Some("https://creativecommons.org/licenses/by/3.0/"),
+            "CC-BY-4.0" => Some("https://creativecommons.org/licenses/by/4.0/"),
+            _ => None,
+        }
+    }
+
+    pub fn credits_url(&self) -> String {
+        let mut url = reqwest::Url::parse("https://api.vozen.org/music/credits").unwrap();
+        url.path_segments_mut().unwrap().push(&self.id);
+        url.into()
+    }
+
+    pub fn credits_text(&self) -> String {
+        format!(
+            "{}\nBy {}\n\nSource: {}\nLicence: {}\n{}\n\nCredit notice:\n{}\n\nChanges:\n{}\n",
+            self.title,
+            self.artist,
+            self.source_url,
+            self.license,
+            self.license_url().unwrap_or("Unsupported licence"),
+            self.credit_notice
+                .as_deref()
+                .unwrap_or("No additional notice supplied."),
+            self.changes
+                .as_deref()
+                .unwrap_or("See the source and catalog evidence for this CC0 recording."),
+        )
+    }
 }
 
 impl Catalog {
@@ -79,9 +117,8 @@ impl Catalog {
                         sha2::Sha256::digest(track.source_url.as_bytes())
                     );
                 }
-                // shortcut: initial catalog is CC0-only; review licenses before accepting other types.
                 if !track.approved
-                    || track.license != "CC0-1.0"
+                    || track.license_url().is_none()
                     || !track.source_url.starts_with("https://")
                     || track.source_url.chars().count() > 800
                     || track.license_evidence.trim().is_empty()
@@ -92,9 +129,19 @@ impl Catalog {
                     || track.file.is_absolute()
                 {
                     return Err(
-                        "Invalid track: metadata or approval of its source and CC0 license is missing."
+                        "Invalid track: metadata or approval of its source and admitted licence is missing."
                             .into(),
                     );
+                }
+                if track.license != "CC0-1.0"
+                    && [(&track.credit_notice, 4000), (&track.changes, 2000)]
+                        .into_iter()
+                        .any(|(text, limit)| {
+                            text.as_ref()
+                                .is_none_or(|s| s.trim().is_empty() || s.chars().count() > limit)
+                        })
+                {
+                    return Err("CC BY recordings require the supplied credit notices and an explicit changes statement.".into());
                 }
                 if !track.instrumental || track.instrumental_evidence.trim().is_empty() {
                     return Err(
@@ -311,6 +358,41 @@ mod tests {
         ] {
             let mut input = catalog();
             input["stations"][0]["tracks"][0][key] = value;
+            assert!(fixture.load(input).is_err());
+        }
+    }
+    #[test]
+    fn by_licenses_require_notices_changes_and_keep_the_original_approval_gate() {
+        let fixture = Fixture::new();
+        for license in ["CC-BY-3.0", "CC-BY-4.0"] {
+            let mut input = catalog();
+            input["stations"][0]["tracks"][0]["license"] = json!(license);
+            assert!(fixture.load(input.clone()).is_err());
+            input["stations"][0]["tracks"][0]["credit_notice"] =
+                json!("Test by Fixture, synthetic credit notice.");
+            assert!(fixture.load(input.clone()).is_err());
+            input["stations"][0]["tracks"][0]["changes"] =
+                json!("Original file unchanged; playback volume adjusted.");
+            let track = fixture.load(input.clone()).unwrap().stations[0].tracks[0].clone();
+            assert!(track.credits_text().contains(track.license_url().unwrap()));
+            assert!(track.credits_text().contains("synthetic credit notice"));
+            assert!(
+                !track
+                    .credits_text()
+                    .contains(&fixture.0.to_string_lossy().to_string())
+            );
+            input["stations"][0]["tracks"][0]["approved"] = json!(false);
+            assert!(fixture.load(input).is_err());
+        }
+        for license in [
+            "CC-BY-NC-4.0",
+            "CC-BY-SA-4.0",
+            "CC-BY-ND-4.0",
+            "CC BY",
+            "CC-BY-4.0/extra",
+        ] {
+            let mut input = catalog();
+            input["stations"][0]["tracks"][0]["license"] = json!(license);
             assert!(fixture.load(input).is_err());
         }
     }

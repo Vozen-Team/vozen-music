@@ -218,7 +218,7 @@ async fn station_catalog(
             .expect("Bundled station proposals are valid JSON");
     proposals.retain(|p| !state.bot.catalog.stations.iter().any(|s| Some(s.id.as_str()) == p["id"].as_str()));
     Ok(Json(
-        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"cover":format!("/music/albums/{}-v1.webp",s.id),"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license,"duration_seconds":durations.get(&t.id),"thumbnail":t.cover.as_ref().and_then(|p| p.file_stem()).and_then(|n|n.to_str()).map(|n|format!("/music/thumbnails/{n}.webp"))})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":(["night","rain","sleep"].into_iter().filter(|id| !state.bot.catalog.stations.iter().any(|s| s.id == *id)).collect::<Vec<_>>()),"proposals":proposals}),
+        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"cover":format!("/music/albums/{}-v1.webp",s.id),"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license,"license_url":t.license_url(),"credit_notice":t.credit_notice,"changes":t.changes,"duration_seconds":durations.get(&t.id),"thumbnail":t.cover.as_ref().and_then(|p| p.file_stem()).and_then(|n|n.to_str()).map(|n|format!("/music/thumbnails/{n}.webp"))})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":(["night","rain","sleep"].into_iter().filter(|id| !state.bot.catalog.stations.iter().any(|s| s.id == *id)).collect::<Vec<_>>()),"proposals":proposals}),
     ))
 }
 

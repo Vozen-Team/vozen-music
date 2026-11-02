@@ -10,6 +10,7 @@ function drawList() {
 function show(i) {
  current=i; const t=tracks[i], q=t.technical_review, r=reviews[key(t)] || {};
  $('title').textContent=t.title; $('credit').textContent=t.artist+' · '+t.license; $('source').href=t.source_url; $('rain-source').hidden=!t.rain_source; if(t.rain_source) $('rain-source').href=t.rain_source.source_url;
+ $('attribution').textContent=[t.credit_notice,t.changes,t.source_ai_generated===true?'The publisher declares this recording was generated with AI; audio review remains required.':''].filter(Boolean).join(' ');
  $('details').textContent=q ? `${Math.floor(q.duration_seconds/60)}:${String(Math.floor(q.duration_seconds%60)).padStart(2,'0')} · ${q.sample_rate} Hz · Full decode passed · gain for bot: ${q.gain_db} dB. ${t.mix_recipe ? 'Fixed offline music + rain mix.' : 'Original recording.'}` : 'Technical review pending.';
  $('rain-note').textContent=t.station==='rain' ? (t.mix_recipe ? 'Rain is integrated in this file. Both sources declare CC0; full human listening remains pending.' : 'Rain preparation pending. This source is not yet approved as music with integrated rain.') : '';
  $('player').pause(); $('player').src=t.file;

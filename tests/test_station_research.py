@@ -37,8 +37,16 @@ class ResearchTests(unittest.TestCase):
         self.assertEqual(source['download_urls'], ['https://opengameart.org/sites/default/files/song.ogg'])
 
     def test_prose_mentioning_cc0_does_not_override_actual_license(self):
-        with patch.object(research, 'fetch', return_value=page('https://creativecommons.org/licenses/by/4.0/')):
+        with patch.object(research, 'fetch', return_value=page('https://creativecommons.org/licenses/by-nc/4.0/')):
             self.assertIsNone(research.source(('acoustic', 'https://opengameart.org/content/quiet')))
+
+    def test_only_the_approved_by_versions_and_exact_license_host_are_allowed(self):
+        for version in ['3.0', '4.0']:
+            with patch.object(research, 'fetch', return_value=page(f'https://creativecommons.org/licenses/by/{version}/')):
+                self.assertEqual(research.source(('acoustic', 'https://opengameart.org/content/quiet'))['license'], 'CC-BY-' + version)
+        for uri in ['https://creativecommons.org/licenses/by-sa/4.0/', 'https://creativecommons.org/licenses/by-nd/4.0/', 'https://evil.example/creativecommons.org/licenses/by/4.0/']:
+            with patch.object(research, 'fetch', return_value=page(uri)):
+                self.assertIsNone(research.source(('acoustic', 'https://opengameart.org/content/quiet')))
 
     def test_format_copies_are_grouped_and_download_host_is_restricted(self):
         self.assertEqual(candidates.title_key('Lone%20Scavenger_4.mp3'), candidates.title_key('Lone Scavenger_0.wav'))

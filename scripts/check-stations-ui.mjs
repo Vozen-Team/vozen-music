@@ -73,8 +73,21 @@ try{
  for(const station of stations){
   await page.goto(`${base}/music/dashboard?server=1&page=stations&album=${station.id}`);await page.locator('.station-tracks').waitFor();
   assert.deepEqual(await page.locator('.track-text strong').allTextContents(),station.tracks.map(t=>t.title));
-  assert.equal(await page.locator('.album-credits a').count(),station.tracks.length);
+  assert.equal(await page.locator('.album-credits li > a:first-child').count(),station.tracks.length);
  }
  await page.goto(base+'/music/dashboard?server=1&page=stations&album=unknown');await page.locator('.station-albums').waitFor();
+ await page.route('**/music/api/stations',async route=>{
+  const response=await route.fetch(),data=await response.json(),track=data.stations[0].tracks[0];
+  Object.assign(track,{license:'CC-BY-4.0',credit_notice:'Synthetic credit <script>fixture</script>',changes:'Synthetic file unchanged.'});
+  await route.fulfill({response,json:data});
+ });
+ await page.goto(base+'/music/dashboard?server=1&page=stations&album=lofi');await page.locator('.album-credits').waitFor();
+ await page.locator('.album-credits summary').click();
+ const credit=page.locator('.album-credits li').first();
+ assert.equal(await credit.getByRole('link',{name:'Full attribution & licence'}).getAttribute('href'),'/music/credits/'+encodeURIComponent(stations[0].tracks[0].id));
+ assert.match(await credit.textContent(),/Synthetic credit <script>fixture<\/script>/);
+ assert.match(await credit.textContent(),/Synthetic file unchanged/);
+ assert.equal(await credit.locator('script').count(),0);
+ assert.equal(await page.locator('.station-tracks a').count(),0);
  await page.close();console.log('Station albums: 17 covers, six non-playable proposals, all 250 recordings/credits, exact durations, keyboard/direct/reload/back navigation, dynamic My Station and seven widths passed.');
 }finally{await browser.close();}

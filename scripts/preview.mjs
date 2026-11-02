@@ -37,7 +37,7 @@ const stations = JSON.parse(
 ).stations.map((s) => ({
   ...s,
   cover: `/music/albums/${s.id}-v1.webp`,
-  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url, duration_seconds: durations[t.id], thumbnail: `/music/thumbnails/${path.basename(t.cover, ".png")}.webp` })),
+  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url, license_url: ({"CC0-1.0":"https://creativecommons.org/publicdomain/zero/1.0/","CC-BY-3.0":"https://creativecommons.org/licenses/by/3.0/","CC-BY-4.0":"https://creativecommons.org/licenses/by/4.0/"})[t.license], duration_seconds: durations[t.id], thumbnail: `/music/thumbnails/${path.basename(t.cover, ".png")}.webp` })),
 }));
 stations.push({ id: "my", name: "My Station", tracks: [] });
 const server = http.createServer(async (req, res) => {
@@ -59,6 +59,12 @@ const server = http.createServer(async (req, res) => {
     return json({ guilds: [{ id: "1", name: "Example server" }] });
   if (p === "/music/api/stations")
     return json({ stations, pending: [], proposals: JSON.parse(fs.readFileSync(path.join(root, "web/station-proposals.json"), "utf8")).filter(s => !stations.some(active => active.id === s.id)) });
+  if (p.startsWith('/music/credits/')) {
+    const track = stations.flatMap(s => s.tracks).find(t => t.id === decodeURIComponent(p.slice('/music/credits/'.length)));
+    if (!track) return json({error:'Recording not found.'},404);
+    res.writeHead(200, {'Content-Type':'text/plain; charset=utf-8','X-Content-Type-Options':'nosniff'});
+    res.end(`${track.title}\nBy ${track.artist}\nSource: ${track.source}\nLicence: ${track.license}\n${track.license_url}\n${track.credit_notice || ''}\nChanges: ${track.changes || 'See source and catalog evidence.'}\n`);return;
+  }
   if (p.startsWith("/music/api/recordings/") && p.endsWith("/audio")) {
     const id = p.split("/")[4];
     const track = stations.flatMap(s => s.tracks).find(t => t.id === id);

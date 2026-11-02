@@ -1008,8 +1008,32 @@ async fn track_cover(
         .into_response())
 }
 
+async fn recording_credits(
+    State(state): State<Arc<Dashboard>>,
+    RoutePath(id): RoutePath<String>,
+) -> WebResult<Response> {
+    let track = state
+        .bot
+        .catalog
+        .stations
+        .iter()
+        .flat_map(|s| &s.tracks)
+        .find(|t| t.id == id)
+        .ok_or(WebError(StatusCode::NOT_FOUND, "Recording not found."))?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/plain; charset=utf-8"),
+            (header::CACHE_CONTROL, "public, max-age=60"),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff"),
+        ],
+        track.credits_text(),
+    )
+        .into_response())
+}
+
 fn router(state: Arc<Dashboard>) -> Router {
     Router::new()
+        .route("/music/credits/{id}", get(recording_credits))
         .route("/music/covers/{name}", get(track_cover))
         .route("/music/albums/{name}", get(album_cover))
         .route("/music/thumbnails/{name}", get(track_thumbnail))
@@ -1377,6 +1401,59 @@ mod tests {
             secret: "synthetic-client-secret".into(),
             auth: Mutex::new(auth),
         })
+    }
+
+    #[tokio::test]
+    async fn public_credits_include_by_notices_but_no_files_or_private_sessions() {
+        use axum::{body::Body, http::Request};
+        let mut state = fixture();
+        let mut catalog = Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let track = &mut catalog.stations[0].tracks[0];
+        track.license = "CC-BY-4.0".into();
+        track.credit_notice =
+            Some("Synthetic creator and copyright notice <script>not HTML</script>".into());
+        track.changes = Some("Synthetic test: playback volume adjusted.".into());
+        let uri = format!("/music/credits/{}", track.id);
+        Arc::get_mut(&mut Arc::get_mut(&mut state).unwrap().bot)
+            .unwrap()
+            .catalog = Arc::new(catalog);
+        let app = router(state);
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_TYPE],
+            "text/plain; charset=utf-8"
+        );
+        assert_eq!(
+            response.headers()[header::X_CONTENT_TYPE_OPTIONS],
+            "nosniff"
+        );
+        let body = axum::body::to_bytes(response.into_body(), 16384)
+            .await
+            .unwrap();
+        let text = String::from_utf8(body.to_vec()).unwrap();
+        assert!(text.contains("https://creativecommons.org/licenses/by/4.0/"));
+        assert!(text.contains("copyright notice"));
+        assert!(text.contains("volume adjusted"));
+        assert!(
+            !text.contains("/work-covers")
+                && !text.contains("test-session")
+                && !text.contains("licenses/README")
+        );
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .uri("/music/credits/missing")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]

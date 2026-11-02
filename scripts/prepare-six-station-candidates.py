@@ -1,5 +1,7 @@
 """Prepare source-declared CC0 candidates for full listening; no automatic approval."""
 import hashlib
+import argparse
+from collections import Counter
 import json
 import re
 import subprocess
@@ -37,18 +39,39 @@ def title_key(name, uploaded=True):
 
 
 def main():
-    manifest = json.loads(MANIFEST.read_text(encoding='utf8'))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--manifest', default=str(MANIFEST.relative_to(ROOT)))
+    args = parser.parse_args()
+    manifest_path = (ROOT / args.manifest).resolve()
+    assert manifest_path.is_relative_to(ROOT / 'licenses/expansion-review')
+    manifest = json.loads(manifest_path.read_text(encoding='utf8'))
     old = json.loads((ROOT / 'licenses/catalog-sources.json').read_text(encoding='utf8'))['tracks']
     old_hashes = {r.get('original_sha256', r['sha256']) for r in old} | {r['sha256'] for r in old}
+    by_only = manifest_path != MANIFEST
+    baseline_counts = Counter()
+    if by_only:
+        baseline = json.loads(MANIFEST.read_text(encoding='utf8'))['tracks']
+        baseline_counts.update(t['station'] for t in baseline)
+        old_hashes |= {t['technical_review']['sha256'] for t in baseline}
+        old_hashes |= {t['source_original_sha256'] for t in baseline if t.get('source_original_sha256')}
     used, tracks, exclusions, failures = set(), [], [], []
     # Prioritize sources dedicated to the genre, then individual uploads.
     sources = sorted(manifest['sources'], key=lambda s: (s['station'], 'collection' not in s['source_url'], s['source_title']))
     for source in sources:
         station = source['station']
+        limit = max(0, 30 - baseline_counts[station]) if by_only else 30
+        if by_only and (source['license'] == 'CC0-1.0' or station in {'synthwave', 'chiptune'}):
+            continue
+        if source['artist'] == 'glitchart' or re.search(r'\b(vocals?|singing|speech|cover)\b', source['source_title'] + ' ' + source['source_tags'], re.I):
+            exclusions.append({'source_url': source['source_url'], 'reason': 'Vocal/cover classification or multi-source remix needs a separate rights review'})
+            continue
+        if by_only and ('nihilore-collection' in source['source_url'] or 'loop-box' in source['source_url']):
+            exclusions.append({'source_url': source['source_url'], 'reason': 'Mixed-genre collection requires per-file genre evidence; not used to fill quotas'})
+            continue
         if source['source_url'].endswith(('bossa-shop-theme-in-low-fi-and-hd', 'unfinishedscrapseven-less-good-tracks')):
             exclusions.append({'source_url': source['source_url'], 'reason': 'Sample-library rights or explicitly unfinished quality require a separate review'})
             continue
-        if sum(t['station'] == station for t in tracks) >= 30:
+        if sum(t['station'] == station for t in tracks) >= limit:
             continue
         choices = {}
         for url in source['download_urls']:
@@ -92,7 +115,7 @@ def main():
                     if reason:
                         exclusions.append({'station': station, 'source_url': source['source_url'], 'name': name, 'reason': reason})
                         continue
-                    if sum(t['station'] == station for t in tracks) >= 30:
+                    if sum(t['station'] == station for t in tracks) >= limit:
                         break
                     used.add(sha)
                     relative = f'media/{station}/{sha[:20]}{Path(name).suffix.lower()}'
@@ -105,6 +128,8 @@ def main():
                     title = tags.get('title') or (re.sub(r'_\d+$', '', Path(name).stem).replace('_', ' ') if archive or multi_track else source['source_title'])
                     track = {k: source[k] for k in ['station', 'source_url', 'license', 'license_urls', 'license_verified_on', 'source_page_sha256', 'source_title', 'source_tags']}
                     track.update(title=title, artist=tags.get('artist') or source['artist'], source_author=source['artist'], download_url=url, file=relative, approved=False, human_listening_review={'status': 'pending', 'reviewer': None, 'full_recording': False, 'no_voice': None, 'station_suitability': None})
+                    if source['license'] != 'CC0-1.0':
+                        track.update(credit_notice=source['credit_notice'] or f"{source['source_title']} by {source['artist']}.", credit_notice_urls=source.get('credit_notice_urls', []), changes='Source file unchanged. Playback volume may be adjusted.', credit_review={'status': 'pending', 'all_supplied_notices_checked': False})
                     if archive:
                         track.update(archive=str(downloaded.relative_to(ROOT)).replace('\\', '/'), archive_member=name, archive_sha256=hashlib.sha256(downloaded.read_bytes()).hexdigest())
                     tracks.append(track)
@@ -115,7 +140,7 @@ def main():
                 failures.append({'url': url, 'error': str(error)})
             finally:
                 manifest.update(tracks=tracks, candidate_exclusions=exclusions, preparation_errors=failures)
-                MANIFEST.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
+                manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
     print(json.dumps({s: sum(t['station'] == s for t in tracks) for s in sorted({x['station'] for x in sources})}), flush=True)
     print('All candidates remain unapproved. Failures:', len(failures), flush=True)
 

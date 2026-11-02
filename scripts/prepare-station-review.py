@@ -97,6 +97,10 @@ def main():
     completed.sort(key=lambda t: (t['station'], t['title']))
     old = json.loads((ROOT / 'licenses/catalog-sources.json').read_text(encoding='utf8'))['tracks']
     old_pcm = {x['pcm_sha256'] for x in old}
+    for relative in manifest.get('comparison_manifests', []):
+        comparison = (ROOT / relative).resolve()
+        assert comparison.is_relative_to(ROOT / 'licenses/expansion-review')
+        old_pcm.update(t['technical_review']['pcm_sha256'] for t in json.loads(comparison.read_text(encoding='utf8'))['tracks'] if t.get('technical_review'))
     seen = set()
     for track in completed:
         pcm = track['technical_review']['pcm_sha256']

@@ -1,4 +1,4 @@
-"""Collect CC0 source evidence and listening candidates; never edit catalog.json."""
+"""Collect CC0/CC BY source evidence; never edit catalog.json or prior curation."""
 import concurrent.futures
 import hashlib
 import html
@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / 'output/six-stations-research'
 CACHE.mkdir(parents=True, exist_ok=True)
-MANIFEST = ROOT / 'licenses/expansion-review/curation-20261102.json'
+MANIFEST = ROOT / 'licenses/expansion-review/curation-ccby-20261102.json'
 SEEDS = {
     'synthwave': ['retro-wave-collection', 'synthwavetype', 'space-synth-wave', 'dj-synth-wave-funk', 'vintage-menu', 'slipstream'],
     'acoustic': ['sunset-plains'],
@@ -63,7 +63,10 @@ def source(item):
     page = fetch(url)
     license_field = field(page, 'field-art-licenses')
     licenses = [u for u in links(license_field) if 'creativecommons.org/' in u]
-    if not any('/publicdomain/zero/1.0' in u for u in licenses):
+    allowed = {'/publicdomain/zero/1.0/': 'CC0-1.0', '/licenses/by/4.0/': 'CC-BY-4.0', '/licenses/by/3.0/': 'CC-BY-3.0'}
+    declared = {allowed.get(urllib.parse.urlsplit(u).path.rstrip('/') + '/') for u in licenses if urllib.parse.urlsplit(u).hostname in {'creativecommons.org', 'www.creativecommons.org'}}
+    license_id = next((value for value in allowed.values() if value in declared), None)
+    if not license_id:
         return None
     if 'Music' not in text(field(page, 'field-art-type')):
         return None
@@ -74,7 +77,9 @@ def source(item):
     return {
         'station': station, 'source_url': url, 'source_title': title,
         'artist': author,
-        'license': 'CC0-1.0', 'license_urls': licenses,
+        'license': license_id, 'license_urls': licenses,
+        'credit_notice': text(field(page, 'field-copyright-notice')).removeprefix('Copyright/Attribution Notice:').strip(),
+        'credit_notice_urls': links(field(page, 'field-copyright-notice')),
         'license_verified_on': str(date.today()),
         'source_page_sha256': hashlib.sha256(page.encode()).hexdigest(),
         'source_tags': text(field(page, 'field-art-tags')).removeprefix('Tags:').strip(),
@@ -112,7 +117,7 @@ def main():
             except Exception as error:
                 errors.append({'url': futures[future][1], 'error': str(error)})
     sources.sort(key=lambda s: (s['station'], s['source_title']))
-    result = {'reviewed_on': str(date.today()), 'scope': 'Candidate sources only. A CC0 declaration is not a full rights-chain investigation. Genre, voice content and subjective quality are not approved.', 'minimum_tracks_per_station': 25, 'sources': sources, 'tracks': [], 'research_errors': errors}
+    result = {'reviewed_on': str(date.today()), 'scope': 'Candidate sources only. CC0 and CC BY 3.0/4.0 licence declarations are not a full rights-chain investigation. Attribution, genre, voice content and subjective quality require review.', 'minimum_tracks_per_station': 25, 'sources': sources, 'tracks': [], 'research_errors': errors, 'comparison_manifests': ['licenses/expansion-review/curation-20261102.json']}
     if MANIFEST.exists():
         result['tracks'] = json.loads(MANIFEST.read_text(encoding='utf8')).get('tracks', [])
     MANIFEST.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
