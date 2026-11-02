@@ -1,5 +1,6 @@
 """Prepare unapproved, local listening copies; this never edits the active catalog."""
 import concurrent.futures
+import argparse
 import hashlib
 import json
 import math
@@ -11,8 +12,13 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / 'licenses/expansion-review/curation-20261031.json'
-REVIEW = ROOT / 'output/station-review'
+options = argparse.ArgumentParser(description=__doc__)
+options.add_argument('--manifest', default='licenses/expansion-review/curation-20261031.json')
+options.add_argument('--review-dir', default='output/station-review')
+args = options.parse_args()
+MANIFEST = (ROOT / args.manifest).resolve()
+REVIEW = (ROOT / args.review_dir).resolve()
+assert MANIFEST.is_relative_to(ROOT / 'licenses') and REVIEW.is_relative_to(ROOT / 'output')
 REVIEW.mkdir(parents=True, exist_ok=True)
 
 def run(*args):
@@ -104,11 +110,11 @@ def main():
     (REVIEW / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n', encoding='utf8')
     for source, destination in [('station-review.html', 'index.html'), ('station-review.js', 'review.js')]:
         (REVIEW / destination).write_bytes((ROOT / 'scripts' / source).read_bytes())
-    print(f'Completed {len(completed)}/75; {len(errors)} technical errors. Human listening and Rain suitability remain unapproved.', flush=True)
+    print(f"Completed {len(completed)}/{len(manifest['tracks'])}; {len(errors)} technical errors. Human listening and station suitability remain unapproved.", flush=True)
     for error in errors:
         print(error, flush=True)
     assert not errors
-    assert len(completed) == 75 and len(seen) == 75
+    assert completed and len(completed) == len(manifest['tracks']) and len(seen) == len(completed)
     assert all(not t['approved'] for t in completed), 'A technical test cannot approve voice content'
 
 if __name__ == '__main__':

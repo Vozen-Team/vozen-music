@@ -1,0 +1,42 @@
+{
+  "created_on": "2026-11-02",
+  "scope": "Original station artwork; not a claim that audio is approved.",
+  "covers": [
+    {
+      "id": "synthwave",
+      "prompt": "Use case: stylized-concept. Create a finished SQUARE 1024x1024 station album illustration for Vozen Music SYNTHWAVE. Original hand-painted Japanese-animation background aesthetic, fine confident ink contours, visible gouache and paper grain, naturally imperfect architecture, atmospheric everyday storytelling; understated crafted illustration, not glossy 3D, not a template. Scene: quiet rooftop cassette listening corner above a Japanese coastal city at blue hour, an original unbranded portable cassette player and headphones on a low weathered bench, subtle magenta shop windows, violet sky and a thin peach horizon, utility wires and distant elevated railway. Rich indigo, muted lavender, restrained coral lighting. Carefully composed continuous single scene, evocative and peaceful yet rhythmic. Main scene must read at small album size and support a wide banner crop through the middle. No people close-up, no text, no letters, no logos, no watermark, no collage, no frames, no huge sun disk, no neon grid. The artwork should belong alongside a tactile anime watercolor seaside veranda vinyl-player sunset cover.",
+      "file": "web/albums/synthwave-v1.webp",
+      "sha256": "733018543909306fd8971a3db6d833117c423e767ed1eefcbe47227eae022cef"
+    },
+    {
+      "id": "acoustic",
+      "prompt": "Use case: stylized-concept. Finished SQUARE 1024x1024 original album artwork for a Vozen Music instrumental radio station. Consistent premium hand-painted Japanese-animation background illustration: subtle fine ink contours, tactile gouache and watercolor grain, believable imperfect architecture, thoughtful everyday objects, cinematic restrained palette and atmospheric depth. Crafted illustrated storytelling, not glossy 3D or a synthetic fantasy wallpaper. One continuous composition that reads well as a small square and allows a middle wide banner crop. No text, letters, logos, watermark, frames, collage, giant musical notes, or floating objects. ACOUSTIC: an intimate timber attic balcony overlooking sunlit hills and olive trees after sunrise; a beautifully drawn unbranded acoustic guitar leans against a woven chair next to a ceramic mug and open empty notebook; linen curtain moving slightly, wildflowers, warm wood, honey daylight and sage green, quiet natural organic mood. Guitar has a coherent six-string neck and body. No human.",
+      "file": "web/albums/acoustic-v1.webp",
+      "sha256": "5499ed1169ff118d7066f403b626efe7f20a5173ade95e63c64e2e52b30043d9"
+    },
+    {
+      "id": "chiptune",
+      "prompt": "Use case: stylized-concept. Finished SQUARE 1024x1024 original album artwork for a Vozen Music instrumental radio station. Consistent premium hand-painted Japanese-animation background illustration: subtle fine ink contours, tactile gouache and watercolor grain, believable imperfect architecture, thoughtful everyday objects, cinematic restrained palette and atmospheric depth. Crafted illustrated storytelling, not glossy 3D or a synthetic fantasy wallpaper. One continuous composition that reads well as a small square and allows a middle wide banner crop. No text, letters, logos, watermark, frames, collage, giant musical notes, or floating objects. CHIPTUNE: a cozy small Japanese bedroom at dusk with an unbranded 1990s handheld game console and headphones beside an old CRT on a wooden desk, window overlooking low rooftops and powerlines, small potted plants and books. Amber desk lamp against lilac evening, teal and soft coral accents, playful nostalgic scene. Screen shows only abstract colored pixel terrain, no recognizable game franchise or characters. Illustrated watercolor atmosphere, not pixel-art rendering of the entire scene.",
+      "file": "web/albums/chiptune-v1.webp",
+      "sha256": "ef6d3709194eabb80589247c631e20440252f97168d2708f0d4b7de6f09bbe89"
+    },
+    {
+      "id": "chill-house",
+      "prompt": "Use case: stylized-concept. Finished SQUARE 1024x1024 original album artwork for a Vozen Music instrumental radio station. Consistent premium hand-painted Japanese-animation background illustration: subtle fine ink contours, tactile gouache and watercolor grain, believable imperfect architecture, thoughtful everyday objects, cinematic restrained palette and atmospheric depth. Crafted illustrated storytelling, not glossy 3D or a synthetic fantasy wallpaper. One continuous composition that reads well as a small square and allows a middle wide banner crop. No text, letters, logos, watermark, frames, collage, giant musical notes, or floating objects. CHILL HOUSE: an inviting open-air seaside terrace just after sunset, a compact unbranded turntable setup on warm stone, linen lounge cushions and terracotta potted plants, luminous turquoise cove, sparse coastal architecture and distant warm windows, peach-lavender sky, understated string lights, relaxed Mediterranean summer mood. Subtle suggestion of rhythmic social evening but no crowd. Warm rose, sea teal, sandy beige, soft indigo.",
+      "file": "web/albums/chill-house-v1.webp",
+      "sha256": "7a7e0746eb15c0a7413302727ae2de9e0e08666b613016ed444e0a522924f2b7"
+    },
+    {
+      "id": "drum-and-bass",
+      "prompt": "Use case: stylized-concept. Finished SQUARE 1024x1024 original album artwork for a Vozen Music instrumental radio station. Consistent premium hand-painted Japanese-animation background illustration: subtle fine ink contours, tactile gouache and watercolor grain, believable imperfect architecture, thoughtful everyday objects, cinematic restrained palette and atmospheric depth. Crafted illustrated storytelling, not glossy 3D or a synthetic fantasy wallpaper. One continuous composition that reads well as a small square and allows a middle wide banner crop. No text, letters, logos, watermark, frames, collage, giant musical notes, or floating objects. DRUM & BASS: view from a pedestrian bridge beside an elevated railway crossing a Japanese riverside district at deep blue dusk after rain, a lone small cyclist in the middle distance, illuminated train windows reflected in the calm canal, overhead lines and close layered concrete architecture, subtle motion in the passing train while the environment remains clearly drawn. Liquid drum-and-bass atmosphere: forward movement, melodic energy, cool cobalt and teal with muted amber lights, not aggressive cyberpunk. No readable signs.",
+      "file": "web/albums/drum-and-bass-v1.webp",
+      "sha256": "cb87dcbab2d23cb48b5f92cd406d81e41d14927ab2f2d8d2773283e2830c7ee5"
+    },
+    {
+      "id": "bossa-nova",
+      "prompt": "Use case: stylized-concept. Finished SQUARE 1024x1024 original album artwork for a Vozen Music instrumental radio station. Consistent premium hand-painted Japanese-animation background illustration: subtle fine ink contours, tactile gouache and watercolor grain, believable imperfect architecture, thoughtful everyday objects, cinematic restrained palette and atmospheric depth. Crafted illustrated storytelling, not glossy 3D or a synthetic fantasy wallpaper. One continuous composition that reads well as a small square and allows a middle wide banner crop. No text, letters, logos, watermark, frames, collage, giant musical notes, or floating objects. BOSSA NOVA: a relaxed old Rio hillside apartment veranda overlooking a distant bay on a bright warm afternoon, patterned blue-and-white tiles, a nylon-string acoustic guitar resting on a woven chair, small round wooden table with coffee, lush tropical leaves framing the view, faded pastel houses and open wooden shutters. Quiet breeze through linen curtain, sunlit pale ochre, leafy green, ocean blue and coral. Painterly anime background craft, no famous landmarks or human closeups.",
+      "file": "web/albums/bossa-nova-v1.webp",
+      "sha256": "1786e45fc4e9476ea96689238bc74261ef73cb021bd1f884032f296b908b296e"
+    }
+  ]
+}

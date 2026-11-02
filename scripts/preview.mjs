@@ -3,6 +3,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
+const libraryRoot = process.env.VOZEN_PREVIEW_LIBRARY_ROOT || root;
 let settings = {
   revision: 0,
   skip: {
@@ -57,12 +58,12 @@ const server = http.createServer(async (req, res) => {
   if (p === "/music/api/guilds")
     return json({ guilds: [{ id: "1", name: "Example server" }] });
   if (p === "/music/api/stations")
-    return json({ stations, pending: ["night", "rain", "sleep"] });
+    return json({ stations, pending: [], proposals: JSON.parse(fs.readFileSync(path.join(root, "web/station-proposals.json"), "utf8")).filter(s => !stations.some(active => active.id === s.id)) });
   if (p.startsWith("/music/api/recordings/") && p.endsWith("/audio")) {
     const id = p.split("/")[4];
     const track = stations.flatMap(s => s.tracks).find(t => t.id === id);
     if (!track) return json({ error: "Recording not found." }, 404);
-    const file = path.join(root, "media", track.file), size = fs.statSync(file).size;
+    const file = path.join(libraryRoot, "media", track.file), size = fs.statSync(file).size;
     const match = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || "");
     const start = match ? Number(match[1]) : 0, end = match && match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
     if (start > end || start >= size) { res.writeHead(416, { "Content-Range": `bytes */${size}` }); res.end(); return; }
@@ -78,7 +79,7 @@ const server = http.createServer(async (req, res) => {
     const track = stations.flatMap(s => s.tracks).find(t => t.cover && path.basename(t.cover) === name);
     if (!track) { res.writeHead(404); res.end(); return; }
     res.setHeader("Content-Type", "image/png");
-    res.end(fs.readFileSync(path.join(root, track.cover))); return;
+    res.end(fs.readFileSync(path.join(libraryRoot, track.cover))); return;
   }
   if (p.startsWith("/music/api/guilds/1/")) {
     const action = p.split("/").at(-1);
@@ -201,6 +202,7 @@ const server = http.createServer(async (req, res) => {
     );
   res.end(bytes);
 });
-server.listen(4783, "127.0.0.1", () =>
-  console.log("Music UI fixture: http://localhost:4783/music/dashboard"),
+const port = Number(process.env.VOZEN_PREVIEW_PORT || 4783);
+server.listen(port, "127.0.0.1", () =>
+  console.log(`Music UI fixture: http://localhost:${port}/music/dashboard`),
 );

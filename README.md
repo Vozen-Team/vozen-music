@@ -202,3 +202,20 @@ The shared player is posted in the connected voice channel's text chat, both on 
 Bot Profile includes a live, approximate Discord-style preview of the display name, avatar and banner, with the existing description displayed as read-only text when present. Description edits are rejected by the API. Selected files stay in the browser until Apply; failed requests keep the editor values. The server validates profile text before image processing or calling Discord. The bundled profile-policy.json list rejects configured discriminatory slurs and hate slogans with common case, separator, width and leetspeak normalization; this is a maintained deterministic filter, not a comprehensive multilingual abuse classifier. Empty display names reset the server nickname to the bot's default. Existing image validation, manager-only access and CSRF checks remain required.
 
 The shared player is deleted when its session stops or its voice connection leaves/moves. Reposting with /panel removes the previous player. Normal process shutdown also cleans up tracked player messages while keeping playback recovery intents. Deletion is serialized with player edits; an already-deleted message is harmless, and permission/network errors are logged. A forced process kill cannot perform Discord cleanup while the bot is offline.
+
+## Station artwork and curation — 2 November 2026
+
+Synthwave, Acoustic, Chiptune, Chill House, Drum & Bass and Bossa Nova have their own album artwork and collection pages. They are explicitly **In preparation**, separate from the ten playable stations and My Station. They cannot be selected as playback defaults or slash-command stations. When a collection is admitted to the approved catalog, its proposal is omitted automatically. No existing recording, rating or setting is changed by these collection pages.
+
+The six 640px WebP covers are in `web/albums/`; prompts and hashes are recorded in `assets/album-art-expansion-20261102.json`. `web/station-proposals.json` contains the collection names, descriptions and 25-recording requirement. A cover is not evidence that its music is complete or licensed.
+
+Source declarations and unapproved listening candidates are in `licenses/expansion-review/curation-20261102.json`; see `licenses/expansion-review/CURATION-20261102.md` for results and remaining gates. None of these candidates enters `catalog.json` or My Station. Full human listening, genre suitability, distinct-composition review and at least 25 accepted recordings per station are still required. CC0 remains the admission policy.
+
+The existing local review can prepare another manifest without replacing the older Night/Rain/Sleep review:
+
+```powershell
+python scripts/prepare-station-review.py --manifest licenses/expansion-review/curation-20261102.json --review-dir output/six-stations-review
+python -m http.server 4789 --bind 127.0.0.1 --directory output/six-stations-review
+```
+
+Review recordings and notes are local, outside Git, and never connect to Discord. The technical preparation script does not approve voice content. Source copies with timestamp defects have separate repaired listening files; original hashes and the FFmpeg transformation are retained in the manifest. Keep the original files when reproducing those copies. Re-running source discovery/candidate collection starts a new candidate selection; preserve the curated manifest and exported listening decisions first.

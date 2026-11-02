@@ -5,12 +5,13 @@ const browser=await chromium.launch();
 const base=process.env.VOZEN_PREVIEW_URL||'http://localhost:4783';
 const stations=JSON.parse(fs.readFileSync('catalog.json','utf8')).stations;
 const durations=JSON.parse(fs.readFileSync('web/track-durations.json','utf8'));
+const proposals=JSON.parse(fs.readFileSync('web/station-proposals.json','utf8'));
 try{
  for(const width of [320,360,390,430,768,900,1440]){
   const page=await browser.newPage({viewport:{width,height:width===1440?1300:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(base+'/music/dashboard?server=1&page=stations');
   await page.locator('.station-albums').waitFor();
-  assert.equal(await page.locator('.station-album').count(),11);
+  assert.equal(await page.locator('.station-album').count(),stations.length+proposals.length+1);
   await page.locator('.station-album img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
   assert.equal(await page.locator('.station-album img').evaluateAll(images=>images.every(i=>i.naturalWidth===640)),true);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`shelf overflow ${width}`);
@@ -53,14 +54,27 @@ try{
   assert.equal(await page.locator('.station-tracks').count(),0);
   await page.getByRole('heading',{name:'Only from Music’s approved catalog',exact:true}).waitFor();
   assert.match(await page.locator('#editor').innerText(),/Uploads, external links and tracks outside the catalog are not accepted/);
+  await page.goto(base+'/music/dashboard?server=1&page=stations&album=drum-and-bass');
+  await page.getByRole('heading',{name:'Music selection in progress',exact:true}).waitFor();
+  assert.equal(await page.locator('.station-tracks,audio').count(),0);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`proposal overflow ${width}`);
+  if([390,1440].includes(width))await page.screenshot({path:`output/station-proposal-${width}.png`,fullPage:true});
   assert.deepEqual(errors,[]);await page.close();
  }
  const page=await browser.newPage();
+ for(const proposed of proposals){
+  await page.goto(`${base}/music/dashboard?server=1&page=stations&album=${proposed.id}`);
+  await page.getByRole('heading',{name:'Music selection in progress',exact:true}).waitFor();
+  assert.equal(await page.locator('.station-tracks,audio').count(),0);
+  assert.match(await page.locator('#editor').innerText(),/Not available for playback/);
+  await page.getByRole('link',{name:'All stations',exact:true}).click();
+  await page.locator('.station-albums').waitFor();
+ }
  for(const station of stations){
   await page.goto(`${base}/music/dashboard?server=1&page=stations&album=${station.id}`);await page.locator('.station-tracks').waitFor();
   assert.deepEqual(await page.locator('.track-text strong').allTextContents(),station.tracks.map(t=>t.title));
   assert.equal(await page.locator('.album-credits a').count(),station.tracks.length);
  }
  await page.goto(base+'/music/dashboard?server=1&page=stations&album=unknown');await page.locator('.station-albums').waitFor();
- await page.close();console.log('Station albums: 11 covers, all 250 recordings/credits, exact durations, keyboard/direct/reload/back navigation, dynamic My Station and seven widths passed.');
+ await page.close();console.log('Station albums: 17 covers, six non-playable proposals, all 250 recordings/credits, exact durations, keyboard/direct/reload/back navigation, dynamic My Station and seven widths passed.');
 }finally{await browser.close();}

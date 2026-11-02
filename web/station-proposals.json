@@ -1,0 +1,8 @@
+[
+  {"id":"synthwave","name":"Vozen Synthwave","cover":"/music/albums/synthwave-v1.webp","description":"Retro synthesizers, melodic basslines and an after-dark atmosphere.","minimum_tracks":25},
+  {"id":"acoustic","name":"Vozen Acoustic","cover":"/music/albums/acoustic-v1.webp","description":"Acoustic guitar and organic instruments for a quieter moment.","minimum_tracks":25},
+  {"id":"chiptune","name":"Vozen Chiptune","cover":"/music/albums/chiptune-v1.webp","description":"Original retro game-inspired instrumentals and playful electronic melodies.","minimum_tracks":25},
+  {"id":"chill-house","name":"Vozen Chill House","cover":"/music/albums/chill-house-v1.webp","description":"Relaxed house rhythms, warm melodies and an easy summer atmosphere.","minimum_tracks":25},
+  {"id":"drum-and-bass","name":"Vozen Drum & Bass","cover":"/music/albums/drum-and-bass-v1.webp","description":"Melodic drum and bass with flowing textures and a faster pulse.","minimum_tracks":25},
+  {"id":"bossa-nova","name":"Vozen Bossa Nova","cover":"/music/albums/bossa-nova-v1.webp","description":"Instrumental bossa nova with gentle guitar, light percussion and a sunny feel.","minimum_tracks":25}
+]

@@ -915,6 +915,12 @@ async fn album_cover(RoutePath(name): RoutePath<String>) -> WebResult<Response> 
         "rain-v1.webp" => include_bytes!("../web/albums/rain-v1.webp"),
         "sleep-v1.webp" => include_bytes!("../web/albums/sleep-v1.webp"),
         "my-v1.webp" => include_bytes!("../web/albums/my-v1.webp"),
+        "synthwave-v1.webp" => include_bytes!("../web/albums/synthwave-v1.webp"),
+        "acoustic-v1.webp" => include_bytes!("../web/albums/acoustic-v1.webp"),
+        "chiptune-v1.webp" => include_bytes!("../web/albums/chiptune-v1.webp"),
+        "chill-house-v1.webp" => include_bytes!("../web/albums/chill-house-v1.webp"),
+        "drum-and-bass-v1.webp" => include_bytes!("../web/albums/drum-and-bass-v1.webp"),
+        "bossa-nova-v1.webp" => include_bytes!("../web/albums/bossa-nova-v1.webp"),
         _ => return Err(WebError(StatusCode::NOT_FOUND, "Cover not found.")),
     };
     Ok((
@@ -1528,6 +1534,17 @@ mod tests {
             .iter()
             .map(|s| s.id.clone())
             .chain(std::iter::once("my".into()))
+            .chain(
+                [
+                    "synthwave",
+                    "acoustic",
+                    "chiptune",
+                    "chill-house",
+                    "drum-and-bass",
+                    "bossa-nova",
+                ]
+                .map(String::from),
+            )
             .collect();
         let first_cover = catalog.stations[0].tracks[0]
             .cover
@@ -1560,6 +1577,17 @@ mod tests {
         let library: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let stations = library["stations"].as_array().unwrap();
         assert_eq!(stations.len(), 10);
+        let proposals = library["proposals"].as_array().unwrap();
+        assert_eq!(proposals.len(), 6);
+        let mut proposed_ids = std::collections::BTreeSet::new();
+        for proposal in proposals {
+            let id = proposal["id"].as_str().unwrap();
+            assert!(proposed_ids.insert(id));
+            assert!(!stations.iter().any(|s| s["id"] == id));
+            assert_eq!(proposal["minimum_tracks"], 25);
+            assert!(proposal.get("tracks").is_none());
+            assert_eq!(proposal["cover"], format!("/music/albums/{id}-v1.webp"));
+        }
         for station in stations {
             assert_eq!(station["tracks"].as_array().unwrap().len(), 25);
             for track in station["tracks"].as_array().unwrap() {

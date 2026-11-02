@@ -18,6 +18,7 @@ let csrf = "",
   baseline = "",
   draft = null,
   catalog = [],
+  proposals = [],
   page = new URLSearchParams(location.search).get("page") || "overview",
   step = 0;
 const pages = {
@@ -432,7 +433,7 @@ function navigate(next) {
   $("main").focus();
 }
 function stationLibrary(editor) {
-  const stations = [...catalog.filter(s => s.id !== "my"), {
+  const stations = [...catalog.filter(s => s.id !== "my"), ...proposals.map(s => ({...s, proposed: true, tracks: []})), {
     id: "my", name: "My Station", cover: "/music/albums/my-v1.webp", tracks: [],
   }];
   const selected = stations.find(s => s.id === new URLSearchParams(location.search).get("album"));
@@ -455,7 +456,7 @@ function stationLibrary(editor) {
     for (const station of stations) {
       const album = el("a", undefined, "station-album");
       album.href = linkTo(station.id);
-      album.append(art(station), el("strong", station.name), el("span", station.id === "my" ? "Your listeners’ favorites" : `${station.tracks.length} tracks · Instrumental`));
+      album.append(art(station), el("strong", station.name), el("span", station.proposed ? "In preparation" : station.id === "my" ? "Your listeners’ favorites" : `${station.tracks.length} tracks · Instrumental`));
       grid.append(album);
     }
     editor.append(grid);
@@ -469,13 +470,19 @@ function stationLibrary(editor) {
   const hero = el("section", undefined, "station-album-header");
   const info = el("div");
   const metadata = el("p", undefined, "album-metadata");
-  if (selected.id === "my") metadata.textContent = "Built from the listeners in your call.";
+  if (selected.proposed) metadata.textContent = "In preparation · Not available for playback";
+  else if (selected.id === "my") metadata.textContent = "Built from the listeners in your call.";
   else metadata.append(el("strong", `${selected.tracks.length} tracks`), el("span", "Various artists"));
   info.append(el("p", selected.id === "my" ? "Personalized radio" : "Instrumental radio", "album-label"), el("h1", selected.name), metadata);
   const cover = art(selected);
   cover.loading = "eager";
   hero.append(cover, back, info);
   editor.append(hero);
+  if (selected.proposed) {
+    editor.append(card(selected.name, selected.description));
+    editor.append(card("Music selection in progress", `This station needs at least ${selected.minimum_tracks} distinct, licensed instrumental recordings before it can play. License evidence, complete audio decoding and a full listening review for voice content and station suitability are still required. Its artwork is ready; no recordings from this collection are active in Discord.`));
+    return;
+  }
   if (selected.id === "my") {
     editor.append(card("A station that follows your listeners", "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library. My Station has no fixed tracklist."));
     editor.append(card("Only from Music’s approved catalog", "My Station chooses from the instrumental recordings in the stations above. Like tracks to shape future selections, or dislike them to exclude them while you are in the call. Manage your ratings with /library. Uploads, external links and tracks outside the catalog are not accepted."));
@@ -572,7 +579,7 @@ function render() {
     b.setAttribute("aria-current", key === page ? "page" : "false");
     $("music-pages").append(b);
   }
-  const albumOpen = page === "stations" && [...catalog.map(s => s.id), "my"].includes(new URLSearchParams(location.search).get("album"));
+  const albumOpen = page === "stations" && [...catalog.map(s => s.id), ...proposals.map(s => s.id), "my"].includes(new URLSearchParams(location.search).get("album"));
   if (page !== "stations") editor.append(button("← Choose another server", showServerPicker));
   if (!albumOpen) editor.append(
     el("h1", pages[page] || pages.overview),
@@ -1133,6 +1140,7 @@ async function loadServer(id) {
     if (seq !== sequence) return;
     model = data;
     catalog = stations.stations;
+    proposals = stations.proposals || [];
     baseline = JSON.stringify(data.settings);
     draft = structuredClone(data.settings);
     try {
