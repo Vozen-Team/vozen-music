@@ -31,6 +31,8 @@ try{
   assert.equal(await page.getByRole('button',{name:'← Choose another server',exact:true}).count(),0);
   assert.equal(await page.locator('#editor h1').innerText(),'Vozen Rain');
   assert.equal(await page.getByRole('link',{name:'← All stations',exact:true}).count(),1);
+  assert.equal(await page.locator('.station-album-header .album-back').count(),1);
+  assert.equal(await page.locator('.station-album-header').evaluate(e=>getComputedStyle(e.closest('main')).paddingTop),'0px');
   const geometry=await page.locator('.station-album-header').evaluate(hero=>{
    const cover=hero.querySelector('img').getBoundingClientRect(),banner=hero.getBoundingClientRect();
    const cell=document.querySelector('.track-number:has(.track-preview)').getBoundingClientRect(),play=document.querySelector('.track-preview').getBoundingClientRect();

@@ -468,8 +468,8 @@ function stationLibrary(editor) {
   info.append(el("p", "STATION COLLECTION", "album-label"), el("h1", selected.name), el("p", selected.id === "my" ? "Built from the listeners in your call." : `${selected.tracks.length} tracks · Various artists`));
   const cover = art(selected);
   cover.loading = "eager";
-  hero.append(cover, info);
-  editor.append(back, hero);
+  hero.append(cover, back, info);
+  editor.append(hero);
   if (selected.id === "my") {
     editor.append(card("A station that follows your listeners", "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library. My Station has no fixed tracklist."));
     return;
