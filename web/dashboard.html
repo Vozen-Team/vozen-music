@@ -9,6 +9,7 @@
   <link rel="icon" href="/music/avatar.png">
   <link rel="stylesheet" href="/music/css/global-nav-v1.css">
   <link rel="stylesheet" href="/music/dashboard.css">
+  <link rel="stylesheet" href="/music/server-picker.css?v=20261102">
   <script src="/music/dashboard.js" defer></script>
   <script src="/music/navigation.js" defer></script>
 </head>
@@ -66,17 +67,11 @@
       <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
       <section id="loading" class="loading" aria-live="polite"><h1>Loading your dashboard…</h1><p>Checking your Discord session.</p></section>
       <section id="empty" hidden><h1>No servers to manage yet</h1><p>You need Manage Server permission and Vozen Music must be installed. After adding the bot, refresh this list.</p><button id="refresh" type="button">Refresh servers</button></section>
-      <section id="server-picker" hidden aria-labelledby="picker-title">
-        <a class="button quiet" href="https://vozen.org/account/">← Back to account</a>
-        <p class="server-name">VOZEN MUSIC · DASHBOARD</p>
-        <h1 id="picker-title">Server settings</h1>
-        <p class="intro">Manage Music in your servers.</p>
-        <section class="music-card">
-          <h2>Choose a server</h2>
-          <p class="help">Servers you manage with Vozen Music installed.</p>
-          <div id="server-choices"></div>
-          <div class="picker-install"><div><strong>Add Music to another server</strong><p>Install Vozen Music in a server you manage.</p></div><a class="button primary" id="picker-invite" target="_blank" rel="noopener noreferrer">Add a server ↗</a></div>
-        </section>
+      <section id="server-picker" class="vozen-server-picker" hidden aria-labelledby="picker-title">
+        <div class="vp-intro"><div><p class="vp-product"><img src="/music/avatar.png" alt="">Vozen Music</p><h1 id="picker-title" class="vp-title">Your servers<span>.</span></h1></div><div class="vp-symbol" aria-hidden="true"><img src="/music/vozen.svg" alt=""><span></span><span></span></div></div>
+        <p class="vp-sr">Servers you manage with Vozen Music installed.</p>
+        <div id="server-choices" class="vp-list"></div>
+        <a class="vp-add" id="picker-invite" target="_blank" rel="noopener noreferrer">Add a server</a>
       </section>
       <section id="editor" hidden></section>
       <noscript><p>Enable JavaScript to sign in and manage Vozen Music settings.</p></noscript>

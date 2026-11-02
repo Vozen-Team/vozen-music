@@ -887,6 +887,15 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
+            "/music/server-picker.css",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/css; charset=utf-8")],
+                    include_str!("../web/server-picker.css"),
+                )
+            }),
+        )
+        .route(
             "/music/dashboard.js",
             get(|| async {
                 (

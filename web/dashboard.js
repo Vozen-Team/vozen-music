@@ -938,8 +938,8 @@ function showServerPicker() {
       page = "overview";
       return loadServer(server.id);
     });
-    row.className = "server-choice";
-    const avatar = el("span", server.name.slice(0, 1).toUpperCase(), "server-avatar");
+    row.className = "server-choice vp-server";
+    const avatar = el("span", server.name.slice(0, 1).toUpperCase(), "server-avatar vp-avatar");
     if (/^\d+$/.test(server.id) && /^(a_)?[a-f0-9]{32}$/.test(server.icon || "")) {
       const image = el("img");
       image.alt = "";
@@ -947,8 +947,8 @@ function showServerPicker() {
       image.addEventListener("error", () => image.remove());
       avatar.append(image);
     }
-    row.append(avatar, el("span", server.name));
-    const arrow = el("span", "›", "server-arrow");
+    row.append(avatar, el("span", server.name, "vp-name"));
+    const arrow = el("span", "›", "server-arrow vp-arrow");
     arrow.setAttribute("aria-hidden", "true");
     row.append(arrow);
     choices.append(row);
