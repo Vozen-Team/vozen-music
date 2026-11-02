@@ -24,9 +24,10 @@ try{
   const first=stations.find(s=>s.id==='rain').tracks[0];
   assert.equal(await page.locator('.station-tracks tbody tr').first().locator('.track-text strong').innerText(),first.title);
   assert.equal(await page.locator('.station-tracks tbody tr').first().locator('.track-duration').innerText(),`${Math.floor(durations[first.id]/60)}:${String(Math.floor(durations[first.id]%60)).padStart(2,'0')}`);
-  assert.equal(await page.locator('.track-credits').count(),25);
-  assert.equal(await page.locator('.track-credits').first().getAttribute('href'),first.source_url);
-  assert.match(await page.locator('.track-credits').first().getAttribute('aria-label'),/CC0-1.0/);
+  assert.equal(await page.locator('.station-tracks a').count(),0);
+  assert.equal(await page.locator('.album-credits a').first().getAttribute('href'),first.source_url);
+  assert.equal(await page.locator('.album-credits a').count(),25);
+  assert.equal(await page.locator('.track-preview').count(),25);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`track overflow ${width}`);
   if([390,1440].includes(width)){
    await page.locator('.track-identity img').evaluateAll(images=>Promise.all(images.map(i=>{i.loading='eager';return i.decode();})));
@@ -43,7 +44,7 @@ try{
  for(const station of stations){
   await page.goto(`${base}/music/dashboard?server=1&page=stations&album=${station.id}`);await page.locator('.station-tracks').waitFor();
   assert.deepEqual(await page.locator('.track-text strong').allTextContents(),station.tracks.map(t=>t.title));
-  assert.equal(await page.locator('.track-credits').count(),station.tracks.length);
+  assert.equal(await page.locator('.album-credits a').count(),station.tracks.length);
  }
  await page.goto(base+'/music/dashboard?server=1&page=stations&album=unknown');await page.locator('.station-albums').waitFor();
  await page.close();console.log('Station albums: 11 covers, all 250 recordings/credits, exact durations, keyboard/direct/reload/back navigation, dynamic My Station and seven widths passed.');

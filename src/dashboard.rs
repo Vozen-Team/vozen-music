@@ -806,6 +806,102 @@ async fn save(
 
 include!("dashboard_expansion.rs");
 
+fn preview_range(value: Option<&str>, length: u64) -> Option<(u64, u64)> {
+    if length == 0 {
+        return None;
+    }
+    let Some(value) = value else {
+        return Some((0, length - 1));
+    };
+    let (start, end) = value.strip_prefix("bytes=")?.split_once('-')?;
+    if !start.bytes().all(|b| b.is_ascii_digit()) || !end.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    if start.is_empty() {
+        let suffix = end.parse::<u64>().ok().filter(|v| *v > 0)?;
+        return Some((length.saturating_sub(suffix), length - 1));
+    }
+    let start = start.parse::<u64>().ok()?;
+    let end = if end.is_empty() {
+        length - 1
+    } else {
+        end.parse::<u64>().ok()?.min(length - 1)
+    };
+    (start < length && start <= end).then_some((start, end))
+}
+
+async fn recording_preview(
+    State(state): State<Arc<Dashboard>>,
+    headers: HeaderMap,
+    RoutePath(id): RoutePath<String>,
+) -> WebResult<Response> {
+    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+    state.login(&headers, false).await?;
+    let track = state
+        .bot
+        .catalog
+        .stations
+        .iter()
+        .flat_map(|s| &s.tracks)
+        .find(|t| t.id == id)
+        .ok_or(WebError(StatusCode::NOT_FOUND, "Recording not found."))?;
+    let mut file = tokio::fs::File::open(&track.file)
+        .await
+        .map_err(|_| unavailable())?;
+    let length = file.metadata().await.map_err(|_| unavailable())?.len();
+    let range = headers.get(header::RANGE);
+    let selected = if let Some(range) = range {
+        range
+            .to_str()
+            .ok()
+            .and_then(|value| preview_range(Some(value), length))
+    } else {
+        preview_range(None, length)
+    };
+    let Some((start, end)) = selected else {
+        return Ok((
+            StatusCode::RANGE_NOT_SATISFIABLE,
+            [(header::CONTENT_RANGE, format!("bytes */{length}"))],
+        )
+            .into_response());
+    };
+    file.seek(std::io::SeekFrom::Start(start))
+        .await
+        .map_err(|_| unavailable())?;
+    let mime = match track.file.extension().and_then(|e| e.to_str()) {
+        Some("mp3") => "audio/mpeg",
+        Some("ogg") => "audio/ogg",
+        Some("flac") => "audio/flac",
+        Some("wav") => "audio/wav",
+        _ => "application/octet-stream",
+    };
+    let size = end - start + 1;
+    let stream = tokio_util::io::ReaderStream::new(file.take(size));
+    let mut response = axum::body::Body::from_stream(stream).into_response();
+    response
+        .headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
+    response.headers_mut().insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from_str(&size.to_string()).unwrap(),
+    );
+    response
+        .headers_mut()
+        .insert(header::ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-store"),
+    );
+    if range.is_some() {
+        *response.status_mut() = StatusCode::PARTIAL_CONTENT;
+        response.headers_mut().insert(
+            header::CONTENT_RANGE,
+            HeaderValue::from_str(&format!("bytes {start}-{end}/{length}")).unwrap(),
+        );
+    }
+    Ok(response)
+}
+
 async fn album_cover(RoutePath(name): RoutePath<String>) -> WebResult<Response> {
     let bytes: &[u8] = match name.as_str() {
         "lofi-v1.webp" => include_bytes!("../web/albums/lofi-v1.webp"),
@@ -921,6 +1017,7 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route("/music/api/stations", get(station_catalog))
+        .route("/music/api/recordings/{id}/audio", get(recording_preview))
         .route(
             "/music/api/guilds/{guild}/playback",
             axum::routing::put(playback_timer),
@@ -1274,6 +1371,152 @@ mod tests {
             secret: "synthetic-client-secret".into(),
             auth: Mutex::new(auth),
         })
+    }
+
+    #[tokio::test]
+    async fn browser_preview_is_private_and_streams_only_catalog_recordings() {
+        use axum::{body::Body, http::Request};
+        let mut state = fixture();
+        let catalog = Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let track = &catalog.stations[0].tracks[0];
+        let uri = format!("/music/api/recordings/{}/audio", track.id);
+        let audio = std::fs::read(&track.file).unwrap();
+        Arc::get_mut(&mut Arc::get_mut(&mut state).unwrap().bot)
+            .unwrap()
+            .catalog = Arc::new(catalog);
+        let app = router(state.clone());
+        let response = app
+            .clone()
+            .oneshot(Request::builder().uri(&uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        for (range, expected) in [
+            (None, &audio[..]),
+            (Some("bytes=0-63"), &audio[..64]),
+            (Some("bytes=64-"), &audio[64..]),
+            (Some("bytes=-32"), &audio[audio.len() - 32..]),
+        ] {
+            let mut request = Request::builder()
+                .uri(&uri)
+                .header("cookie", "__Secure-vozen_music=test-session");
+            if let Some(range) = range {
+                request = request.header(header::RANGE, range);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                if range.is_some() {
+                    StatusCode::PARTIAL_CONTENT
+                } else {
+                    StatusCode::OK
+                }
+            );
+            assert_eq!(response.headers()[header::CONTENT_TYPE], "audio/ogg");
+            assert_eq!(
+                response.headers()[header::CACHE_CONTROL],
+                "private, no-store"
+            );
+            assert_eq!(response.headers()[header::ACCEPT_RANGES], "bytes");
+            assert_eq!(
+                response.headers()[header::CONTENT_LENGTH],
+                expected.len().to_string()
+            );
+            let bytes = axum::body::to_bytes(response.into_body(), audio.len())
+                .await
+                .unwrap();
+            assert_eq!(bytes.as_ref(), expected);
+        }
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("HEAD")
+                    .uri(&uri)
+                    .header("cookie", "__Secure-vozen_music=test-session")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(
+            response.headers()[header::CONTENT_LENGTH],
+            audio.len().to_string()
+        );
+        assert!(
+            axum::body::to_bytes(response.into_body(), 1)
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(&uri)
+                    .header("cookie", "__Secure-vozen_music=test-session")
+                    .header(header::RANGE, "bytes=999999999999-")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(
+            response.headers()[header::CONTENT_RANGE],
+            format!("bytes */{}", audio.len())
+        );
+        for suffix in ["unknown", "catalog.json", ".env"] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/music/api/recordings/{suffix}/audio"))
+                        .header("cookie", "__Secure-vozen_music=test-session")
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        }
+        assert!(
+            state.bot.sessions.lock().await.is_empty(),
+            "Browser previews cannot create Discord sessions"
+        );
+    }
+
+    #[test]
+    fn browser_preview_ranges_are_bounded() {
+        for (input, expected) in [
+            (None, Some((0, 99))),
+            (Some("bytes=0-0"), Some((0, 0))),
+            (Some("bytes=10-"), Some((10, 99))),
+            (Some("bytes=10-999"), Some((10, 99))),
+            (Some("bytes=-20"), Some((80, 99))),
+            (Some("bytes=-999"), Some((0, 99))),
+        ] {
+            assert_eq!(preview_range(input, 100), expected);
+        }
+        for value in [
+            "bytes=100-",
+            "bytes=10-1",
+            "bytes=-0",
+            "bytes=",
+            "bytes=0-1,3-4",
+            "bytes=+1-2",
+            "bytes= 1-2",
+            "items=0-1",
+            "bytes=18446744073709551616-",
+        ] {
+            assert_eq!(preview_range(Some(value), 100), None, "{value}");
+        }
+        assert_eq!(preview_range(None, 0), None);
     }
 
     #[tokio::test]

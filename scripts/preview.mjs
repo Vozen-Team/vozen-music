@@ -58,6 +58,20 @@ const server = http.createServer(async (req, res) => {
     return json({ guilds: [{ id: "1", name: "Example server" }] });
   if (p === "/music/api/stations")
     return json({ stations, pending: ["night", "rain", "sleep"] });
+  if (p.startsWith("/music/api/recordings/") && p.endsWith("/audio")) {
+    const id = p.split("/")[4];
+    const track = stations.flatMap(s => s.tracks).find(t => t.id === id);
+    if (!track) return json({ error: "Recording not found." }, 404);
+    const file = path.join(root, "media", track.file), size = fs.statSync(file).size;
+    const match = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || "");
+    const start = match ? Number(match[1]) : 0, end = match && match[2] ? Math.min(Number(match[2]), size - 1) : size - 1;
+    if (start > end || start >= size) { res.writeHead(416, { "Content-Range": `bytes */${size}` }); res.end(); return; }
+    const type = { ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".flac": "audio/flac" }[path.extname(file)];
+    res.writeHead(match ? 206 : 200, { "Content-Type": type, "Content-Length": end - start + 1, "Accept-Ranges": "bytes", ...(match ? { "Content-Range": `bytes ${start}-${end}/${size}` } : {}) });
+    if (req.method === "HEAD") { res.end(); return; }
+    const stream = fs.createReadStream(file, { start, end });
+    res.on("close", () => stream.destroy()); stream.pipe(res); return;
+  }
   // Layout fixture: original covers stand in for production's resized thumbnails.
   if (p.startsWith("/music/thumbnails/")) {
     const name = path.basename(p, ".webp") + ".png";

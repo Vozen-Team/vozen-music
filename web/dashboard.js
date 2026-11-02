@@ -1,6 +1,14 @@
 "use strict";
 const $ = (id) => document.getElementById(id);
 let profileView = null;
+let browserPreview = null;
+function stopBrowserPreview() {
+  if (!browserPreview) return;
+  browserPreview.pause();
+  browserPreview.removeAttribute("src");
+  browserPreview.load();
+  browserPreview = null;
+}
 let csrf = "",
   current = "",
   saving = false,
@@ -87,6 +95,7 @@ async function api(path, options = {}) {
   }
 }
 function signedOut() {
+  stopBrowserPreview();
   csrf = "";
   current = "";
   sequence++;
@@ -465,6 +474,42 @@ function stationLibrary(editor) {
   }
   const duration = seconds => Number.isFinite(seconds) && seconds >= 0
     ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}` : "—";
+  const audio = el("audio");
+  audio.preload = "none"; audio.volume = 0.5; audio.hidden = true;
+  browserPreview = audio;
+  const previewStatus = el("p", "Preview tracks in this browser. Discord playback stays unchanged.", "browser-preview-status");
+  previewStatus.setAttribute("role", "status");
+  let active = null, request = 0;
+  const controls = new Map();
+  const syncPreview = () => {
+    for (const [id, { button: control, row, track }] of controls) {
+      const playing = active?.id === id && !audio.paused && !audio.ended;
+      control.classList.toggle("is-playing", playing);
+      row.classList.toggle("is-previewing", playing);
+      control.setAttribute("aria-pressed", String(playing));
+      control.setAttribute("aria-label", `${playing ? "Pause" : "Play"} preview of ${track.title}`);
+    }
+    previewStatus.textContent = active ? `${audio.ended ? "Finished" : audio.paused ? "Paused" : "Previewing"}: ${active.title} — ${active.artist}. Only in this browser.` : "Preview tracks in this browser. Discord playback stays unchanged.";
+  };
+  for (const event of ["play", "pause", "ended", "emptied"]) audio.addEventListener(event, syncPreview);
+  const playPreview = async track => {
+    if (active?.id === track.id && !audio.paused) { audio.pause(); return; }
+    const currentRequest = ++request;
+    notice("");
+    if (active?.id !== track.id || audio.error) {
+      audio.pause(); active = track;
+      audio.src = `/music/api/recordings/${encodeURIComponent(track.id)}/audio`;
+    }
+    try { await audio.play(); }
+    catch (error) {
+      if (currentRequest === request && audio.isConnected && error.name !== "AbortError") {
+        audio.pause();
+        notice("This track could not be previewed. Reload or try another track.", "error");
+      }
+    }
+    syncPreview();
+  };
+  editor.append(audio, previewStatus);
   const table = el("table", undefined, "station-tracks");
   const caption = el("caption", `${selected.name} — tracks and credits`, "station-sr-only");
   const head = el("thead"), headings = el("tr"), body = el("tbody");
@@ -475,29 +520,41 @@ function stationLibrary(editor) {
   head.append(headings);
   selected.tracks.forEach((track, index) => {
     const row = el("tr");
-    row.append(el("td", String(index + 1), "track-number"));
+    const position = el("td", undefined, "track-number");
+    const play = button("", () => playPreview(track));
+    play.className = "track-preview";
+    play.setAttribute("aria-label", `Play preview of ${track.title}`);
+    play.setAttribute("aria-pressed", "false");
+    for (const [text, cls] of [[String(index + 1), "preview-number"], ["▶︎", "preview-play"], ["⏸︎", "preview-pause"]]) {
+      const icon = el("span", text, cls); icon.setAttribute("aria-hidden", "true"); play.append(icon);
+    }
+    controls.set(track.id, { button: play, row, track });
+    position.append(play); row.append(position);
     const cell = el("td"), identity = el("div", undefined, "track-identity"), text = el("div", undefined, "track-text");
     const thumb = el("img");
     thumb.src = track.thumbnail || "/music/avatar.png";
     thumb.alt = ""; thumb.width = thumb.height = 48; thumb.loading = "lazy";
     const meta = el("div", undefined, "track-meta");
     meta.append(el("span", track.artist));
-    if (track.source?.startsWith("https://")) {
-      const credits = el("a", "Credits ↗", "track-credits");
-      credits.href = track.source; credits.target = "_blank"; credits.rel = "noopener noreferrer";
-      credits.title = `Source & licence · ${track.license}`;
-      credits.setAttribute("aria-label", `Credits and ${track.license} licence for ${track.title}`);
-      meta.append(credits);
-    }
     text.append(el("strong", track.title), meta);
     identity.append(thumb, text); cell.append(identity);
     row.append(cell, el("td", selected.name, "track-album"), el("td", duration(track.duration_seconds), "track-duration"));
     body.append(row);
   });
   table.append(caption, head, body);
-  editor.append(table, el("p", `Licences: ${[...new Set(selected.tracks.map(t => t.license))].join(", ")}. Credits open the original sources.`, "album-licences"));
+  const credits = el("details", undefined, "album-credits");
+  credits.append(el("summary", "Credits & licences"));
+  const sources = el("ul");
+  for (const track of selected.tracks) {
+    const item = el("li"), link = el("a", `${track.title} — ${track.artist}`);
+    if (track.source?.startsWith("https://")) { link.href = track.source; link.target = "_blank"; link.rel = "noopener noreferrer"; }
+    item.append(link, el("span", ` · ${track.license}`)); sources.append(item);
+  }
+  credits.append(sources);
+  editor.append(table, credits);
 }
 function render() {
+  stopBrowserPreview();
   const editor = $("editor");
   editor.replaceChildren();
   $("music-pages").replaceChildren();
@@ -1169,6 +1226,7 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+window.addEventListener("pagehide", stopBrowserPreview);
 if (window.visualViewport) {
   const update = () =>
     document.documentElement.style.setProperty(
