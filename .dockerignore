@@ -6,6 +6,8 @@
 !web
 !web/**
 !assets
+!assets/fonts
+!assets/fonts/**
 !assets/brand
 !assets/brand/v4
 !assets/brand/v4/vozen-music-avatar.png
