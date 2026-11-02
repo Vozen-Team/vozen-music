@@ -30,11 +30,13 @@ let personal = {
   seconds: 0,
   ratings: {},
 };
+const durations = JSON.parse(fs.readFileSync(path.join(root, "web/track-durations.json"), "utf8"));
 const stations = JSON.parse(
   fs.readFileSync(path.join(root, "catalog.json"), "utf8"),
 ).stations.map((s) => ({
   ...s,
-  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url })),
+  cover: `/music/albums/${s.id}-v1.webp`,
+  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url, duration_seconds: durations[t.id], thumbnail: `/music/thumbnails/${path.basename(t.cover, ".png")}.webp` })),
 }));
 stations.push({ id: "my", name: "My Station", tracks: [] });
 const server = http.createServer(async (req, res) => {
@@ -56,6 +58,14 @@ const server = http.createServer(async (req, res) => {
     return json({ guilds: [{ id: "1", name: "Example server" }] });
   if (p === "/music/api/stations")
     return json({ stations, pending: ["night", "rain", "sleep"] });
+  // Layout fixture: original covers stand in for production's resized thumbnails.
+  if (p.startsWith("/music/thumbnails/")) {
+    const name = path.basename(p, ".webp") + ".png";
+    const track = stations.flatMap(s => s.tracks).find(t => t.cover && path.basename(t.cover) === name);
+    if (!track) { res.writeHead(404); res.end(); return; }
+    res.setHeader("Content-Type", "image/png");
+    res.end(fs.readFileSync(path.join(root, track.cover))); return;
+  }
   if (p.startsWith("/music/api/guilds/1/")) {
     const action = p.split("/").at(-1);
     let body = {};
@@ -137,6 +147,8 @@ const server = http.createServer(async (req, res) => {
     "/music/avatar.png": "assets/brand/v4/vozen-music-avatar.png",
     "/music/css/global-nav-v1.css": "web/global-nav-v1.css",
     "/music/header-font.woff2": "web/header-font.woff2",
+    "/music/assets/fonts/unbounded-500-latin.woff2": "assets/fonts/unbounded-500-latin.woff2",
+    "/music/assets/fonts/unbounded-500-latin-ext.woff2": "assets/fonts/unbounded-500-latin-ext.woff2",
   };
   const relative =
     mapping[p] ?? (p.startsWith("/music/") ? "web/" + p.slice(7) : "");
@@ -155,6 +167,7 @@ const server = http.createServer(async (req, res) => {
     ".js": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8",
     ".png": "image/png",
+    ".webp": "image/webp",
     ".svg": "image/svg+xml",
     ".woff2": "font/woff2",
   };

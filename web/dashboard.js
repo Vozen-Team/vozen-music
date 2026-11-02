@@ -416,10 +416,86 @@ function navigate(next) {
   step = 0;
   const url = new URL(location.href);
   url.searchParams.set("page", page);
+  url.searchParams.delete("album");
   history.replaceState(null, "", url);
   render();
   closeSections(true);
   $("main").focus();
+}
+function stationLibrary(editor) {
+  const stations = [...catalog.filter(s => s.id !== "my"), {
+    id: "my", name: "My Station", cover: "/music/albums/my-v1.webp", tracks: [],
+  }];
+  const selected = stations.find(s => s.id === new URLSearchParams(location.search).get("album"));
+  const linkTo = id => {
+    const url = new URL(location.href);
+    url.searchParams.set("page", "stations");
+    if (id) url.searchParams.set("album", id); else url.searchParams.delete("album");
+    return url.pathname + url.search;
+  };
+  const art = station => {
+    const img = el("img");
+    img.src = station.cover || "/music/avatar.png";
+    img.alt = "";
+    img.width = img.height = 640;
+    img.loading = "lazy";
+    return img;
+  };
+  if (!selected) {
+    const grid = el("div", undefined, "station-albums");
+    for (const station of stations) {
+      const album = el("a", undefined, "station-album");
+      album.href = linkTo(station.id);
+      album.append(art(station), el("strong", station.name), el("span", station.id === "my" ? "Your listeners’ favorites" : `${station.tracks.length} tracks · Instrumental`));
+      grid.append(album);
+    }
+    editor.append(grid);
+    return;
+  }
+  const back = el("a", "← All stations", "album-back");
+  back.href = linkTo(null);
+  const hero = el("section", undefined, "station-album-header");
+  const info = el("div");
+  info.append(el("p", "STATION COLLECTION", "album-label"), el("h2", selected.name), el("p", selected.id === "my" ? "Built from the listeners in your call." : `${selected.tracks.length} tracks · Various artists`));
+  hero.append(art(selected), info);
+  editor.append(back, hero);
+  if (selected.id === "my") {
+    editor.append(card("A station that follows your listeners", "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library. My Station has no fixed tracklist."));
+    return;
+  }
+  const duration = seconds => Number.isFinite(seconds) && seconds >= 0
+    ? `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}` : "—";
+  const table = el("table", undefined, "station-tracks");
+  const caption = el("caption", `${selected.name} — tracks and credits`, "station-sr-only");
+  const head = el("thead"), headings = el("tr"), body = el("tbody");
+  for (const [label, cls] of [["#", "track-number"], ["Title", ""], ["Album", "track-album"], ["Duration", "track-duration"]]) {
+    const th = el("th", label, cls);
+    th.scope = "col"; headings.append(th);
+  }
+  head.append(headings);
+  selected.tracks.forEach((track, index) => {
+    const row = el("tr");
+    row.append(el("td", String(index + 1), "track-number"));
+    const cell = el("td"), identity = el("div", undefined, "track-identity"), text = el("div", undefined, "track-text");
+    const thumb = el("img");
+    thumb.src = track.thumbnail || "/music/avatar.png";
+    thumb.alt = ""; thumb.width = thumb.height = 48; thumb.loading = "lazy";
+    const meta = el("div", undefined, "track-meta");
+    meta.append(el("span", track.artist));
+    if (track.source?.startsWith("https://")) {
+      const credits = el("a", "Credits ↗", "track-credits");
+      credits.href = track.source; credits.target = "_blank"; credits.rel = "noopener noreferrer";
+      credits.title = `Source & licence · ${track.license}`;
+      credits.setAttribute("aria-label", `Credits and ${track.license} licence for ${track.title}`);
+      meta.append(credits);
+    }
+    text.append(el("strong", track.title), meta);
+    identity.append(thumb, text); cell.append(identity);
+    row.append(cell, el("td", selected.name, "track-album"), el("td", duration(track.duration_seconds), "track-duration"));
+    body.append(row);
+  });
+  table.append(caption, head, body);
+  editor.append(table, el("p", `Licences: ${[...new Set(selected.tracks.map(t => t.license))].join(", ")}. Credits open the original sources.`, "album-licences"));
 }
 function render() {
   const editor = $("editor");
@@ -646,33 +722,7 @@ function render() {
       );
   }
   if (page === "stations") {
-    editor.append(
-      card(
-        "My Station",
-        "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library.",
-      ),
-    );
-    for (const s of catalog.filter((s) => s.id !== "my")) {
-      const c = card(s.name, `${s.tracks.length} recordings`);
-      const details = el("details"),
-        summary = el("summary", "Track credits");
-      details.append(summary);
-      const list = el("ul");
-      for (const t of s.tracks) {
-        const li = el("li");
-        const link = el("a", `${t.title} — ${t.artist}`);
-        if (t.source.startsWith("https://")) {
-          link.href = t.source;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-        }
-        li.append(link, el("small", ` · ${t.license}`));
-        list.append(li);
-      }
-      details.append(list);
-      c.append(details);
-      editor.append(c);
-    }
+    stationLibrary(editor);
     if (["night", "rain", "sleep"].some((id) => !catalog.some((s) => s.id === id)))
       editor.append(card("More stations", "Additional stations are being prepared."));
   }

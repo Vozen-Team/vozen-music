@@ -806,6 +806,80 @@ async fn save(
 
 include!("dashboard_expansion.rs");
 
+async fn album_cover(RoutePath(name): RoutePath<String>) -> WebResult<Response> {
+    let bytes: &[u8] = match name.as_str() {
+        "lofi-v1.webp" => include_bytes!("../web/albums/lofi-v1.webp"),
+        "ambient-v1.webp" => include_bytes!("../web/albums/ambient-v1.webp"),
+        "jazz-v1.webp" => include_bytes!("../web/albums/jazz-v1.webp"),
+        "electronic-v1.webp" => include_bytes!("../web/albums/electronic-v1.webp"),
+        "piano-v1.webp" => include_bytes!("../web/albums/piano-v1.webp"),
+        "cinematic-v1.webp" => include_bytes!("../web/albums/cinematic-v1.webp"),
+        "rock-v1.webp" => include_bytes!("../web/albums/rock-v1.webp"),
+        "night-v1.webp" => include_bytes!("../web/albums/night-v1.webp"),
+        "rain-v1.webp" => include_bytes!("../web/albums/rain-v1.webp"),
+        "sleep-v1.webp" => include_bytes!("../web/albums/sleep-v1.webp"),
+        "my-v1.webp" => include_bytes!("../web/albums/my-v1.webp"),
+        _ => return Err(WebError(StatusCode::NOT_FOUND, "Cover not found.")),
+    };
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/webp"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+static TRACK_THUMBNAILS: std::sync::LazyLock<Mutex<HashMap<String, Vec<u8>>>> =
+    std::sync::LazyLock::new(|| Mutex::new(HashMap::new()));
+static THUMBNAIL_JOBS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+
+async fn track_thumbnail(
+    State(state): State<Arc<Dashboard>>,
+    RoutePath(name): RoutePath<String>,
+) -> WebResult<Response> {
+    let original = name
+        .strip_suffix(".webp")
+        .ok_or(WebError(StatusCode::NOT_FOUND, "Cover not found."))?;
+    let original = format!("{original}.png");
+    let path = state
+        .bot
+        .catalog
+        .stations
+        .iter()
+        .flat_map(|s| &s.tracks)
+        .filter_map(|t| t.cover.as_ref())
+        .find(|p| p.file_name().and_then(|n| n.to_str()) == Some(original.as_str()))
+        .cloned()
+        .ok_or(WebError(StatusCode::NOT_FOUND, "Cover not found."))?;
+    let _permit = THUMBNAIL_JOBS.acquire().await.map_err(|_| unavailable())?;
+    let cached = TRACK_THUMBNAILS.lock().await.get(&name).cloned();
+    let bytes = if let Some(bytes) = cached {
+        bytes
+    } else {
+        let bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, vozen_music::Error> {
+            let image = image::open(path)?.thumbnail(128, 128);
+            let mut out = std::io::Cursor::new(Vec::new());
+            image.write_to(&mut out, image::ImageFormat::WebP)?;
+            Ok(out.into_inner())
+        })
+        .await
+        .map_err(|_| unavailable())?
+        .map_err(|_| unavailable())?;
+        TRACK_THUMBNAILS.lock().await.insert(name, bytes.clone());
+        bytes
+    };
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/webp"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
 async fn track_cover(
     State(state): State<Arc<Dashboard>>,
     RoutePath(name): RoutePath<String>,
@@ -835,6 +909,8 @@ async fn track_cover(
 fn router(state: Arc<Dashboard>) -> Router {
     Router::new()
         .route("/music/covers/{name}", get(track_cover))
+        .route("/music/albums/{name}", get(album_cover))
+        .route("/music/thumbnails/{name}", get(track_thumbnail))
         .route(
             "/music/navigation.js",
             get(|| async {
@@ -1198,6 +1274,118 @@ mod tests {
             secret: "synthetic-client-secret".into(),
             auth: Mutex::new(auth),
         })
+    }
+
+    #[tokio::test]
+    async fn album_library_artwork_durations_and_thumbnails_match_the_catalog() {
+        let mut state = fixture();
+        let catalog = Catalog::load(Path::new(env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let names: Vec<_> = catalog
+            .stations
+            .iter()
+            .map(|s| s.id.clone())
+            .chain(std::iter::once("my".into()))
+            .collect();
+        let first_cover = catalog.stations[0].tracks[0]
+            .cover
+            .as_ref()
+            .unwrap()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
+        Arc::get_mut(&mut Arc::get_mut(&mut state).unwrap().bot)
+            .unwrap()
+            .catalog = Arc::new(catalog);
+        let app = router(state);
+        let response = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/music/api/stations")
+                    .header("cookie", "__Secure-vozen_music=test-session")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(response.into_body(), 512 * 1024)
+            .await
+            .unwrap();
+        let library: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let stations = library["stations"].as_array().unwrap();
+        assert_eq!(stations.len(), 10);
+        for station in stations {
+            assert_eq!(station["tracks"].as_array().unwrap().len(), 25);
+            for track in station["tracks"].as_array().unwrap() {
+                assert!(track["duration_seconds"].as_f64().unwrap() > 0.0);
+                assert!(
+                    track["thumbnail"]
+                        .as_str()
+                        .unwrap()
+                        .starts_with("/music/thumbnails/")
+                );
+                assert_eq!(track["license"], "CC0-1.0");
+            }
+        }
+        for name in names {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(format!("/music/albums/{name}-v1.webp"))
+                        .body(axum::body::Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()[header::CONTENT_TYPE], "image/webp");
+            let bytes = axum::body::to_bytes(response.into_body(), 256 * 1024)
+                .await
+                .unwrap();
+            let picture = image::load_from_memory(&bytes).unwrap();
+            assert_eq!((picture.width(), picture.height()), (640, 640));
+        }
+        for _ in 0..2 {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(format!("/music/thumbnails/{first_cover}.webp"))
+                        .body(axum::body::Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers()[header::CONTENT_TYPE], "image/webp");
+            let bytes = axum::body::to_bytes(response.into_body(), 256 * 1024)
+                .await
+                .unwrap();
+            let picture = image::load_from_memory(&bytes).unwrap();
+            assert!(picture.width() <= 128 && picture.height() <= 128);
+        }
+        for path in [
+            "/music/albums/unknown-v1.webp",
+            "/music/albums/.env",
+            "/music/thumbnails/unknown.webp",
+            "/music/thumbnails/.env",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    axum::http::Request::builder()
+                        .uri(path)
+                        .body(axum::body::Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        }
     }
 
     #[tokio::test]

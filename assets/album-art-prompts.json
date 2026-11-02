@@ -1,0 +1,71 @@
+{
+  "common_prompt": "Create one square 1:1 album cover illustration, final production art for the Vozen Music station named below. No lettering, numbers, logos, watermarks, borders or UI. Original hand-drawn 2D anime background art with delicate ink lines, flat gouache color, quiet everyday detail, imperfect painted texture; nostalgic late-1990s animation background, refined lo-fi record sleeve, believable perspective. Avoid glossy 3D, photographic realism, neon cyberpunk, lens flare, generic AI fantasy, floating objects. Composition must read clearly as a small square thumbnail while rewarding closer inspection. This is part of a cohesive series, each cover tells a different scene. ",
+  "covers": [
+    {
+      "id": "lofi",
+      "prompt": "LOFI: An intimate Japanese hillside porch at warm peach sunset, worn wooden turntable on a low table next to a half-finished cup of tea, potted flowers and a distant seaside town. Soft dusty sage, apricot, faded navy. Still, lived-in, not overly busy.",
+      "file": "web/albums/lofi-v1.webp",
+      "sha256": "3e1b9fd43ef5af7439b72197765dcf02a7d2698f5a1a57654bc8960f06f5b8b1"
+    },
+    {
+      "id": "ambient",
+      "prompt": "AMBIENT: A lone weathered wooden observation deck among quiet blue-green mountain ridges, a small open notebook on its bench, drifting layers of low mist and a pale early-morning sky. Desaturated seafoam, silver-blue, ivory. Atmospheric space, no people.",
+      "file": "web/albums/ambient-v1.webp",
+      "sha256": "39c0a7cb326d530f9dfa6fecc0e6a33b87223fd08e6929feaf936f06a5b4ff27"
+    },
+    {
+      "id": "jazz",
+      "prompt": "JAZZ: A tiny after-hours jazz bar with a honey-colored upright double bass leaning beside a dark green velvet chair, brass saxophone in its open case, muted city window and two warm table lamps. Burgundy, tobacco brown, mustard, deep petrol. Intimate hand-painted interior, no text.",
+      "file": "web/albums/jazz-v1.webp",
+      "sha256": "3fcea8239bd0047cb70bbba63d78d1a2e83c9dd1d2e72dd6079c57f8faeffa71"
+    },
+    {
+      "id": "electronic",
+      "prompt": "ELECTRONIC: A small rooftop music studio overlooking an ordinary city at blue hour, compact analog synthesizer with patch cables on a desk, headphones, a small potted fern and lavender-blue sky through the open door. Indigo, muted coral, cool teal, tiny amber lights. Quiet electrical energy, no futuristic neon.",
+      "file": "web/albums/electronic-v1.webp",
+      "sha256": "c8b5003ef680ed9e3939451ca68dedadb50e32fe4f1d713559a269d4611c1c8c"
+    },
+    {
+      "id": "piano",
+      "prompt": "PIANO: An old upright piano beside a tall open window, thin ivory curtains moving in a summer breeze, afternoon light on the wooden keys, a small vase of wildflowers and a garden beyond. Faded olive, warm cream, honey wood, soft powder blue. Calm, tender, tactile painted detail.",
+      "file": "web/albums/piano-v1.webp",
+      "sha256": "c0a3b1786d49ed2d73cfb6333ba9d1531a464e39204c931b0b667c441f2b05d4"
+    },
+    {
+      "id": "cinematic",
+      "prompt": "CINEMATIC: A solitary small coastal railway platform at dawn, empty wooden bench and vintage luggage, railway tracks curve toward distant mountains and a vast pale gold sky with layered clouds. Deep slate blue, dusty gold, muted terra cotta. Wide emotional storytelling within a square painting.",
+      "file": "web/albums/cinematic-v1.webp",
+      "sha256": "9892919fe0f5b019c2ec6ddee7f217ade099e8310d9425ddb9212a26ed89e573"
+    },
+    {
+      "id": "rock",
+      "prompt": "ROCK: A beloved basement rehearsal room after the band has left: red electric guitar leaning against a worn amplifier, coiled instrument cable on an old patterned rug, small high window with evening light, faded wall paint. Brick red, faded denim, dusty charcoal, warm amber. Hand-drawn cozy indie music atmosphere, no posters with writing.",
+      "file": "web/albums/rock-v1.webp",
+      "sha256": "056e0fa2459e5f987eddced1e66cc9efb48a7021696180d00c50f1fd9161e618"
+    },
+    {
+      "id": "night",
+      "prompt": "NIGHT: A quiet steep Japanese residential lane seen from above descending toward city lights, utility cables across a vast dark teal sky, a narrow strip of orange sunset far at the horizon, one small warm-lit doorway. Deep blue-black, petrol, tiny soft amber lights. Restrained inked 2D night illustration, no people.",
+      "file": "web/albums/night-v1.webp",
+      "sha256": "595280c3e41001aea0c88cfcc1b65f4f743581895c204f88bd69a05f016e701a"
+    },
+    {
+      "id": "rain",
+      "prompt": "RAIN: A small Japanese neighborhood alley during gentle rain at pink dusk, tiled roofs, a bicycle resting by a mint-green house, potted plants outside a little cafe with warm window light, puddles reflecting peach sky, fine visible rain strokes. Dusty rose, sage, slate purple, soft golden windows. Cozy atmospheric drawn scene.",
+      "file": "web/albums/rain-v1.webp",
+      "sha256": "4f4cb690089aab4398bf133ecd8498ac63ffb37f329bf0cb19afd081f44171e1"
+    },
+    {
+      "id": "sleep",
+      "prompt": "SLEEP: An unoccupied cozy bedroom at night, loosely folded indigo bedding, open window framing a thin crescent moon over dark trees, linen curtains with soft lavender light, closed book on the bedside table. Midnight blue, muted violet, warm cream. Quiet sleepy hand-drawn background art, no luminous surreal sky.",
+      "file": "web/albums/sleep-v1.webp",
+      "sha256": "87687e4885c31d4570d21f41cc2960bf558074750ffcbb35a8731f0bb27a66e9"
+    },
+    {
+      "id": "my",
+      "prompt": "MY STATION: A personal listening corner by a big window: a small wooden shelf of hand-decorated blank record sleeves, a turntable, well-used headphones, a comfortable sage armchair, morning light and plant shadows on the floor. Muted teal, apricot, warm cream, plum. Inviting eclectic collection, no writing on sleeves.",
+      "file": "web/albums/my-v1.webp",
+      "sha256": "71b6cb29c825009627cd0646c7b131a46b266626ebbd1430630e64aba638a59f"
+    }
+  ]
+}

@@ -211,8 +211,10 @@ async fn station_catalog(
     headers: HeaderMap,
 ) -> WebResult<Json<serde_json::Value>> {
     state.login(&headers, false).await?;
+    let durations: HashMap<String, f64> = serde_json::from_str(include_str!("../web/track-durations.json"))
+        .expect("Bundled track durations are valid JSON");
     Ok(Json(
-        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":(["night","rain","sleep"].into_iter().filter(|id| !state.bot.catalog.stations.iter().any(|s| s.id == *id)).collect::<Vec<_>>())}),
+        serde_json::json!({"stations":state.bot.catalog.stations.iter().map(|s|serde_json::json!({"id":s.id,"name":s.name,"cover":format!("/music/albums/{}-v1.webp",s.id),"tracks":s.tracks.iter().map(|t|serde_json::json!({"id":t.id,"title":t.title,"artist":t.artist,"source":t.source_url,"license":t.license,"duration_seconds":durations.get(&t.id),"thumbnail":t.cover.as_ref().and_then(|p| p.file_stem()).and_then(|n|n.to_str()).map(|n|format!("/music/thumbnails/{n}.webp"))})).collect::<Vec<_>>()})).collect::<Vec<_>>(),"pending":(["night","rain","sleep"].into_iter().filter(|id| !state.bot.catalog.stations.iter().any(|s| s.id == *id)).collect::<Vec<_>>())}),
     ))
 }
 
