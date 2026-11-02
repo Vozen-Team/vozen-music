@@ -189,12 +189,8 @@ fn payload(
             .map(serde_json::to_value)
             .collect::<Result<Vec<_>, _>>()?,
     );
-    if !stopped {
-        let track = &station.tracks[session.current.load(Ordering::SeqCst)];
-        components.push(serde_json::json!({"type":10,"content":format!("-# [Credits & licence]({}) · {}",track.source_url,track.license)}));
-        if session.tips.load(Ordering::SeqCst) {
-            components.push(serde_json::json!({"type":10,"content":"-# Like and Dislike shape future tracks. /library shows your ratings. /skip-settings shows the skip rules."}));
-        }
+    if !stopped && session.tips.load(Ordering::SeqCst) {
+        components.push(serde_json::json!({"type":10,"content":"-# Like and Dislike shape future tracks. /library shows your ratings. /skip-settings shows the skip rules."}));
     }
     // Serenity's typed builders predate V2; its HTTP client still handles uploads and rate limits.
     Ok(
@@ -699,7 +695,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn player_card_keeps_credits_and_tracks_playback_and_voting_states() {
+    async fn player_card_keeps_accessible_metadata_and_playback_controls_without_a_credits_footer()
+    {
         let catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         let mut policy = vozen_music::skip::SkipSettings::default();
         let session = Session::new(0, 0, 123, policy.clone(), None);
@@ -722,18 +719,10 @@ mod tests {
         assert!(!text.contains(&track.artist));
         assert!(text.contains("Playing · 100%"));
         assert_eq!(components[2]["type"], 1);
-        assert!(
-            components[4]["content"]
-                .as_str()
-                .unwrap()
-                .contains(&track.source_url)
-        );
-        assert!(
-            components[4]["content"]
-                .as_str()
-                .unwrap()
-                .contains(&track.license)
-        );
+        assert_eq!(components.len(), 4);
+        assert!(!card.to_string().contains(&track.source_url));
+        assert!(!card.to_string().contains("Credits & licence"));
+        assert!(!card.to_string().contains(&track.license));
         assert!(!text.contains("Controls are for"));
         session.paused.store(true, Ordering::SeqCst);
         session.volume.store(40, Ordering::SeqCst);
