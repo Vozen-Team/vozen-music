@@ -39,9 +39,10 @@ try {
       const trigger = page.getByRole("button", { name: `Edit ${key}`, exact: true });
       await trigger.focus(); assert.equal(await trigger.evaluate(e => e === document.activeElement), true);
       const chooser = page.waitForEvent("filechooser");
-      await page.keyboard.press("Enter");
-      assert.equal((await chooser).isMultiple(), false);
-      await page.locator(`#profile-${key}`).setInputFiles({ name: "sample.png", mimeType: "image/png", buffer: picture });
+      await trigger.press("Enter");
+      const fileChooser = await chooser;
+      assert.equal(fileChooser.isMultiple(), false);
+      await fileChooser.setFiles({ name: "sample.png", mimeType: "image/png", buffer: picture });
       await page.waitForFunction(key => document.querySelector(`.profile-${key}`).src.startsWith("data:"), key);
     }
     assert.equal(puts, 0, "Previews must not upload before Apply");
