@@ -19,7 +19,13 @@ pub async fn finish_button(
 ) -> serenity::Result<()> {
     let content = match result {
         Err(error) => Some(error.to_string()),
-        Ok(message) if button.data.custom_id.starts_with("vozen:action:like:") => Some(message),
+        Ok(message)
+            if ["vozen:action:like:", "vozen:action:dislike:"]
+                .iter()
+                .any(|prefix| button.data.custom_id.starts_with(prefix)) =>
+        {
+            Some(message)
+        }
         _ => None,
     };
     if let Some(content) = content {
@@ -137,6 +143,7 @@ pub fn controls(
         ]),
         CreateActionRow::Buttons(vec![
             action("like").emoji(ReactionType::Unicode("❤️".into())),
+            action("dislike").emoji(ReactionType::Unicode("💔".into())),
             action("loop").label("↻").style(if looping {
                 ButtonStyle::Success
             } else {
@@ -237,7 +244,7 @@ fn payload(
         components.push(serde_json::json!({"type":10,"content":status}));
     }
     if !stopped && session.tips.load(Ordering::SeqCst) {
-        components.push(serde_json::json!({"type":10,"content":"-# Tap the heart to add or remove your like. Only you see the confirmation. /library shows your ratings; /dislike excludes a recording."}));
+        components.push(serde_json::json!({"type":10,"content":"-# Like and Dislike personalize your station using Music's approved catalog. Confirmations are private. /library shows or removes your ratings."}));
     }
     // Keep controls outside the container's side padding in narrow voice chats.
     let mut layout = vec![serde_json::json!({"type":17,"components":components})];
@@ -500,11 +507,19 @@ mod tests {
                 .await
                 .unwrap();
         }
+        button.data.custom_id = "vozen:action:dislike:1:1".into();
+        finish_button(
+            &http,
+            &button,
+            Ok("Your rating was saved for this server.".into()),
+        )
+        .await
+        .unwrap();
         finish_button(&http, &button, Err("Join the same voice channel.".into()))
             .await
             .unwrap();
         let records = requests.lock().unwrap();
-        assert_eq!(records.len(), 4);
+        assert_eq!(records.len(), 5);
         assert_eq!(
             records[1].1["content"],
             "Added this recording to your likes."
@@ -513,7 +528,11 @@ mod tests {
             records[2].1["content"],
             "Removed this recording from your likes."
         );
-        assert_eq!(records[3].1["content"], "Join the same voice channel.");
+        assert_eq!(
+            records[3].1["content"],
+            "Your rating was saved for this server."
+        );
+        assert_eq!(records[4].1["content"], "Join the same voice channel.");
         for (path, body) in &records[1..] {
             assert!(path.contains("/webhooks/222/"));
             assert_eq!(body["flags"], 64);
@@ -736,9 +755,14 @@ mod tests {
         assert_eq!(buttons[0]["components"][4]["disabled"], true);
         assert_eq!(buttons[1]["components"][0]["emoji"]["name"], "❤️");
         assert!(buttons[1]["components"][0].get("label").is_none());
-        assert_eq!(buttons[1]["components"][1]["label"], "↻");
-        assert_eq!(buttons[1]["components"][2]["label"], "Leave");
-        assert_eq!(buttons[1]["components"][2]["style"], 4);
+        assert_eq!(buttons[1]["components"][1]["emoji"]["name"], "💔");
+        assert_eq!(
+            buttons[1]["components"][1]["custom_id"],
+            "vozen:action:dislike:123:2"
+        );
+        assert_eq!(buttons[1]["components"][2]["label"], "↻");
+        assert_eq!(buttons[1]["components"][3]["label"], "Leave");
+        assert_eq!(buttons[1]["components"][3]["style"], 4);
         assert_eq!(buttons.as_array().unwrap().len(), 2);
         assert_eq!(buttons[0]["components"].as_array().unwrap().len(), 5);
         for (button, icon) in buttons[0]["components"]
@@ -753,10 +777,9 @@ mod tests {
                 "Transport buttons stay icon-only"
             );
         }
-        assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 3);
+        assert_eq!(buttons[1]["components"].as_array().unwrap().len(), 4);
         assert_eq!(buttons[0]["components"][2]["style"], 3);
-        assert_eq!(buttons[1]["components"][1]["style"], 2);
-        assert!(!buttons.to_string().contains("dislike"));
+        assert_eq!(buttons[1]["components"][2]["style"], 2);
         session.looping.store(true, Ordering::SeqCst);
         session.set_track(1).unwrap();
         assert_eq!(
@@ -767,7 +790,7 @@ mod tests {
         *session.policy.lock().unwrap() = policy;
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();
         assert_eq!(buttons[0]["components"][1]["disabled"], false);
-        assert_eq!(buttons[1]["components"][1]["style"], 3);
+        assert_eq!(buttons[1]["components"][2]["style"], 3);
         assert_eq!(buttons[1]["components"][0]["style"], 2);
         session.volume.store(0, Ordering::SeqCst);
         let buttons = serde_json::to_value(controls(&session, 3, false).unwrap()).unwrap();

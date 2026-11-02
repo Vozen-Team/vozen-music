@@ -478,6 +478,7 @@ function stationLibrary(editor) {
   editor.append(hero);
   if (selected.id === "my") {
     editor.append(card("A station that follows your listeners", "Four favorite selections for every discovery selection, using the people currently in the call. Each person has equal weight; dislikes exclude recordings. Use /like, /dislike and /library. My Station has no fixed tracklist."));
+    editor.append(card("Only from Music’s approved catalog", "My Station chooses from the instrumental recordings in the stations above. Like tracks to shape future selections, or dislike them to exclude them while you are in the call. Manage your ratings with /library. Uploads, external links and tracks outside the catalog are not accepted."));
     return;
   }
   const duration = seconds => Number.isFinite(seconds) && seconds >= 0

@@ -51,6 +51,8 @@ try{
   await page.getByRole('link',{name:'All stations',exact:true}).click();await page.locator('.station-albums').waitFor();
   await page.locator('.station-album').filter({hasText:'My Station'}).click();await page.getByText(/My Station has no fixed tracklist/).waitFor();
   assert.equal(await page.locator('.station-tracks').count(),0);
+  await page.getByRole('heading',{name:'Only from Music’s approved catalog',exact:true}).waitFor();
+  assert.match(await page.locator('#editor').innerText(),/Uploads, external links and tracks outside the catalog are not accepted/);
   assert.deepEqual(errors,[]);await page.close();
  }
  const page=await browser.newPage();
