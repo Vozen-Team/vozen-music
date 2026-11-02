@@ -36,33 +36,55 @@ function el(tag, text, cls) {
   if (cls) e.className = cls;
   return e;
 }
-function notice(message, kind = "info") {
+function notice(message, kind = "info", retry = null) {
   $("notice").textContent = message;
   $("notice").dataset.kind = kind;
   $("notice").hidden = !message;
+  $("load-retry").hidden = !retry;
+  $("load-retry").onclick = retry;
 }
 async function api(path, options = {}) {
-  const r = await fetch(`/music${path}`, {
-    credentials: "same-origin",
-    ...options,
-    headers: {
-      ...options.headers,
-      ...(options.method ? { "X-CSRF-Token": csrf } : {}),
-    },
-  });
-  let data;
-  try {
-    data = await r.json();
-  } catch {
-    throw Error("The server could not respond. Try again.");
+  const read = !options.method || options.method.toUpperCase() === "GET";
+  for (let attempt = 0; ; attempt++) {
+    let r;
+    try {
+      r = await fetch(`/music${path}`, {
+        credentials: "same-origin",
+        ...options,
+        headers: {
+          ...options.headers,
+          ...(options.method ? { "X-CSRF-Token": csrf } : {}),
+        },
+      });
+    } catch {
+      if (read && attempt < 2) {
+        await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+        continue;
+      }
+      throw Error(read ? "Could not connect to Music. Try again." : "The response was lost. Reload to check whether your change was applied.");
+    }
+    if (read && attempt < 2 && [502, 503, 504].includes(r.status)) {
+      await r.body?.cancel();
+      await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+      continue;
+    }
+    if (r.status === 401) {
+      signedOut();
+      throw Object.assign(Error("Your session expired. Sign in again."), { status: 401 });
+    }
+    let data;
+    try {
+      data = await r.json();
+    } catch {
+      throw Object.assign(Error("The server could not respond. Try again."), { status: r.status });
+    }
+    if (!r.ok) {
+      throw Object.assign(Error(data.error || "The request failed."), {
+        status: r.status,
+      });
+    }
+    return data;
   }
-  if (!r.ok) {
-    if (r.status === 401) signedOut();
-    throw Object.assign(Error(data.error || "The request failed."), {
-      status: r.status,
-    });
-  }
-  return data;
 }
 function signedOut() {
   csrf = "";
@@ -974,6 +996,7 @@ function showServerPicker() {
 async function loadServer(id) {
   const seq = ++sequence;
   current = id;
+  notice("");
   baseline = "";
   draft = null;
   $("server-picker").hidden = true;
@@ -1021,12 +1044,14 @@ async function loadServer(id) {
     history.replaceState(null, "", url);
     render();
   } catch (e) {
-    if (seq === sequence) notice(e.message, "error");
+    if (seq === sequence) notice(e.message, "error", e.status === 401 ? null : () => loadServer(id));
   } finally {
     if (seq === sequence) $("loading").hidden = true;
   }
 }
 async function refreshServers() {
+  notice("");
+  $("loading").hidden = false;
   try {
     const data = await api("/api/guilds");
     serverList = data.guilds;
@@ -1041,7 +1066,7 @@ async function refreshServers() {
     if (serverList.some((s) => s.id === wanted)) await loadServer(wanted);
     else showServerPicker();
   } catch (e) {
-    notice(e.message, "error");
+    notice(e.message, "error", e.status === 401 ? null : refreshServers);
   } finally {
     $("loading").hidden = true;
   }
@@ -1106,18 +1131,21 @@ if (window.visualViewport) {
     );
   visualViewport.addEventListener("resize", update);
 }
-(async () => {
+async function loadDashboard() {
+  notice("");
+  $("loading").hidden = false;
   try {
     const me = await api("/api/me");
     csrf = me.csrf;
     renderAccount(me.user);
     await refreshServers();
   } catch (e) {
-    signedOut();
     if (e.status === 401) {
       location.replace("https://vozen.org/account/?music=1");
       return;
     }
-    notice(e.message, "error");
+    $("loading").hidden = true;
+    notice(e.message, "error", loadDashboard);
   }
-})();
+}
+loadDashboard();
