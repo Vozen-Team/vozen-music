@@ -887,6 +887,21 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route(
+            "/assets/fonts/{font}",
+            get(|RoutePath(font): RoutePath<String>| async move {
+                let bytes = match font.as_str() {
+                    "unbounded-500-latin.woff2" => {
+                        include_bytes!("../assets/fonts/unbounded-500-latin.woff2").as_slice()
+                    }
+                    "unbounded-500-latin-ext.woff2" => {
+                        include_bytes!("../assets/fonts/unbounded-500-latin-ext.woff2").as_slice()
+                    }
+                    _ => return StatusCode::NOT_FOUND.into_response(),
+                };
+                ([(header::CONTENT_TYPE, "font/woff2")], bytes).into_response()
+            }),
+        )
+        .route(
             "/music/server-picker.css",
             get(|| async {
                 (
