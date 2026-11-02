@@ -714,9 +714,10 @@ function profileTextError(text, policy) {
     ? "Choose a different name or description. Discriminatory slurs and hate slogans are not allowed." : "";
 }
 function renderProfile(editor) {
-  const c = card("Server profile", "Personalise Music for this server. Review the preview before applying changes.");
-  const layout = el("div", undefined, "profile-layout"), form = el("form"), preview = el("aside", undefined, "profile-preview");
-  const view = { form, saved: {}, uploads: {}, pending: 0, loading: true };
+  const c = card("Server profile", "Edit your profile below. Nothing changes in Discord until you apply.");
+  c.classList.add("profile-editor-card");
+  const form = el("form"), surface = el("div", undefined, "discord-profile");
+  const view = { form, saved: {}, uploads: {}, pending: 0, loading: true, fields: {}, clear: {} };
   profileView = view;
   form.id = "profile-form";
   form.addEventListener("submit", e => { e.preventDefault(); saveProfile(false).catch(e => notice(e.message, "error")); });
@@ -725,16 +726,31 @@ function renderProfile(editor) {
     input.name = key; input.id = `profile-${key}`; input.disabled = true;
     if (type !== "textarea") input.type = type;
     if (max) input.maxLength = max;
-    if (type === "file") input.accept = "image/png,image/jpeg,image/webp";
+    if (type === "file") { input.accept = "image/png,image/jpeg,image/webp"; input.hidden = true; }
     lab.htmlFor = input.id;
     help.id = `profile-${key}-help`;
     input.setAttribute("aria-describedby", help.id);
     help.textContent = type === "file" ? "Static PNG, JPEG or WebP · up to 2 MB. Changes are previewed before upload." : "";
     wrap.append(lab, input, help);
+    view.fields[key] = wrap;
     if (type === "file") {
-      const clear = button("Clear selection", () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); notice(""); updateProfilePreview(view); });
+      lab.className = "profile-sr-only";
+      const clear = button(`Undo ${key} selection`, () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); notice(""); updateProfilePreview(view); });
+      clear.className = "profile-image-undo";
+      clear.setAttribute("aria-label", `Undo ${key} selection`); clear.title = `Undo ${key} selection`; clear.textContent = "↶";
+      clear.hidden = true; view.clear[key] = clear;
       clear.disabled = true;
-      wrap.append(clear);
+      const trigger = button("", () => input.click());
+      trigger.disabled = true; trigger.className = "profile-image-trigger";
+      trigger.setAttribute("aria-label", `Edit ${key}`);
+      const pencil = el("span", "✎", "profile-pencil"); pencil.setAttribute("aria-hidden", "true");
+      trigger.append(pencil, el("span", `Edit ${key}`, "profile-edit-label"));
+      const area = el("div", undefined, `profile-${key}-editor`);
+      const image = el("img", undefined, `profile-${key}`); image.alt = `${label} preview`;
+      if (key === "avatar") image.src = "/music/avatar.png"; else image.hidden = true;
+      view[key] = image;
+      area.append(image, trigger, clear);
+      wrap.prepend(area);
       input.addEventListener("change", async () => {
         notice("");
         delete view.uploads[key]; input.setCustomValidity("");
@@ -752,25 +768,21 @@ function renderProfile(editor) {
         } finally { view.pending--; updateProfilePreview(view); }
       });
     } else input.addEventListener("input", () => { notice(""); updateProfilePreview(view); });
-    form.append(wrap);
   }
+  const body = el("div", undefined, "profile-preview-body");
+  const name = el("div", undefined, "profile-preview-name");
+  name.append(view.fields.nick, el("span", "APP", "profile-app-badge"));
+  body.append(name, view.fields.bio, el("p", "Server profile · Preview", "profile-server-label"));
+  surface.append(view.fields.banner, view.fields.avatar, body);
+  form.append(surface, el("p", "Select the banner or avatar to change it. Static PNG, JPEG or WebP, up to 2 MB. This preview approximates Discord.", "help"));
   view.apply = button("Apply profile", () => saveProfile(false), true); view.apply.disabled = true;
   const actions = el("div", undefined, "profile-actions");
   actions.append(view.apply, button("Restore Vozen profile", () => { if (confirm("Restore the default bot profile in this server?")) return saveProfile(true); }));
   form.append(el("p", "Applies to this server only. Discriminatory names and descriptions are not allowed.", "help"), actions);
-  preview.append(el("h3", "Profile preview"), el("p", "Approximate Discord appearance. Nothing changes until you apply.", "help"));
-  const surface = el("div", undefined, "discord-profile"), banner = el("div", undefined, "profile-banner");
-  view.banner = el("img"); view.banner.alt = "Banner preview"; view.banner.hidden = true; banner.append(view.banner);
-  view.avatar = el("img", undefined, "profile-avatar"); view.avatar.alt = "Avatar preview"; view.avatar.src = "/music/avatar.png";
-  const body = el("div", undefined, "profile-preview-body"), name = el("div", undefined, "profile-preview-name");
-  view.name = el("strong", "Vozen Music"); name.append(view.name, el("span", "APP", "profile-app-badge"));
-  view.bio = el("p", "No description", "profile-preview-bio");
-  body.append(name, view.bio, el("p", "Server profile", "profile-server-label"));
-  surface.append(banner, view.avatar, body); preview.append(surface);
   view.error = el("p", "", "profile-error"); view.error.setAttribute("role", "status"); view.error.hidden = true;
   view.retry = button("Retry loading profile", () => loadProfile(current, sequence)); view.retry.hidden = true;
-  preview.append(view.error, view.retry);
-  layout.append(form, preview); c.append(layout); editor.append(c);
+  form.append(view.error, view.retry);
+  c.append(form); editor.append(c);
 }
 function updateProfilePreview(view) {
   if (profileView !== view || !view.form.isConnected) return;
@@ -781,8 +793,8 @@ function updateProfilePreview(view) {
     input.setAttribute("aria-invalid", String(!!message));
     $(`${input.id}-help`).textContent = `${[...input.value].length}/${input.maxLength} characters${input === nick ? " · Leave empty for the default name." : ""}`;
   }
-  view.name.textContent = nick.value || view.saved.default_name || "Vozen Music";
-  view.bio.textContent = bio.value || "No description";
+  nick.placeholder = view.saved.default_name || "Vozen Music";
+  bio.placeholder = "Add a description for this server…";
   const image = key => {
     if (view.uploads[key]) return view.uploads[key];
     const hash = view.saved[key], bot = view.saved.bot_id;
@@ -793,6 +805,7 @@ function updateProfilePreview(view) {
   const banner = image("banner");
   view.banner.hidden = !banner;
   if (banner) view.banner.src = banner; else view.banner.removeAttribute("src");
+  for (const key of ["avatar", "banner"]) view.clear[key].hidden = !$(`profile-${key}`).files.length;
   const invalid = [...view.form.querySelectorAll("input,textarea")].find(i => !i.validity.valid);
   view.error.textContent = invalid?.validationMessage || (view.pending ? "Preparing your image preview…" : "");
   view.error.hidden = !view.error.textContent;

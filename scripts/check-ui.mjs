@@ -14,7 +14,7 @@ try {
       page = await context.newPage();
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("http://localhost:4783/music/dashboard");
-    await page.getByRole("heading", { name: "Choose a server", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(await page.locator("#sidebar").isVisible(), false);
     assert.equal(await page.locator("#editor").isVisible(), false);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `picker overflow ${width}`);
@@ -92,7 +92,7 @@ try {
     );
     await go("Access & Channels");
     await page.getByRole("button", { name: "← Choose another server", exact: true }).click();
-    await page.getByRole("heading", { name: "Choose a server", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(new URL(page.url()).searchParams.has("server"), false);
     await page.locator(".server-choice").first().focus();
     await page.keyboard.press("Enter");

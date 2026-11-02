@@ -20,7 +20,7 @@ try {
       current = body.reset ? { ...current, nick: null, bio: "" } : { ...current, nick: body.nick, bio: body.bio };
       return route.fulfill({ json: { saved: true } });
     });
-    await page.goto("http://localhost:4783/music/dashboard?server=1&page=profile");
+    await page.goto(`${process.env.VOZEN_PREVIEW_URL || "http://localhost:4783"}/music/dashboard?server=1&page=profile`);
     const name = page.getByLabel("Display name", { exact: true });
     await name.waitFor(); await page.waitForFunction(() => document.getElementById("profile-nick")?.disabled === false);
     for (const text of ["nigger", "N1GG3R", "n.i.g.g.e.r", "ｎｉｇｇｅｒ", "n\u200bigger"]) {
@@ -31,12 +31,18 @@ try {
     assert.equal(puts, 0);
     await name.fill("Rain Radio");
     await page.getByLabel("Description", { exact: true }).fill("<b>Calm music</b>\nFor our server.");
-    assert.equal(await page.locator(".profile-preview-name strong").innerText(), "Rain Radio");
-    assert.equal(await page.locator(".profile-preview-bio b").count(), 0);
-    assert.match(await page.locator(".profile-preview-bio").innerText(), /<b>Calm music<\/b>/);
+    assert.equal(await page.locator(".discord-profile #profile-nick").inputValue(), "Rain Radio");
+    assert.equal(await page.locator(".discord-profile #profile-bio").inputValue(), "<b>Calm music</b>\nFor our server.");
+    assert.equal(await page.locator(".discord-profile b").count(), 0);
+    assert.equal(await page.locator(".profile-layout").count(), 0, "No separate editor/preview columns");
     for (const key of ["avatar", "banner"]) {
+      const trigger = page.getByRole("button", { name: `Edit ${key}`, exact: true });
+      await trigger.focus(); assert.equal(await trigger.evaluate(e => e === document.activeElement), true);
+      const chooser = page.waitForEvent("filechooser");
+      await page.keyboard.press("Enter");
+      assert.equal((await chooser).isMultiple(), false);
       await page.locator(`#profile-${key}`).setInputFiles({ name: "sample.png", mimeType: "image/png", buffer: picture });
-      await page.waitForFunction(key => document.querySelector(key === "banner" ? ".profile-banner img" : ".profile-avatar").src.startsWith("data:"), key);
+      await page.waitForFunction(key => document.querySelector(`.profile-${key}`).src.startsWith("data:"), key);
     }
     assert.equal(puts, 0, "Previews must not upload before Apply");
     await page.getByRole("button", { name: "Apply profile", exact: true }).click();
@@ -55,16 +61,18 @@ try {
     await page.locator("#profile-avatar").setInputFiles({ name: "large.png", mimeType: "image/png", buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
     await page.getByText("Images must be no larger than 2 MB.", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Apply profile", exact: true }).isDisabled(), true);
-    await page.getByRole("button", { name: "Clear selection", exact: true }).first().click();
+    await page.getByRole("button", { name: "Undo avatar selection", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Apply profile", exact: true }).isEnabled(), true);
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `profile overflow ${width}`);
+    const overflow = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth, elements: [...document.querySelectorAll("#profile-form *")].filter(e => e.getBoundingClientRect().right > innerWidth).map(e => e.id || e.className) }));
+    if(overflow.width > overflow.viewport) await page.screenshot({path:"output/profile-overflow-state.png",fullPage:true});
+    assert.equal(overflow.width > overflow.viewport, false, `profile overflow ${width}: ${JSON.stringify(overflow)}`);
     if ([390, 1440].includes(width)) {
       await page.evaluate(() => { window.scrollTo(0, 0); document.getElementById("main").scrollTop = 0; });
       await page.screenshot({ path: `output/music-profile-${width}.png`, fullPage: true });
     }
     await page.getByRole("button", { name: "Restore Vozen profile", exact: true }).click();
     await page.waitForFunction(() => document.getElementById("profile-nick").value === "");
-    assert.equal(await page.locator(".profile-preview-name strong").innerText(), "Vozen Music");
+    assert.equal(await name.getAttribute("placeholder"), "Vozen Music");
     assert.deepEqual(errors, []);
     await page.close();
   }
