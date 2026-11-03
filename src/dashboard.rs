@@ -1008,6 +1008,25 @@ async fn track_cover(
         .into_response())
 }
 
+async fn dashboard_page(Query(params): Query<HashMap<String, String>>) -> Html<String> {
+    let html = include_str!("../web/dashboard.html");
+    if params
+        .get("server")
+        .is_some_and(|id| id.parse::<u64>().is_ok_and(|id| id > 0))
+    {
+        Html(
+            html.replace("<aside id=\"sidebar\" hidden", "<aside id=\"sidebar\"")
+                .replace("<section id=\"loading\"", "<section id=\"loading\" hidden")
+                .replace(
+                    "aria-busy=\"true\" hidden><h1>Loading your dashboard",
+                    "aria-busy=\"true\"><h1>Loading your dashboard",
+                ),
+        )
+    } else {
+        Html(html.to_owned())
+    }
+}
+
 fn router(state: Arc<Dashboard>) -> Router {
     Router::new()
         .route("/music/covers/{name}", get(track_cover))
@@ -1052,10 +1071,7 @@ fn router(state: Arc<Dashboard>) -> Router {
             "/music/",
             get(|| async { Redirect::to("/music/dashboard") }),
         )
-        .route(
-            "/music/dashboard",
-            get(|| async { Html(include_str!("../web/dashboard.html")) }),
-        )
+        .route("/music/dashboard", get(dashboard_page))
         .route(
             "/music/dashboard.css",
             get(|| async {
@@ -1377,6 +1393,43 @@ mod tests {
             secret: "synthetic-client-secret".into(),
             auth: Mutex::new(auth),
         })
+    }
+
+    #[tokio::test]
+    async fn initial_loading_matches_the_server_route_before_scripts_run() {
+        use axum::{body::Body, http::Request};
+        let app = router(fixture());
+        for (query, workspace) in [
+            ("", false),
+            ("?server=1&page=stations&album=rain", true),
+            ("?server=invalid", false),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/music/dashboard{query}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let text = String::from_utf8(
+                axum::body::to_bytes(response.into_body(), 100_000)
+                    .await
+                    .unwrap()
+                    .to_vec(),
+            )
+            .unwrap();
+            assert_eq!(text.contains("<section id=\"loading\" hidden"), workspace);
+            assert_eq!(text.contains("<aside id=\"sidebar\" hidden"), !workspace);
+            assert_eq!(
+                text.contains("aria-busy=\"true\" hidden><h1>Loading your dashboard"),
+                !workspace
+            );
+            assert!(!text.contains("<script>"));
+        }
     }
 
     #[tokio::test]

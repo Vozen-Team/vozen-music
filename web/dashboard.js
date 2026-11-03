@@ -95,12 +95,16 @@ async function api(path, options = {}) {
     return data;
   }
 }
+function showLoading(workspace) {
+  $("loading").hidden = workspace !== false;
+  $("workspace-loading").hidden = workspace !== true;
+}
 function signedOut() {
   stopBrowserPreview();
   csrf = "";
   current = "";
   sequence++;
-  for (const id of ["editor", "sidebar", "loading", "empty", "server-picker"])
+  for (const id of ["editor", "sidebar", "loading", "workspace-loading", "empty", "server-picker"])
     $(id).hidden = true;
   $("welcome").hidden = false;
   renderAccount(null);
@@ -443,6 +447,14 @@ function stationLibrary(editor) {
     if (id) url.searchParams.set("album", id); else url.searchParams.delete("album");
     return url.pathname + url.search;
   };
+  const openAlbum = event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    history.pushState(null, "", event.currentTarget.href);
+    render();
+    $("main").scrollTop = 0;
+    $("main").focus();
+  };
   const art = station => {
     const img = el("img");
     img.src = station.cover || "/music/avatar.png";
@@ -456,6 +468,7 @@ function stationLibrary(editor) {
     for (const station of stations) {
       const album = el("a", undefined, "station-album");
       album.href = linkTo(station.id);
+      album.addEventListener("click", openAlbum);
       album.append(art(station), el("strong", station.name), el("span", station.proposed ? "In preparation" : station.id === "my" ? "Your listeners’ favorites" : `${station.tracks.length} tracks · Instrumental`));
       grid.append(album);
     }
@@ -467,6 +480,7 @@ function stationLibrary(editor) {
   arrow.setAttribute("aria-hidden", "true");
   back.append(arrow, el("span", "All stations"));
   back.href = linkTo(null);
+  back.addEventListener("click", openAlbum);
   const hero = el("section", undefined, "station-album-header");
   const info = el("div");
   const metadata = el("p", undefined, "album-metadata");
@@ -1082,7 +1096,7 @@ function showServerPicker() {
   draft = null;
   baseline = "";
   closeSections(false);
-  for (const id of ["editor", "sidebar", "loading", "empty"])
+  for (const id of ["editor", "sidebar", "loading", "workspace-loading", "empty"])
     $(id).hidden = true;
   notice("");
   const url = new URL(location.href);
@@ -1127,11 +1141,7 @@ async function loadServer(id) {
   renderServers();
   $("editor").hidden = true;
   $("empty").hidden = true;
-  $("loading").classList.remove("vozen-server-picker", "vp-loading");
-  $("loading").querySelector(".vp-initial-skeleton").hidden = true;
-  $("loading").querySelector(".vp-sr").hidden = true;
-  $("loading").querySelector(".music-workspace-loading").hidden = false;
-  $("loading").hidden = false;
+  showLoading(true);
   try {
     const [data, stations] = await Promise.all([
       api(`/api/guilds/${id}/server-settings`),
@@ -1170,17 +1180,18 @@ async function loadServer(id) {
   } catch (e) {
     if (seq === sequence) notice(e.message, "error", e.status === 401 ? null : () => loadServer(id));
   } finally {
-    if (seq === sequence) $("loading").hidden = true;
+    if (seq === sequence) showLoading(null);
   }
 }
 async function refreshServers() {
   notice("");
-  $("loading").hidden = false;
+  showLoading(!!new URLSearchParams(location.search).get("server"));
   try {
     const data = await api("/api/guilds");
     serverList = data.guilds;
     renderServers();
     if (!serverList.length) {
+      showLoading(null);
       if (!$("empty").querySelector(".install"))
         $("empty").append($("sidebar").querySelector('a[href*="discord.com/oauth2"]').cloneNode(true));
       $("empty").hidden = false;
@@ -1190,6 +1201,7 @@ async function refreshServers() {
     if (serverList.some((s) => s.id === wanted)) await loadServer(wanted);
     else showServerPicker();
   } catch (e) {
+    showLoading(null);
     notice(e.message, "error", e.status === 401 ? null : refreshServers);
   } finally {
     $("loading").hidden = true;
@@ -1245,6 +1257,14 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 window.addEventListener("pagehide", stopBrowserPreview);
+window.addEventListener("popstate", () => {
+  if (!draft || new URLSearchParams(location.search).get("server") !== current) return;
+  page = new URLSearchParams(location.search).get("page") || "overview";
+  if (!pages[page]) page = "overview";
+  render();
+  $("main").scrollTop = 0;
+  $("main").focus();
+});
 if (window.visualViewport) {
   const update = () =>
     document.documentElement.style.setProperty(
@@ -1258,7 +1278,7 @@ if (window.visualViewport) {
 }
 async function loadDashboard() {
   notice("");
-  $("loading").hidden = false;
+  showLoading(!!new URLSearchParams(location.search).get("server"));
   try {
     const me = await api("/api/me");
     csrf = me.csrf;
@@ -1269,7 +1289,7 @@ async function loadDashboard() {
       location.replace("https://vozen.org/account/?music=1");
       return;
     }
-    $("loading").hidden = true;
+    showLoading(null);
     notice(e.message, "error", loadDashboard);
   }
 }
