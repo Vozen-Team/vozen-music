@@ -12,6 +12,9 @@ try{
   await page.goto(base+'/music/dashboard?server=1&page=stations');
   await page.locator('.station-albums').waitFor();
   assert.equal(await page.locator('.station-album').count(),stations.length+proposals.length+1);
+  assert.equal(await page.locator('.station-album').first().locator('h2').innerText(),'My Station');
+  assert.deepEqual(await page.locator('.station-shelf h2').allTextContents(),['Slow down','Jazz & acoustic','Electronic','Rock, scores & bass']);
+  assert.equal(await page.locator('.station-shelf').filter({hasText:'Slow down'}).getByRole('link',{name:/Vozen Rain/}).count(),1);
   await page.locator('.station-album img').evaluateAll(images=>Promise.all(images.map(img=>img.decode())));
   assert.equal(await page.locator('.station-album img').evaluateAll(images=>images.every(i=>i.naturalWidth===640)),true);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`shelf overflow ${width}`);

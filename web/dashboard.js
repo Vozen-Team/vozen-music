@@ -35,7 +35,7 @@ const descriptions = {
   setup: "Choose how Music should work, then review and save.",
   playback: "Choose the sound and behaviour of your radio.",
   access: "Choose who can control Music and where it can play.",
-  stations: "Instrumental recordings, sources and credits.",
+  stations: "Find an instrumental station for your mood.",
   community: "Optional time-in-call profiles for this server.",
   profile: "Change how Music looks in this server only.",
 };
@@ -464,15 +464,50 @@ function stationLibrary(editor) {
     return img;
   };
   if (!selected) {
-    const grid = el("div", undefined, "station-albums");
-    for (const station of stations) {
+    const library = el("div", undefined, "station-albums");
+    const albumLink = station => {
       const album = el("a", undefined, "station-album");
       album.href = linkTo(station.id);
       album.addEventListener("click", openAlbum);
-      album.append(art(station), el("strong", station.name), el("span", station.proposed ? "In preparation" : station.id === "my" ? "Your listeners’ favorites" : `${station.tracks.length} tracks · Instrumental`));
-      grid.append(album);
+      return album;
+    };
+    const personal = stations.find(station => station.id === "my");
+    const featured = albumLink(personal);
+    featured.classList.add("station-featured");
+    const cover = art(personal);
+    cover.loading = "eager";
+    const intro = el("div", undefined, "station-featured-copy");
+    intro.append(el("span", "Personalized radio", "station-featured-label"), el("h2", personal.name), el("span", "A mix shaped by the people in your call."));
+    const arrow = el("span", "→", "station-featured-arrow");
+    arrow.setAttribute("aria-hidden", "true");
+    featured.append(cover, intro, arrow);
+    library.append(featured);
+
+    const groups = [
+      ["Slow down", ["lofi", "ambient", "night", "rain", "sleep"]],
+      ["Jazz & acoustic", ["jazz", "piano", "acoustic", "bossa-nova"]],
+      ["Electronic", ["electronic", "synthwave", "chill-house", "chiptune"]],
+      ["Rock, scores & bass", ["rock", "cinematic", "drum-and-bass"]],
+    ];
+    const remaining = new Map(stations.filter(s => s.id !== "my").map(s => [s.id, s]));
+    const addShelf = (title, entries) => {
+      if (!entries.length) return;
+      const shelf = el("section", undefined, "station-shelf");
+      const grid = el("div", undefined, "station-shelf-grid");
+      for (const station of entries) {
+        const album = albumLink(station);
+        album.append(art(station), el("strong", station.name), el("span", station.proposed ? "In preparation" : `${station.tracks.length} tracks`));
+        grid.append(album);
+      }
+      shelf.append(el("h2", title), grid);
+      library.append(shelf);
+    };
+    for (const [title, ids] of groups) {
+      addShelf(title, ids.map(id => remaining.get(id)).filter(Boolean));
+      ids.forEach(id => remaining.delete(id));
     }
-    editor.append(grid);
+    addShelf("More stations", [...remaining.values()]);
+    editor.append(library);
     return;
   }
   const back = el("a", undefined, "button quiet album-back");
