@@ -32,6 +32,7 @@ try {
  assert.equal(await firstPaint.locator('#loading').isVisible(),false);
  assert.equal(await firstPaint.locator('#workspace-loading').isVisible(),true);
  assert.equal(await firstPaint.locator('#sidebar').isVisible(),true);
+ assert.equal(await firstPaint.locator('#server-select').isDisabled(),true);
  await firstPaint.close();
  const retry=await browser.newPage();let fail=true;
  await retry.route('**/music/api/guilds/1/server-settings',r=>fail?r.fulfill({status:503,json:{error:'Synthetic settings failure'}}):r.continue());
