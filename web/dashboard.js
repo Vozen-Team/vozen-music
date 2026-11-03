@@ -494,7 +494,7 @@ function stationLibrary(editor) {
   editor.append(hero);
   if (selected.proposed) {
     editor.append(card(selected.name, selected.description));
-    editor.append(card("Music selection in progress", `This station needs at least ${selected.minimum_tracks} distinct, licensed instrumental recordings before it can play. License evidence, complete audio decoding and a full listening review for voice content and station suitability are still required. Its artwork is ready; no recordings from this collection are active in Discord.`));
+    editor.append(card("Music selection in progress", "This station will open once its instrumental tracks have passed the listening and license checks."));
     return;
   }
   if (selected.id === "my") {

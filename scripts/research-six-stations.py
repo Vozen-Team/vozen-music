@@ -112,7 +112,7 @@ def main():
             except Exception as error:
                 errors.append({'url': futures[future][1], 'error': str(error)})
     sources.sort(key=lambda s: (s['station'], s['source_title']))
-    result = {'reviewed_on': str(date.today()), 'scope': 'Candidate sources only. A CC0 declaration is not a full rights-chain investigation. Genre, voice content and subjective quality are not approved.', 'minimum_tracks_per_station': 25, 'sources': sources, 'tracks': [], 'research_errors': errors}
+    result = {'reviewed_on': str(date.today()), 'scope': 'Candidate sources only. A CC0 declaration is not a full rights-chain investigation. Genre, voice content and subjective quality are not approved.', 'sources': sources, 'tracks': [], 'research_errors': errors}
     if MANIFEST.exists():
         result['tracks'] = json.loads(MANIFEST.read_text(encoding='utf8')).get('tracks', [])
     MANIFEST.write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf8')

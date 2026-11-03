@@ -1637,7 +1637,6 @@ mod tests {
             let id = proposal["id"].as_str().unwrap();
             assert!(proposed_ids.insert(id));
             assert!(!stations.iter().any(|s| s["id"] == id));
-            assert_eq!(proposal["minimum_tracks"], 25);
             assert!(proposal.get("tracks").is_none());
             assert_eq!(proposal["cover"], format!("/music/albums/{id}-v1.webp"));
         }
