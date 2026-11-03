@@ -1130,11 +1130,17 @@ function serverAvatar(server, className) {
 }
 function renderServers() {
   const select = $("server-select");
+  $("selected-server-icon")?.remove();
   select.replaceChildren();
   for (const s of serverList) {
     const option = new Option(s.name, s.id, false, s.id === current);
     option.prepend(serverAvatar(s, "server-option-icon"));
     select.add(option);
+    if (s.id === current) {
+      const icon = serverAvatar(s, "server-option-icon");
+      icon.id = "selected-server-icon";
+      select.before(icon);
+    }
   }
   select.add(new Option("Choose another server", "__choose_server__"));
   select.disabled = saving;

@@ -151,10 +151,18 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   select:has(> option[value="__choose_server__"]) > option { display: flex; align-items: center; gap: 8px; }
   select:has(> option[value="__choose_server__"]) > option::checkmark { order: 1; margin-inline-start: auto; }
   option[value="__choose_server__"]::before { content: "+"; flex: 0 0 20px; text-align: center; }
-  option .server-option-icon { display: grid; place-items: center; flex: 0 0 20px; inline-size: 20px; block-size: 20px; border-radius: 6px; overflow: hidden; background: #263c53; color: #e5f2ff; font: 600 10px/1 system-ui; }
-  option .server-option-icon::before { content: attr(data-initials); }
-  option :is(img.server-option-icon, .server-option-icon img) { inline-size: 20px; block-size: 20px; object-fit: cover; }
-  option .server-option-icon:has(img)::before { content: none; }
+}
+
+#servers { position: relative; }
+.server-option-icon { display: grid; place-items: center; flex: 0 0 20px; inline-size: 20px; block-size: 20px; border-radius: 6px; overflow: hidden; background: #263c53; color: #e5f2ff; font: 600 10px/1 system-ui; }
+.server-option-icon::before { content: attr(data-initials); }
+.server-option-icon img { inline-size: 100%; block-size: 100%; object-fit: cover; }
+.server-option-icon:has(img)::before { content: none; }
+#selected-server-icon { position: absolute; inset-block: 8px 16px; inset-inline-start: 12px; margin-block: auto; pointer-events: none; z-index: 1; }
+#selected-server-icon + #server-select { min-width: 0; padding-inline-start: 40px; text-overflow: ellipsis; }
+@media (max-width: 900px) {
+  #selected-server-icon { inset-block: 0; inset-inline-start: 9px; }
+  #selected-server-icon + #server-select { padding-inline-start: 35px; }
 }
 
 /* Station collections: cover shelf, followed by a compact recording table. */
