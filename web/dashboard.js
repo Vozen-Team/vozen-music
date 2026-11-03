@@ -1080,11 +1080,27 @@ async function saveProfile(reset) {
     updateProfilePreview(view);
   }
 }
+function serverAvatar(server, className) {
+  const avatar = el("span", undefined, className);
+  avatar.setAttribute("aria-hidden", "true");
+  avatar.dataset.initials = server.name.slice(0, 1).toUpperCase();
+  if (/^\d+$/.test(server.id) && /^(a_)?[a-f0-9]{32}$/.test(server.icon || "")) {
+    const image = el("img");
+    image.alt = "";
+    image.src = `https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=64`;
+    image.addEventListener("error", () => image.remove());
+    avatar.append(image);
+  }
+  return avatar;
+}
 function renderServers() {
   const select = $("server-select");
   select.replaceChildren();
-  for (const s of serverList)
-    select.add(new Option(s.name, s.id, false, s.id === current));
+  for (const s of serverList) {
+    const option = new Option(s.name, s.id, false, s.id === current);
+    option.prepend(serverAvatar(s, "server-option-icon"));
+    select.add(option);
+  }
   select.add(new Option("Choose another server", "__choose_server__"));
   select.disabled = saving;
 }
@@ -1113,14 +1129,8 @@ function showServerPicker() {
       return loadServer(server.id);
     });
     row.className = "server-choice vp-server";
-    const avatar = el("span", server.name.slice(0, 1).toUpperCase(), "server-avatar vp-avatar");
-    if (/^\d+$/.test(server.id) && /^(a_)?[a-f0-9]{32}$/.test(server.icon || "")) {
-      const image = el("img");
-      image.alt = "";
-      image.src = `https://cdn.discordapp.com/icons/${server.id}/${server.icon}.png?size=64`;
-      image.addEventListener("error", () => image.remove());
-      avatar.append(image);
-    }
+    const avatar = serverAvatar(server, "server-avatar vp-avatar");
+    avatar.prepend(avatar.dataset.initials);
     row.append(avatar, el("span", server.name, "vp-name"));
     const arrow = el("span", "›", "server-arrow vp-arrow");
     arrow.setAttribute("aria-hidden", "true");
