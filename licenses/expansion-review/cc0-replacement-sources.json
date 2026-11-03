@@ -1,0 +1,51 @@
+{
+  "scope": "New source leads only; not approved audio or station quotas. Current selection is CC0-only.",
+  "sources": [
+    {
+      "title": "Bossa Nova Instrumental - Música Libre de Derechos Uso Comercial",
+      "artist": "Ezequiel David Urbano",
+      "source_url": "https://www.youtube.com/watch?v=iqqtaIza_WI",
+      "license": "CC0-1.0",
+      "evidence": "Original artist-channel description declares Creative Commons Zero 1.0 and commercial use without required mention.",
+      "source_published_on": "2018-05-17",
+      "approved": false,
+      "audio_review": "pending",
+      "download_status": "Original WAV source link still needs retrieval; do not rip the video."
+    },
+    {
+      "title": "Open Lo-Fi",
+      "artist": "btahir",
+      "source_url": "https://github.com/btahir/open-lofi",
+      "license": "CC0-1.0",
+      "catalog_url": "https://raw.githubusercontent.com/btahir/open-lofi/refs/heads/main/catalog.json",
+      "catalog_sha256": "f17c853f7d21d80c32b02eeebf6fcae0fb6f30ad762e3305a22009b1f1e9802b",
+      "catalog_count": 166,
+      "source_ai_generated": true,
+      "rights_evidence": "Publisher declares Suno v5 generation with a paid membership and dedicates recordings under CC0. Account/generation history not independently verified.",
+      "approved": false,
+      "audio_review": "pending",
+      "station_assignment": "Not determined from titles or broad category labels.",
+      "download_status": "Metadata only. Release download was not completed."
+    }
+  ],
+  "held_leads": [
+    {
+      "source_url": "https://songly.gift/en/app/free/license",
+      "reason": "Free catalog declares CC0, but service terms contain separate labelling clauses. Per-track source/terms and audio review remain incomplete; not admitted."
+    },
+    {
+      "source_url": "https://onsug.com/guide/Onsug_Guide_v1_Final.pdf",
+      "reason": "Author describes Midnight Cassette recordings as public domain; individual recording files, boundaries and audio have not been verified. The PDF itself has a separate noncommercial licence; do not confuse it with the recordings."
+    }
+  ],
+  "rejected_leads": [
+    {
+      "source_url": "https://freemusicarchive.org/music/oji/quiet-music/esperanza-linda-aflicao/",
+      "reason": "CC0 source explicitly labels Instrumental No."
+    },
+    {
+      "source_url": "https://www.midishow.com/en/midi/new-bossa-nova-midi-download-183327",
+      "reason": "CC0 label alongside Yamaha 1995 copyright notice; not admitted."
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 # CC BY expansion review — 2 November 2026
 
-The owner accepted CC BY after individual licence, credit and audio review, and subsequently accepted music declared as generated with AI under the same requirements. No candidate has been approved or activated. The 250 active CC0 recordings and their files remain unchanged.
+**Superseded:** the owner subsequently withdrew CC BY acceptance and requested CC0 alternatives. These 54 BY candidates and 14 FMA leads are excluded from the current selection. Their evidence is preserved; the local listening pool was restored to the original 111 CC0 candidates. The following is a historical preparation record.
+
+The owner initially accepted CC BY after individual licence, credit and audio review, and subsequently accepted music declared as generated with AI under the same requirements. No candidate has been approved or activated. The 250 active CC0 recordings and their files remain unchanged.
 
 | Station | Original checked CC0 candidates | Additional checked CC BY candidates | Local listening pool |
 |---|---:|---:|---:|

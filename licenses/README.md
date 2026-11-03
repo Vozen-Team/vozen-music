@@ -4,7 +4,11 @@ Checked on 2026-10-27. The active catalog has 175 recordings, 25 per station. Se
 
 The pages link to [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/). Its terms and limitations apply. The references and hashes below identify the files and support recovery; hashes do not prove a license.
 
-## Current admission policy — 2 November 2026
+## Current selection policy
+
+The owner withdrew the earlier CC BY choice and requested CC0 alternatives. The current six-station selection is CC0-only; no BY candidate is approved or active. The earlier implementation/evidence below is preserved as preparation history. See [replacement research](expansion-review/CC0-REPLACEMENTS.md).
+
+## Earlier admission preparation — 2 November 2026
 
 The opening count is the historical 27 October snapshot. The active catalog now contains 250 CC0 recordings across ten stations. Proposed collections are separate and unapproved. The owner also accepted individually reviewed CC BY 3.0/4.0 recordings, with creator/title, source, licence URL, supplied notices and an explicit changes statement. Public recording-specific credits and a compact player link support this attribution. NC, ND, SA and unspecified licence variants remain excluded. AI-declared music is eligible for consideration under the same review, not automatically approved. See [the expanded curation record](expansion-review/CURATION-CCBY-20261102.md).
 

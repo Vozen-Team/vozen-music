@@ -82,9 +82,9 @@ Source evidence includes explicit Instrumental labels, solo-instrument descripti
 
 Run `python scripts/check_catalog.py` with FFmpeg available to check the minimum station size, complete provenance coverage, SHA256 hashes, full decoding, and duplicate decoded recordings. These checks do not detect voices. The expansion adds one selected encoding/arrangement per composition; alternative encodings and menu arrangements were not counted as additional tracks.
 
-## New-station admission — 2 November 2026
+## New-station selection — current policy
 
-The six proposed collections remain unavailable for playback. In addition to CC0, the owner accepted CC BY 3.0/4.0 after individual source, attribution and audio review. Runtime validation requires explicit approval, instrumental evidence, supplied credit notices and a changes statement; NC, ND, SA and unspecified licence variants are not admitted. Permission to consider music declared as generated with AI does not replace these checks or establish rights ownership. See the [expanded listening review](licenses/expansion-review/CURATION-CCBY-20261102.md). The active catalog is still 250 CC0 recordings.
+The owner withdrew the earlier CC BY choice and requested CC0 alternatives. Only CC0 recordings are eligible for the current six-station selection; the CC BY candidates and FMA downloads are excluded. Historical evidence and the prepared attribution implementation are preserved, but no CC BY recording has been activated. The local listening pool contains the original 111 unapproved CC0 candidates. See [replacement research](licenses/expansion-review/CC0-REPLACEMENTS.md). The active catalog remains 250 CC0 recordings.
 
 ## Audio quality and playback recovery
 

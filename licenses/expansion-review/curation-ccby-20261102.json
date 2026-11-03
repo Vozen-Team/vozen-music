@@ -11521,6 +11521,8 @@
   "technical_errors": [],
   "owner_decisions": {
     "CC_BY": "Accepted after per-track licence, credit and audio review.",
-    "AI_music": "Accepted under the same review requirements, 2026-11-02."
-  }
+    "AI_music": "Accepted under the same review requirements, 2026-11-02.",
+    "current_policy": "CC0-only selection. Supersedes earlier CC BY acceptance. Preserve evidence but do not download or activate these candidates."
+  },
+  "selection_status": "Excluded from the current expansion: owner withdrew CC BY acceptance and requested CC0 alternatives."
 }
