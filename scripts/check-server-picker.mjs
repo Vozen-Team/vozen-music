@@ -23,7 +23,7 @@ try {
   await page.locator("#music-pages").getByRole("button", { name: "Playback", exact: true }).click();
   await page.getByLabel("Default and current volume", { exact: true }).fill("42");
   const select = page.locator("#server-select");
-  assert.equal(await select.locator("option").last().textContent(), "+ Choose another server");
+  assert.equal(await select.locator("option").last().textContent(), "Choose another server");
   assert.equal(await page.getByRole("button", { name: "Choose another server" }).count(), 0);
   await select.selectOption("__choose_server__");
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem("music-draft:1")).volume), 42);

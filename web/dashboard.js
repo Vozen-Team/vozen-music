@@ -1085,7 +1085,7 @@ function renderServers() {
   select.replaceChildren();
   for (const s of serverList)
     select.add(new Option(s.name, s.id, false, s.id === current));
-  select.add(new Option("+ Choose another server", "__choose_server__"));
+  select.add(new Option("Choose another server", "__choose_server__"));
   select.disabled = saving;
 }
 function showServerPicker() {
