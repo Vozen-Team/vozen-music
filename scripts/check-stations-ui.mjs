@@ -5,7 +5,7 @@ const browser=await chromium.launch();
 const base=process.env.VOZEN_PREVIEW_URL||'http://localhost:4783';
 const stations=JSON.parse(fs.readFileSync('catalog.json','utf8')).stations;
 const durations=JSON.parse(fs.readFileSync('web/track-durations.json','utf8'));
-const proposals=JSON.parse(fs.readFileSync('web/station-proposals.json','utf8'));
+const proposals=JSON.parse(fs.readFileSync('web/station-proposals.json','utf8')).filter(proposal=>!stations.some(station=>station.id===proposal.id));
 try{
  for(const width of [320,360,390,430,768,900,1440]){
   const page=await browser.newPage({viewport:{width,height:width===1440?1300:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -55,10 +55,9 @@ try{
   await page.getByRole('heading',{name:'Only from Music’s approved catalog',exact:true}).waitFor();
   assert.match(await page.locator('#editor').innerText(),/Uploads, external links and tracks outside the catalog are not accepted/);
   await page.goto(base+'/music/dashboard?server=1&page=stations&album=drum-and-bass');
-  await page.getByRole('heading',{name:'Music selection in progress',exact:true}).waitFor();
-  assert.equal(await page.locator('.station-tracks,audio').count(),0);
-  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`proposal overflow ${width}`);
-  if([390,1440].includes(width))await page.screenshot({path:`output/station-proposal-${width}.png`,fullPage:true});
+  await page.locator('.station-tracks').waitFor();
+  assert.equal(await page.locator('.track-preview').count(),stations.find(station=>station.id==='drum-and-bass').tracks.length);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Drum & Bass overflow ${width}`);
   assert.deepEqual(errors,[]);await page.close();
  }
  const page=await browser.newPage();
@@ -76,5 +75,5 @@ try{
   assert.equal(await page.locator('.album-credits a').count(),station.tracks.length);
  }
  await page.goto(base+'/music/dashboard?server=1&page=stations&album=unknown');await page.locator('.station-albums').waitFor();
- await page.close();console.log('Station albums: 17 covers, six non-playable proposals, all 250 recordings/credits, exact durations, keyboard/direct/reload/back navigation, dynamic My Station and seven widths passed.');
+ await page.close();console.log('Station albums, recordings, credits, durations, navigation and seven viewport widths passed.');
 }finally{await browser.close();}

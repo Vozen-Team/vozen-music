@@ -37,7 +37,7 @@ const stations = JSON.parse(
 ).stations.map((s) => ({
   ...s,
   cover: `/music/albums/${s.id}-v1.webp`,
-  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url, duration_seconds: durations[t.id], thumbnail: `/music/thumbnails/${path.basename(t.cover, ".png")}.webp` })),
+  tracks: s.tracks.map((t) => ({ ...t, source: t.source_url, duration_seconds: durations[t.id], thumbnail: t.cover ? `/music/thumbnails/${path.basename(t.cover, ".png")}.webp` : null })),
 }));
 stations.push({ id: "my", name: "My Station", tracks: [] });
 const server = http.createServer(async (req, res) => {

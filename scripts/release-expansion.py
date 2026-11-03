@@ -123,10 +123,20 @@ def main():
     previous = manifest['previous_image']
     assert run('docker', 'inspect', CONTAINER, '--format', '{{.Config.Image}}') == previous
     assert shutil.disk_usage(ROOT).free > 3 * (INCOMING / 'vozen-music').stat().st_size + 100 * 1024 * 1024
+    stage_root = ROOT
     if manifest.get('bundle_files'):
         assert digest(INCOMING / 'stations.tar.gz') == manifest['sha256']['stations.tar.gz']
-        assert shutil.disk_usage(ROOT).free > 3 * (INCOMING / 'stations.tar.gz').stat().st_size + 2 * (INCOMING / 'vozen-music').stat().st_size + 100 * 1024 * 1024
-    stage = ROOT / ('expansion-stage-' + manifest['source_revision'][:8])
+        stage_root = Path('/var/tmp/vozen-music-release-stage')
+        stage_root.mkdir(mode=0o700, exist_ok=True)
+        assert stage_root.is_dir() and not stage_root.is_symlink()
+        assert stage_root.stat().st_uid == 0 and stage_root.stat().st_mode & 0o777 == 0o700
+        if sys.argv[1] == 'stage':
+            with tarfile.open(INCOMING / 'stations.tar.gz', 'r:gz') as bundle:
+                unpacked_bytes = sum(member.size for member in bundle.getmembers())
+            assert shutil.disk_usage(stage_root).free > 2 * unpacked_bytes + 2 * (INCOMING / 'vozen-music').stat().st_size + 100 * 1024 * 1024
+            docker_root = run('docker', 'info', '--format', '{{.DockerRootDir}}')
+            assert shutil.disk_usage(docker_root).free > 2 * unpacked_bytes + 100 * 1024 * 1024
+    stage = stage_root / ('expansion-stage-' + manifest['source_revision'][:8])
     tag = 'vozen-music:expansion-' + manifest['source_revision'][:8]
     legacy_path = ROOT / 'data/skip-settings.json'
     if sys.argv[1] == 'stage':
@@ -217,7 +227,7 @@ def main():
         if manifest.get('station_counts'):
             catalog = json.loads(run('docker', 'exec', CONTAINER, 'cat', '/app/catalog.json'))
             assert {s['id']: len(s['tracks']) for s in catalog['stations']} == manifest['station_counts']
-            assert {'night', 'rain', 'sleep'} <= {c['value'] for c in play['options'][0]['choices']}
+            assert set(manifest['station_counts']) <= {c['value'] for c in play['options'][0]['choices']}
             for name, expected_hash in manifest['bundle_files'].items():
                 assert run('docker', 'exec', CONTAINER, 'sha256sum', '/app/' + name).split()[0] == expected_hash
         legacy_commands = discord(env, f'applications/{app}/guilds/1524199248248176751/commands')
