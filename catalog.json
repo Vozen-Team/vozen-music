@@ -3563,7 +3563,6 @@
     {
       "id": "synthwave",
       "name": "Vozen Synthwave",
-      "description": "Retro synthesizers, melodic basslines and an after-dark atmosphere.",
       "tracks": [
         {
           "title": "Drama",
@@ -3791,7 +3790,6 @@
     {
       "id": "acoustic",
       "name": "Vozen Acoustic",
-      "description": "Acoustic guitar and organic instruments for a quieter moment.",
       "tracks": [
         {
           "title": "A Small Fire Will Do (Calming Loop)",
@@ -3902,7 +3900,6 @@
     {
       "id": "chiptune",
       "name": "Vozen Chiptune",
-      "description": "Original retro game-inspired instrumentals and playful electronic melodies.",
       "tracks": [
         {
           "title": "Asteroids",
@@ -4195,7 +4192,6 @@
     {
       "id": "chill-house",
       "name": "Vozen Chill House",
-      "description": "Relaxed house rhythms, warm melodies and an easy summer atmosphere.",
       "tracks": [
         {
           "title": "Funky House",
@@ -4280,7 +4276,6 @@
     {
       "id": "drum-and-bass",
       "name": "Vozen Drum & Bass",
-      "description": "Melodic drum and bass with flowing textures and a faster pulse.",
       "tracks": [
         {
           "title": "Black Diamond",
@@ -4417,7 +4412,6 @@
     {
       "id": "bossa-nova",
       "name": "Vozen Bossa Nova",
-      "description": "Instrumental bossa nova with gentle guitar, light percussion and a sunny feel.",
       "tracks": [
         {
           "title": "Bossa Nova",
