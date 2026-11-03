@@ -937,7 +937,7 @@ mod tests {
     }
 
     #[test]
-    fn player_selects_the_matching_cover_for_every_recording() {
+    fn player_uses_track_artwork_or_falls_back_to_metadata() {
         let mut catalog: Catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
         catalog.stations.push(vozen_music::Station {
             id: "my".into(),
@@ -953,7 +953,18 @@ mod tests {
             for (index, track) in station.tracks.iter().enumerate() {
                 session.current.store(index, Ordering::SeqCst);
                 let card = payload(&catalog, &session, false, None).unwrap();
-                let name = super::super::player_artwork::filename(track.cover.as_ref().unwrap());
+                let Some(cover) = track.cover.as_ref() else {
+                    let component = &card["components"][0]["components"][0];
+                    assert_eq!(component["type"], 10);
+                    assert!(
+                        component["content"]
+                            .as_str()
+                            .unwrap()
+                            .contains(&track.title)
+                    );
+                    continue;
+                };
+                let name = super::super::player_artwork::filename(cover);
                 assert_eq!(
                     card["components"][0]["components"][0]["items"][0]["description"],
                     format!("{} by {}", track.title, track.artist)
