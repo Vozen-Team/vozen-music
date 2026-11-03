@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import tarfile
+from tempfile import TemporaryDirectory
 import urllib.request
 
 ROOT = Path('/srv/vozen-secure/music')
@@ -23,13 +24,12 @@ def stage_covers(manifest):
     expected = manifest.get('cover_files')
     if not expected:
         return
-    assert len(expected) == 250
     assert all(len(sha) == 64 and set(sha) <= set('0123456789abcdef') and name == sha + '.png' for name, sha in expected.items())
     assert digest(INCOMING / 'covers.tar') == manifest['sha256']['covers.tar']
     target = ROOT / 'covers'
-    if not target.exists():
-        pending = ROOT / ('covers-stage-' + manifest['source_revision'][:8])
-        pending.mkdir(mode=0o755)
+    assert not target.is_symlink()
+    with TemporaryDirectory(dir=ROOT, prefix='covers-stage-') as folder:
+        pending = Path(folder)
         with tarfile.open(INCOMING / 'covers.tar') as bundle:
             members = bundle.getmembers()
             assert len(members) == len(expected) and {m.name for m in members} == set(expected)
@@ -40,8 +40,18 @@ def stage_covers(manifest):
                 path = pending / member.name
                 path.write_bytes(data)
                 path.chmod(0o644)
-        pending.rename(target)
-    assert {p.name for p in target.iterdir()} == set(expected)
+        target.mkdir(mode=0o755, exist_ok=True)
+        for name, sha in expected.items():
+            path = target / name
+            assert not path.is_symlink()
+            if path.exists():
+                assert path.is_file() and digest(path) == sha
+        for name in expected:
+            path = target / name
+            try:
+                os.link(pending / name, path)
+            except FileExistsError:
+                assert not path.is_symlink() and digest(path) == expected[name]
     assert all(digest(target / name) == sha for name, sha in expected.items())
 
 def run(*args):
@@ -181,7 +191,7 @@ def main():
     env_bytes = (ROOT / '.env').read_bytes()
     compose_path = ROOT / 'compose.production.yaml'
     compose_bytes = compose_path.read_bytes()
-    if manifest.get('cover_files'):
+    if manifest.get('cover_files') and 'compose.production.yaml' in manifest['sha256']:
         assert digest(INCOMING / 'compose.production.yaml') == manifest['sha256']['compose.production.yaml']
         candidate_compose = (INCOMING / 'compose.production.yaml').read_bytes()
         addition = b'      - type: bind\n        source: ./covers\n        target: /app/covers\n        read_only: true\n        bind:\n          create_host_path: false\n'

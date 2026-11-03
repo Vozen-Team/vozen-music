@@ -33,6 +33,20 @@ class CoversRelease(unittest.TestCase):
             release.stage_covers(manifest)
             self.assertEqual(len(list((release.ROOT / 'covers').iterdir())), 250)
             self.assertEqual(release.cover_mount(), ['-v', str(release.ROOT / 'covers') + ':/app/covers:ro'])
+            extra = b'an additional catalog cover'
+            sha = hashlib.sha256(extra).hexdigest()
+            member = tarfile.TarInfo(sha + '.png')
+            member.size = len(extra)
+            with tarfile.open(release.INCOMING / 'covers.tar', 'w') as bundle:
+                bundle.addfile(member, io.BytesIO(extra))
+            manifest['cover_files'] = {member.name: sha}
+            manifest['sha256']['covers.tar'] = release.digest(release.INCOMING / 'covers.tar')
+            release.stage_covers(manifest)
+            release.stage_covers(manifest)
+            self.assertEqual(len(list((release.ROOT / 'covers').iterdir())), 251)
+            for name, old_sha in files.items():
+                self.assertEqual(release.digest(release.ROOT / 'covers' / name), old_sha)
+            files = manifest['cover_files']
             victim = release.ROOT / 'covers' / next(iter(files))
             victim.write_bytes(b'changed')
             with self.assertRaises(AssertionError):

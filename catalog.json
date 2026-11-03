@@ -3575,7 +3575,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.73,
-          "id": "rec-6c854c5e1a173b3c6928f999fbad682e3a2a539c957722434e30fb0e5fe5e14b"
+          "id": "rec-6c854c5e1a173b3c6928f999fbad682e3a2a539c957722434e30fb0e5fe5e14b",
+          "cover": "covers/822f92b68b1e779fc8a184f1cb38af864424507784ede8447cce976e6ef0a94b.png"
         },
         {
           "title": "Retro Soundtrack",
@@ -3588,7 +3589,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.9,
-          "id": "rec-997eadcb3c30f3dc4c6182642ad2f10ebedc47d76e0ba9b0a1fb56f8fa864ce3"
+          "id": "rec-997eadcb3c30f3dc4c6182642ad2f10ebedc47d76e0ba9b0a1fb56f8fa864ce3",
+          "cover": "covers/7cd5f6d109e1b8ac1772d8eb46e767e03770da7fc75d8f71eb40ef810937e515.png"
         },
         {
           "title": "Cyber Anxiety",
@@ -3601,7 +3603,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.88,
-          "id": "rec-116e46494453fef91a1afae2b3c89c2dfd6bff72bf595f5e906b3791c50bf0e9"
+          "id": "rec-116e46494453fef91a1afae2b3c89c2dfd6bff72bf595f5e906b3791c50bf0e9",
+          "cover": "covers/812c18d2f5ca019eaad5fa6c03c93a4ec928579ab4c5f22878cff41a0549c242.png"
         },
         {
           "title": "Lost In The Jungle",
@@ -3614,7 +3617,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -8.59,
-          "id": "rec-4def1fdf5fc5aaa799b38150a26cd7718a8db3eda75e0865c7ed77b3d8cb1070"
+          "id": "rec-4def1fdf5fc5aaa799b38150a26cd7718a8db3eda75e0865c7ed77b3d8cb1070",
+          "cover": "covers/bc8caafeea1a2b692f5d7f3d2d1781baecd41882a7c476c83e177c685b0b7227.png"
         },
         {
           "title": "Night Life",
@@ -3627,7 +3631,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -2.35,
-          "id": "rec-4a614225cfc6d4cf0272d237e43beed31eff876a9c2697d30e7a474d1badb7d9"
+          "id": "rec-4a614225cfc6d4cf0272d237e43beed31eff876a9c2697d30e7a474d1badb7d9",
+          "cover": "covers/b10f7251590dd598050e6cfd9ead0d4c4cb45477aecf0d54d98652ebcbb032b7.png"
         },
         {
           "title": "Day Dreams",
@@ -3640,7 +3645,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -6.75,
-          "id": "rec-ea612052533553e911bfc579cafcc47433a7b70689b059cbeed0e54263d23ed9"
+          "id": "rec-ea612052533553e911bfc579cafcc47433a7b70689b059cbeed0e54263d23ed9",
+          "cover": "covers/71f39906956c5f7d0727153e524f2bde09b7b8ac8e5729ce23ee05d43db66ee5.png"
         },
         {
           "title": "Fires Uptown",
@@ -3653,7 +3659,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.12,
-          "id": "rec-dbe6c71257d7b15bdebe164e180844d5a956449f3f629de328962edc81858240"
+          "id": "rec-dbe6c71257d7b15bdebe164e180844d5a956449f3f629de328962edc81858240",
+          "cover": "covers/2d12c3e70fdfb0c4cc5193a7c51ea413abcac9d3510b9a171d251535bc3c166e.png"
         },
         {
           "title": "Mutant Club",
@@ -3666,7 +3673,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -10.15,
-          "id": "rec-425368176086d269ef26f0f040856f621e0937a7dc7ff5e93198b4aa7f4f830e"
+          "id": "rec-425368176086d269ef26f0f040856f621e0937a7dc7ff5e93198b4aa7f4f830e",
+          "cover": "covers/614dcdb5044db60f334e2074b3710bd0d973e0baf45c65e115f86bc418060762.png"
         },
         {
           "title": "We used To Dance",
@@ -3679,7 +3687,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.6,
-          "id": "rec-c1f2b6858689f9fea80f878a39d1b9b118930ab6a45896c367fbab6db926042a"
+          "id": "rec-c1f2b6858689f9fea80f878a39d1b9b118930ab6a45896c367fbab6db926042a",
+          "cover": "covers/62d92e4071bcbecedcd5e073eb5c7b6a1704839b07a7bcb8dc7fc3b5e12bbaa5.png"
         },
         {
           "title": "Machines With Feelings",
@@ -3692,7 +3701,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.45,
-          "id": "rec-53379f0dfdc43a42045ad05e2ef79116182790d28f1428a5518c12ec4eba3f9c"
+          "id": "rec-53379f0dfdc43a42045ad05e2ef79116182790d28f1428a5518c12ec4eba3f9c",
+          "cover": "covers/69c0439f0bf45c2e1c096a9cca8fc3666cdaa07a4ffed198f0a6ba6b10d20f99.png"
         },
         {
           "title": "Retro Synths",
@@ -3705,7 +3715,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -7.66,
-          "id": "rec-cd2ba0b6f05a5be2f3a951e488613c57763db3acc89ac919aa15cddf83f11bca"
+          "id": "rec-cd2ba0b6f05a5be2f3a951e488613c57763db3acc89ac919aa15cddf83f11bca",
+          "cover": "covers/5e704ba63ce8f7ee159e684a7098676a918355c5b58c944e65dc917c5a2edf8c.png"
         },
         {
           "title": "50 Over The Speed Limit",
@@ -3718,7 +3729,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.57,
-          "id": "rec-0fb9e75a99db069f4721d208bd8de62744d852ae9ae5fada1c317c909bbee790"
+          "id": "rec-0fb9e75a99db069f4721d208bd8de62744d852ae9ae5fada1c317c909bbee790",
+          "cover": "covers/1f1a143a1dcf6d944699c649cb4b8da37427776ec3267205dea2bda625a1b9e4.png"
         },
         {
           "title": "Dear Mr Super Computer",
@@ -3731,7 +3743,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -7.47,
-          "id": "rec-bbcf00f0e610d96343bd5a082bd72d8e2c1e3473bb82299aac8db5b859386408"
+          "id": "rec-bbcf00f0e610d96343bd5a082bd72d8e2c1e3473bb82299aac8db5b859386408",
+          "cover": "covers/c664407d7fb337ac2ebde7cba84a2f1d79e094a0cff952e0b7a482960d8b5f9b.png"
         },
         {
           "title": "80's Synth Wave",
@@ -3744,7 +3757,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -7.5,
-          "id": "rec-ae07b6a42e5747130db985a0b04b36fcbe2f3b13eca9c9bc276d63445089f95c"
+          "id": "rec-ae07b6a42e5747130db985a0b04b36fcbe2f3b13eca9c9bc276d63445089f95c",
+          "cover": "covers/4f72b34877a1e275ddc9339f2d559191b7f34237b1b4231cbc9c9066eb135761.png"
         },
         {
           "title": "Aerobics Synth Wave",
@@ -3757,7 +3771,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -7.45,
-          "id": "rec-15281c6009faf208c3a5aa0ac80fddc27346528f7d1e5bf2efc5025b29ab591d"
+          "id": "rec-15281c6009faf208c3a5aa0ac80fddc27346528f7d1e5bf2efc5025b29ab591d",
+          "cover": "covers/61227b4350f1a249e810bf49f25762e6d0b79e8f2c8ca2a9e71dd5ab3aa231ac.png"
         },
         {
           "title": "Eyeless (Retrowave)",
@@ -3770,7 +3785,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -6.46,
-          "id": "rec-761ae12ffec606507ee8ca2fd0c99d8cba95f28f907fea7eec2f57ed333b8844"
+          "id": "rec-761ae12ffec606507ee8ca2fd0c99d8cba95f28f907fea7eec2f57ed333b8844",
+          "cover": "covers/d344b5d1b498e29246267e9b602a5761e03384ccbc68bfe4e50604e43d42df3f.png"
         },
         {
           "title": "Love you Anna",
@@ -3783,7 +3799,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": 0.32,
-          "id": "rec-fb5adf47d81fc78f967df654865775b3f84685bc1567863942bd8b5410ca0b60"
+          "id": "rec-fb5adf47d81fc78f967df654865775b3f84685bc1567863942bd8b5410ca0b60",
+          "cover": "covers/b2f25ec3606ed6b156f4ce32772f1912fddd7076d2f96461592b065f7dda204b.png"
         }
       ]
     },
@@ -3802,7 +3819,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": 4.23,
-          "id": "rec-1cb42057e724224d6047f651b95598f5c094caaaba47f6430dd5d540c09c4414"
+          "id": "rec-1cb42057e724224d6047f651b95598f5c094caaaba47f6430dd5d540c09c4414",
+          "cover": "covers/373c69be956b9cce83fb8c4af152fc2f2647480eedf60cef46a65c02271b896e.png"
         },
         {
           "title": "Cozy Puzzle In-Game 3",
@@ -3815,7 +3833,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -6.49,
-          "id": "rec-56551121c11db983564106fbc199ed647a555e3e798501f3c6847c29278ebe37"
+          "id": "rec-56551121c11db983564106fbc199ed647a555e3e798501f3c6847c29278ebe37",
+          "cover": "covers/1cb32317a1b58df2d77442d45093be245a460ac6162cdd3ab8d797b683c17987.png"
         },
         {
           "title": "Down the river",
@@ -3828,7 +3847,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.09,
-          "id": "rec-67ee3daaf2492f4b09ce04cec9c02dfb2200ac9b036d7dafb3bb3416cb9c5ead"
+          "id": "rec-67ee3daaf2492f4b09ce04cec9c02dfb2200ac9b036d7dafb3bb3416cb9c5ead",
+          "cover": "covers/2727a2ce840e25554fd23a22964ea557b95499fc016112ad52a854b69efba03e.png"
         },
         {
           "title": "Etirwer",
@@ -3841,7 +3861,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": 1.37,
-          "id": "rec-382c02bfb3d9abe1c9f432606dd95f27bcef28ac22097ccdcef12a8c608b421b"
+          "id": "rec-382c02bfb3d9abe1c9f432606dd95f27bcef28ac22097ccdcef12a8c608b421b",
+          "cover": "covers/28b1b82908cab57d5d8b8f4d18408fa71376f71b89cd67d4e575d56a528f6532.png"
         },
         {
           "title": "Remember this shadow",
@@ -3854,7 +3875,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.78,
-          "id": "rec-8b8a90a63bcc958e088a430ca957694150914d28792044edb59354201636ff7c"
+          "id": "rec-8b8a90a63bcc958e088a430ca957694150914d28792044edb59354201636ff7c",
+          "cover": "covers/e51344c15b914d6c012165e6de0e419a27baff074c263513eb417aac5563344d.png"
         },
         {
           "title": "Kalimba",
@@ -3867,7 +3889,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -0.51,
-          "id": "rec-8213b99a893fac07ef4288a56057ce76a8d2d8a9c50c257c5c92bb26214febd1"
+          "id": "rec-8213b99a893fac07ef4288a56057ce76a8d2d8a9c50c257c5c92bb26214febd1",
+          "cover": "covers/393dcdb564195bf49cfde48fac7e04eb08343dc3409dc7484e568152c332c2a0.png"
         },
         {
           "title": "Sunset Plains",
@@ -3880,7 +3903,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.84,
-          "id": "rec-f3750f8eda8bf42662b12f5726404675689b50f05ccaa968c5cb2e33d9172a62"
+          "id": "rec-f3750f8eda8bf42662b12f5726404675689b50f05ccaa968c5cb2e33d9172a62",
+          "cover": "covers/a0db7e34bdfc54b4083444b796bad1a320cfba258b6e017284d0c0b83b3f2165.png"
         },
         {
           "title": "Unhappy Man",
@@ -3893,7 +3917,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.73,
-          "id": "rec-426a54f360279da84f5ba51e4402d13b644c6d5777ffa574634f61ca6f8e2cbf"
+          "id": "rec-426a54f360279da84f5ba51e4402d13b644c6d5777ffa574634f61ca6f8e2cbf",
+          "cover": "covers/4a35c707c1f4e0701b6ef18faebdc6d250362a96969911626358edfc0067773c.png"
         }
       ]
     },
@@ -3912,7 +3937,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -2.83,
-          "id": "rec-398c86ce6e8b6b94764c9193d83d6f1cbfbcafdf2f6a109892abf8eca1b871b5"
+          "id": "rec-398c86ce6e8b6b94764c9193d83d6f1cbfbcafdf2f6a109892abf8eca1b871b5",
+          "cover": "covers/9b6293a02b9c2307ab4b87e210674805fdbe2eaaa841b3f477fa839a7adf3406.png"
         },
         {
           "title": "In The End",
@@ -3925,7 +3951,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -2.48,
-          "id": "rec-7f7345e9d9acaeadeb018b3df89ffe03c8a61b913c1a29a605762fe263b4a66c"
+          "id": "rec-7f7345e9d9acaeadeb018b3df89ffe03c8a61b913c1a29a605762fe263b4a66c",
+          "cover": "covers/5fa1dee4c81a00e86fb705cd9916fe07266205869444c54dddce91b9ddbdf753.png"
         },
         {
           "title": "Pixel Party",
@@ -3938,7 +3965,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.4,
-          "id": "rec-1406e04c95c4352568cc2c17e9081393b3bd9df611618f34a25abd20b01496cf"
+          "id": "rec-1406e04c95c4352568cc2c17e9081393b3bd9df611618f34a25abd20b01496cf",
+          "cover": "covers/05d09ec065da8b8cb8da47a6c97670c2176accb475971d25303642febf0c4a18.png"
         },
         {
           "title": "Level 2",
@@ -3951,7 +3979,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -6.66,
-          "id": "rec-fb4ef24c8d944b20b5caf99448dd0398ddcca6881e5029a8bd94b2fe5376d070"
+          "id": "rec-fb4ef24c8d944b20b5caf99448dd0398ddcca6881e5029a8bd94b2fe5376d070",
+          "cover": "covers/1d6d6b088635c13f9c8fce92efed4217e5a30bc7899c093b94514c6ffc6cc5d7.png"
         },
         {
           "title": "Scroller",
@@ -3964,7 +3993,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.93,
-          "id": "rec-3569ebc46bec0c6418985bc9ada4abada2ea84dc89c3f83dca965befdad41a04"
+          "id": "rec-3569ebc46bec0c6418985bc9ada4abada2ea84dc89c3f83dca965befdad41a04",
+          "cover": "covers/b911d8f74b952711b15b93576d50af9ddc53899b603f6656e522880fb58fce11.png"
         },
         {
           "title": "Complications",
@@ -3977,7 +4007,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -10.48,
-          "id": "rec-6ac743a2c53f86f2eb2dea48525fc9aafce1501c0afba5cfa3db902162ec7e91"
+          "id": "rec-6ac743a2c53f86f2eb2dea48525fc9aafce1501c0afba5cfa3db902162ec7e91",
+          "cover": "covers/14a7f78c405c46ffe8b4d6b87f32cc0996d2c597f94d194cd4444467db570e18.png"
         },
         {
           "title": "ICE temple",
@@ -3990,7 +4021,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.56,
-          "id": "rec-3be3194a044916ecc1a98752138e497ab20db9cbc5654866073a940f441b5339"
+          "id": "rec-3be3194a044916ecc1a98752138e497ab20db9cbc5654866073a940f441b5339",
+          "cover": "covers/a24dd09e8fb24db8ba113efd882a5b71cad07d426461a2b8648d7254d3707811.png"
         },
         {
           "title": "Gamer 75",
@@ -4003,7 +4035,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.7,
-          "id": "rec-fc5b9b096620e1f15e2cc9e2ad5318792976b959784be6fa3aa7d5016930a4a4"
+          "id": "rec-fc5b9b096620e1f15e2cc9e2ad5318792976b959784be6fa3aa7d5016930a4a4",
+          "cover": "covers/61209c6a4db033e04240453b7853ef860d7b758c70838058c8b9159e35e10df0.png"
         },
         {
           "title": "Adventure Begins Loop",
@@ -4016,7 +4049,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -0.46,
-          "id": "rec-284f397e33fc391d299fcef554fb515b5bd5b8211c2e8e47501357827e8f203b"
+          "id": "rec-284f397e33fc391d299fcef554fb515b5bd5b8211c2e8e47501357827e8f203b",
+          "cover": "covers/e588a5cbd14d0767239282e6cfa8cc12b434f544fddaffe116360cef7f0317ae.png"
         },
         {
           "title": "Sunny Afternoon",
@@ -4029,7 +4063,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.67,
-          "id": "rec-61b324bb2f10912d8f9b01a74255e1db8798a3f12848f195b6d44c7f96c29625"
+          "id": "rec-61b324bb2f10912d8f9b01a74255e1db8798a3f12848f195b6d44c7f96c29625",
+          "cover": "covers/7f2c6ae3a8a4245cb1cce81605566727c568722e43027b8973307fa4d3692bfb.png"
         },
         {
           "title": "Where It's Safe",
@@ -4042,7 +4077,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -0.63,
-          "id": "rec-ad58372bd53c2e0c9656a9e9914ce2937d9bfc63540f5646974a36bcda9b262f"
+          "id": "rec-ad58372bd53c2e0c9656a9e9914ce2937d9bfc63540f5646974a36bcda9b262f",
+          "cover": "covers/c862d6c8983e62782473f3121aea3100ce28e1a45c73d1475a68d89325e37e8d.png"
         },
         {
           "title": "NPC Theme",
@@ -4055,7 +4091,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -6.57,
-          "id": "rec-64b3465d00f7442ccd6066620830dbb0c0a4cb574445cc9edeea8cba10371686"
+          "id": "rec-64b3465d00f7442ccd6066620830dbb0c0a4cb574445cc9edeea8cba10371686",
+          "cover": "covers/5d829a097d018d4ddfcdc4f4c15d8045e13db073a8b1946710da2d8b85f6e852.png"
         },
         {
           "title": "aura horizon",
@@ -4068,7 +4105,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": 0.62,
-          "id": "rec-d41d2bcb9e39ae36280219b53cfd712050c252e455144996ecc315c76f209348"
+          "id": "rec-d41d2bcb9e39ae36280219b53cfd712050c252e455144996ecc315c76f209348",
+          "cover": "covers/e8b2ee3c21532824ad0f4b01e7487fdcd291c3bdbba6c1cd98f3beab934f78e4.png"
         },
         {
           "title": "backup plan",
@@ -4081,7 +4119,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -5.51,
-          "id": "rec-3f310ccdcb25f08a01dcf69a3890f3260ca4d62e324b30fc7360a802876f32ac"
+          "id": "rec-3f310ccdcb25f08a01dcf69a3890f3260ca4d62e324b30fc7360a802876f32ac",
+          "cover": "covers/c7c660bc9c9662317a6b65a6f1b122b9de4d19b91164a988559cff1a563d5d6c.png"
         },
         {
           "title": "glizzy elf forest interrupted by grizzly dwarf thief battle",
@@ -4094,7 +4133,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.4,
-          "id": "rec-8938357eadc3bbde2762f85bcfebb6c8e2b1c821829d74854333402956f95798"
+          "id": "rec-8938357eadc3bbde2762f85bcfebb6c8e2b1c821829d74854333402956f95798",
+          "cover": "covers/584a523da4fdf39611e6338ef2a7358148d5af7449d709efab8d4f9f28f4f177.png"
         },
         {
           "title": "hush hamlet",
@@ -4107,7 +4147,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.16,
-          "id": "rec-2f203a8ade4b8603e54c2503211d8d31afd976705e7e29c6ffd19498d268df1b"
+          "id": "rec-2f203a8ade4b8603e54c2503211d8d31afd976705e7e29c6ffd19498d268df1b",
+          "cover": "covers/f051049091614538bf077f4a6154ad6286ade628dc086994bc5f608329b0f77f.png"
         },
         {
           "title": "insect factory",
@@ -4120,7 +4161,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -2.02,
-          "id": "rec-cc65aa18f6f704d261adf7e0256b626512f6d59f17ec7633e6cffd504b7a2621"
+          "id": "rec-cc65aa18f6f704d261adf7e0256b626512f6d59f17ec7633e6cffd504b7a2621",
+          "cover": "covers/849afb11e803d0c5123e61fa5033760d3a2f54c231f09f560c89fdbbf7453595.png"
         },
         {
           "title": "old tricks",
@@ -4133,7 +4175,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.64,
-          "id": "rec-957ccd3e81389b1bf34a2fb383b6d68bfdb91306dfdcdb910868e16be36b7020"
+          "id": "rec-957ccd3e81389b1bf34a2fb383b6d68bfdb91306dfdcdb910868e16be36b7020",
+          "cover": "covers/5bb00b9272f9fd82cb0a582c6a6fa1e1a826f6b4019052a9b68e5ee114327008.png"
         },
         {
           "title": "poker night",
@@ -4146,7 +4189,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -2.04,
-          "id": "rec-0a6ec03d374e4f324336fc2e020fd5e20f401018780ab3ea952a10bf49356a59"
+          "id": "rec-0a6ec03d374e4f324336fc2e020fd5e20f401018780ab3ea952a10bf49356a59",
+          "cover": "covers/3254a736e293a496bb4f6de6d7144ce3fd3471386d3179e060afcb1b5e3ca0d7.png"
         },
         {
           "title": "sideways city",
@@ -4159,7 +4203,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -5.65,
-          "id": "rec-16d817a297be6ab26883ea1dcfc362f0db59825d9ee598c7f43783b5ad5e208c"
+          "id": "rec-16d817a297be6ab26883ea1dcfc362f0db59825d9ee598c7f43783b5ad5e208c",
+          "cover": "covers/12136c3b695d047e610c4c2dc5d91baed53930541117439823d0bdf54f445011.png"
         },
         {
           "title": "starlight city",
@@ -4172,7 +4217,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.72,
-          "id": "rec-9ebb2e8ed3c26a407afe1ebe9522757b9b9aff5ab4f95301ea8924a85a13ab1a"
+          "id": "rec-9ebb2e8ed3c26a407afe1ebe9522757b9b9aff5ab4f95301ea8924a85a13ab1a",
+          "cover": "covers/07a61d9ce00cd57abf10954148767c44bd2ede0f1827d1064cb98b629a07df2d.png"
         },
         {
           "title": "the cool factor",
@@ -4185,7 +4231,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -5.87,
-          "id": "rec-04ea1e678697508138c394cac4383ce2a63b70aa7dfb93c9e9dc784946993c0f"
+          "id": "rec-04ea1e678697508138c394cac4383ce2a63b70aa7dfb93c9e9dc784946993c0f",
+          "cover": "covers/83515ba5a00146adc1d8935cb0d0853496bbcf230b05effb6180005e50c21ddc.png"
         }
       ]
     },
@@ -4204,7 +4251,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -11.1,
-          "id": "rec-2dac2b9ef09a6ec7c3a8fbda54f854aa976dc714f335dd329ca14631ef347967"
+          "id": "rec-2dac2b9ef09a6ec7c3a8fbda54f854aa976dc714f335dd329ca14631ef347967",
+          "cover": "covers/e2889614c7fccc388aa370da1876e876b85f9f105bef748a86364cc7c541cb6d.png"
         },
         {
           "title": "Liquid Flame (CC0)",
@@ -4217,7 +4265,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.69,
-          "id": "rec-d4007576187e42ecffe9b1f9e6f08afc5af69ed5ad5a293b2dc879531d0cfa21"
+          "id": "rec-d4007576187e42ecffe9b1f9e6f08afc5af69ed5ad5a293b2dc879531d0cfa21",
+          "cover": "covers/a925c75c7f6e396900b0f7ac1c0057981fd6b169ff43688bf139798b4ee9d26b.png"
         },
         {
           "title": "Pacific Ocean",
@@ -4230,7 +4279,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.93,
-          "id": "rec-562d5ab87ff05fcff45dc29a90edbcfda5c795218602997712d2a369126cdd5b"
+          "id": "rec-562d5ab87ff05fcff45dc29a90edbcfda5c795218602997712d2a369126cdd5b",
+          "cover": "covers/be0c8a1d94119f1d437b0e56e52ca3e249ee6993411ee539f1101170b9a46fb9.png"
         },
         {
           "title": "Progress",
@@ -4243,7 +4293,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.72,
-          "id": "rec-36200fbfbab6aecd691c6af078d031ca8414ec54428aa7546bcaeb7f1bf8dc50"
+          "id": "rec-36200fbfbab6aecd691c6af078d031ca8414ec54428aa7546bcaeb7f1bf8dc50",
+          "cover": "covers/e6131e9898cd2b0fb309ab20982796e4a3d9a9242ae904de3a91ad5b4f3960a0.png"
         },
         {
           "title": "Synthwave House Loop",
@@ -4256,7 +4307,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.96,
-          "id": "rec-ac6a7af314f55de46e28c8068249ebb26c471e67d1a4745ee04eb0c0c9bacf0b"
+          "id": "rec-ac6a7af314f55de46e28c8068249ebb26c471e67d1a4745ee04eb0c0c9bacf0b",
+          "cover": "covers/4c9343011906fe1b413d37475f8b97f0f37a8f96444c1ee8e290555939dd898b.png"
         },
         {
           "title": "Subtlety",
@@ -4269,7 +4321,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.47,
-          "id": "rec-da8a8b9261cf1dcf13aa8dd5a1a6e311bee61288a2107e233a137a28e904d7a9"
+          "id": "rec-da8a8b9261cf1dcf13aa8dd5a1a6e311bee61288a2107e233a137a28e904d7a9",
+          "cover": "covers/da10f16ae7920f37c1c1e4a8e91b2c0e06b9255ad2b567f1e0c04273468a20e4.png"
         }
       ]
     },
@@ -4288,7 +4341,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -4.04,
-          "id": "rec-9fd1c9a97740411e7dcaebdc9af17ab017cf070a82089a48503765a24b7bedf4"
+          "id": "rec-9fd1c9a97740411e7dcaebdc9af17ab017cf070a82089a48503765a24b7bedf4",
+          "cover": "covers/c34ec25732cae125c193db6923c72f7f4ac8eacaecbbd6c6b284c85208f45e05.png"
         },
         {
           "title": "Drum and bass",
@@ -4301,7 +4355,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -8.2,
-          "id": "rec-53530c0ccd9d2f8390d71487dfd31022b1bf4b0440b36e995be76cfa44d17f86"
+          "id": "rec-53530c0ccd9d2f8390d71487dfd31022b1bf4b0440b36e995be76cfa44d17f86",
+          "cover": "covers/a7368bc1ab839cdf42bb258e587eef2b7eb5f9dfe97af3a266c8e15e27279fe9.png"
         },
         {
           "title": "Lo-fi chiptune glitch D'n'B",
@@ -4314,7 +4369,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -5.97,
-          "id": "rec-0c078ea76847572e03b56df529a4c241e71512805f7742913c0bbb1047d5408f"
+          "id": "rec-0c078ea76847572e03b56df529a4c241e71512805f7742913c0bbb1047d5408f",
+          "cover": "covers/b5e1d960dad113d9a95d52acef6d85ebf1ed729f61202de98d53e972f7ee2d3c.png"
         },
         {
           "title": "RC-SOO-XVI-1 | Blacksand Beaches Race",
@@ -4327,7 +4383,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -9.11,
-          "id": "rec-5f421fde954a92e8e8aca262035f2cbd1b47db93747f1a98d35916adf92deb7a"
+          "id": "rec-5f421fde954a92e8e8aca262035f2cbd1b47db93747f1a98d35916adf92deb7a",
+          "cover": "covers/0035fcd979f16604535b246795218bc440958f1ef556a6dda72431995125e728.png"
         },
         {
           "title": "RC-SOO-XVI-2 | The Vastness Race",
@@ -4340,7 +4397,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -8.12,
-          "id": "rec-3c3ddc5b3fea0d169a092220b1dfb419276bd43eb84402b14659ad0679dc7fce"
+          "id": "rec-3c3ddc5b3fea0d169a092220b1dfb419276bd43eb84402b14659ad0679dc7fce",
+          "cover": "covers/54826b8c62c9e97773b6dbc575292c4723b2d486f7426f5aab2e59e6c4a039fd.png"
         },
         {
           "title": "RC-SOO-XVI-4 | Graveyard of Ships Race",
@@ -4353,7 +4411,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -11.53,
-          "id": "rec-fb7bfecada3d48d88fcb453b74a3af42bdfd40146a898a1149fb26555ec16a60"
+          "id": "rec-fb7bfecada3d48d88fcb453b74a3af42bdfd40146a898a1149fb26555ec16a60",
+          "cover": "covers/4ee8f8daea01797394705494b9bbb130d1f3826539d22474c71148fa43291f11.png"
         },
         {
           "title": "RC-SOO-XVI-5 | Sandwalker Crater Race",
@@ -4366,7 +4425,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -10.23,
-          "id": "rec-a5a795d02cafaa59309d103d53c6660c1c43400a40f81247688ce60fb7543427"
+          "id": "rec-a5a795d02cafaa59309d103d53c6660c1c43400a40f81247688ce60fb7543427",
+          "cover": "covers/4e6913b961f1c96258ab43be8c0b24dd559723d64aaceb5128eeea014febcc1a.png"
         },
         {
           "title": "RC-SOO-XVI-6 | Botanic Fields Race",
@@ -4379,7 +4439,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -10.44,
-          "id": "rec-a9fbbf28ecf161c6e3bac5d75f858e851c2cd56e08873615d5ea95ca5c62c3eb"
+          "id": "rec-a9fbbf28ecf161c6e3bac5d75f858e851c2cd56e08873615d5ea95ca5c62c3eb",
+          "cover": "covers/40c9dd61fb5494abb963d0b0881f8e34811fa32e9a2a8e0ad20715b5713f9f3d.png"
         },
         {
           "title": "MSG-PAL-98-MkII",
@@ -4392,7 +4453,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -1.9,
-          "id": "rec-c53f7393296694aa084966af6ec728a1c9b383d6994bb823fb1d47144e03b3fd"
+          "id": "rec-c53f7393296694aa084966af6ec728a1c9b383d6994bb823fb1d47144e03b3fd",
+          "cover": "covers/02f2b11767364480d6d4158b9c0883861d0592d8ff6d59b882f61da8b9f0087d.png"
         }
       ]
     },
@@ -4411,7 +4473,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -0.91,
-          "id": "rec-0ee835fd279ac5fa15f9346744cbafc2ba800c1c0671b78ca9abe2b4353402f7"
+          "id": "rec-0ee835fd279ac5fa15f9346744cbafc2ba800c1c0671b78ca9abe2b4353402f7",
+          "cover": "covers/5b0f73ec11f6ad2f21703fd384acc5a61ccf3e629cb714e6daac689dae4eda0b.png"
         },
         {
           "title": "Bossa Town",
@@ -4424,7 +4487,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -0.32,
-          "id": "rec-526a8407931e5c0ca314fa0ea26edd417f540c160eb93372f4b10a27bf5a70d9"
+          "id": "rec-526a8407931e5c0ca314fa0ea26edd417f540c160eb93372f4b10a27bf5a70d9",
+          "cover": "covers/f5e69cf72279746332ea93dffc7a39040798f697cf53e09df8ef0857a8aed581.png"
         },
         {
           "title": "Cozy Puzzle In-Game 1",
@@ -4437,7 +4501,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -5.89,
-          "id": "rec-afa440cb8814907b215b285a0503d39b125b6c83d9fca3f686c969107f04c7f7"
+          "id": "rec-afa440cb8814907b215b285a0503d39b125b6c83d9fca3f686c969107f04c7f7",
+          "cover": "covers/9dd31a06cfc491b4ce04281b6eecb2d8bb03fa123bfe290aefb3dc8c9f0edd4a.png"
         },
         {
           "title": "Mad Bossa",
@@ -4450,7 +4515,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.38,
-          "id": "rec-540ab44a3dc87e8194965947cdc4ab858d386070808a57b1dc5aeafd02340a71"
+          "id": "rec-540ab44a3dc87e8194965947cdc4ab858d386070808a57b1dc5aeafd02340a71",
+          "cover": "covers/ee2f8ad421f9474cf1e636868ae80b4bedc346ea9152de45ac6f32aa36882bd7.png"
         },
         {
           "title": "Buy Something!",
@@ -4463,7 +4529,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.07,
-          "id": "rec-fa023f1d2e3d3194136bb8f877925d5547e5489439b24658698fbbb458de5b21"
+          "id": "rec-fa023f1d2e3d3194136bb8f877925d5547e5489439b24658698fbbb458de5b21",
+          "cover": "covers/533e93b296f3e4a5d13b5c55838929d5e17a34ef9c9d72d56f7e11403630ec66.png"
         },
         {
           "title": "Two Left Socks",
@@ -4476,7 +4543,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -3.06,
-          "id": "rec-7e62aa77271ba4270069db9540892dbd49e96c3fb262835e35e54c722facc001"
+          "id": "rec-7e62aa77271ba4270069db9540892dbd49e96c3fb262835e35e54c722facc001",
+          "cover": "covers/f1340cf472e3c851b78afac9c3c462523c1869ab95b4a3978bf2238e4e1675ba.png"
         },
         {
           "title": "Which Brand Of Mustard Shall I Buy",
@@ -4489,7 +4557,8 @@
           "instrumental": true,
           "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
           "gain_db": -7.98,
-          "id": "rec-bed3897bd8637bccf69a94f851b9e1dfa2b08be35abe86481b09a7c66cfeb41a"
+          "id": "rec-bed3897bd8637bccf69a94f851b9e1dfa2b08be35abe86481b09a7c66cfeb41a",
+          "cover": "covers/79504f455e13e925b73c1b6ffd08d97b9d178e4aa0295b90b0d413ee0442754d.png"
         }
       ]
     }
