@@ -651,9 +651,10 @@ function profileMiniature() {
   description.hidden = true;
   const status = el("small", "Loading server profile…");
   status.setAttribute("role", "status");
-  body.append(el("span", "Server profile", "overview-kicker"), title, description, status,
-    el("span", "Open Bot Profile →", "profile-server-label overview-profile-link"));
-  link.append(header, frame, body);
+  body.append(el("span", "Server profile", "overview-kicker"), title, description, status);
+  const overlay = el("span", "Open Bot Profile →", "overview-profile-overlay");
+  overlay.setAttribute("aria-hidden", "true");
+  link.append(header, frame, body, overlay);
   api(`/api/guilds/${id}/profile`).then(profile => {
     if (seq !== sequence || !link.isConnected) return;
     name.textContent = profile.nick || profile.default_name || "Vozen Music";
