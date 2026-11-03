@@ -19,11 +19,9 @@ let csrf = "",
   draft = null,
   catalog = [],
   proposals = [],
-  page = new URLSearchParams(location.search).get("page") || "overview",
-  step = 0;
+  page = new URLSearchParams(location.search).get("page") || "overview";
 const pages = {
   overview: "Overview",
-  setup: "Quick Setup",
   playback: "Playback",
   access: "Access & Channels",
   stations: "Stations",
@@ -32,7 +30,6 @@ const pages = {
 };
 const descriptions = {
   overview: "Your Music settings at a glance.",
-  setup: "Choose how Music should work, then review and save.",
   playback: "Choose the sound and behaviour of your radio.",
   access: "Choose who can control Music and where it can play.",
   stations: "Find an instrumental station for your mood.",
@@ -392,7 +389,6 @@ function updateSave() {
 }
 async function save() {
   if (saving || !changed()) return;
-  if (page === "setup" && step < 3) return;
   const invalid = $("editor").querySelector(":invalid");
   if (invalid) {
     invalid.reportValidity();
@@ -427,7 +423,6 @@ async function save() {
 function navigate(next) {
   if (!pages[next]) next = "overview";
   page = next;
-  step = 0;
   const url = new URL(location.href);
   url.searchParams.set("page", page);
   url.searchParams.delete("album");
@@ -618,6 +613,129 @@ function stationLibrary(editor) {
   credits.append(sources);
   editor.append(table, credits);
 }
+function overviewLink(target, label, cls) {
+  const link = el("a", label, cls);
+  const url = new URL(location.href);
+  url.searchParams.set("page", target);
+  url.searchParams.delete("album");
+  link.href = url.pathname + url.search;
+  link.addEventListener("click", event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (!saving) navigate(target);
+  });
+  return link;
+}
+
+function profileMiniature() {
+  const id = current, seq = sequence;
+  const link = overviewLink("profile", undefined, "discord-profile overview-profile");
+  link.setAttribute("aria-label", "Open Bot Profile");
+  const header = el("div", undefined, "overview-profile-banner");
+  const banner = el("img", undefined, "profile-banner");
+  banner.alt = "";
+  banner.hidden = true;
+  banner.addEventListener("error", () => { banner.hidden = true; });
+  header.append(banner);
+  const frame = el("div", undefined, "profile-avatar-editor");
+  const avatar = el("img", undefined, "profile-avatar");
+  avatar.alt = "";
+  avatar.src = "/music/avatar.png";
+  avatar.addEventListener("error", () => { avatar.src = "/music/avatar.png"; }, { once: true });
+  frame.append(avatar);
+  const body = el("div", undefined, "profile-preview-body");
+  const name = el("strong", "Bot Profile");
+  const title = el("div", undefined, "profile-preview-name");
+  title.append(name, el("span", "APP", "profile-app-badge"));
+  const description = el("p", "", "profile-description");
+  description.hidden = true;
+  const status = el("small", "Loading server profile…");
+  status.setAttribute("role", "status");
+  body.append(el("span", "Server profile", "overview-kicker"), title, description, status,
+    el("span", "Open Bot Profile →", "profile-server-label overview-profile-link"));
+  link.append(header, frame, body);
+  api(`/api/guilds/${id}/profile`).then(profile => {
+    if (seq !== sequence || !link.isConnected) return;
+    name.textContent = profile.nick || profile.default_name || "Vozen Music";
+    avatar.src = profileImageUrl(profile, id, "avatar") || profile.default_avatar_url || "/music/avatar.png";
+    const image = profileImageUrl(profile, id, "banner");
+    if (image) {
+      banner.src = image;
+      banner.hidden = false;
+    }
+    description.textContent = profile.bio || "";
+    description.hidden = !profile.bio;
+    status.hidden = true;
+  }).catch(() => {
+    if (link.isConnected && seq === sequence) status.textContent = "Server profile could not be loaded.";
+  });
+  return link;
+}
+
+function renderOverview(editor) {
+  const layout = el("div", undefined, "overview-layout");
+  const choices = card("Your choices");
+  choices.classList.add("overview-choices");
+  const { session } = model;
+  const station = id => catalog.find(item => item.id === id)?.name || (id === "my" ? "My Station" : id);
+  const onOff = enabled => enabled ? "On" : "Off";
+  const channel = (id, empty) => id ? model.channels.find(item => item.id === id)?.name || "Unavailable channel" : empty;
+  const roleNames = ids => ids.map(id => model.roles.find(item => item.id === id)?.name || "Unavailable role").join(", ");
+  const channels = rules => {
+    const names = rules.channels.map(id => channel(id)).join(", ");
+    if (!names) return rules.allow ? "No channels allowed" : "All channels allowed";
+    return `${rules.allow ? "Only" : "Blocked"}: ${names}`;
+  };
+  const state = !session || session.active === false ? "Idle" : session.paused ? "Paused" : "Playing";
+  const live = el("div", undefined, "overview-session");
+  live.append(el("span", state, "overview-session-state"), el("strong", state === "Idle" ? "No active session" : session.track),
+    el("span", state === "Idle" ? "Start a station with /play in Discord." : `${station(session.station)} · ${session.volume}% volume`));
+  live.dataset.state = state;
+  choices.append(live);
+
+  const sections = [
+    ["Playback", "playback", [
+      ["Default station", station(draft.default_station)],
+      ["Default volume", `${draft.volume}%`],
+      ["Radio mode", { session: "Session", always: "24/7", auto_join: "Auto-join" }[draft.radio_mode]],
+      ["Fixed voice channel", channel(draft.voice_channel, "None selected")],
+      ["Auto-join notifications", channel(draft.announcement_channel, "None selected")],
+      ["Automatic player panel", onOff(draft.announcements)],
+      ["Player tips", onOff(draft.tips)],
+      ["Sleep timer", session?.sleep_until ? new Date(session.sleep_until * 1000).toLocaleString() : "Off"],
+    ]],
+    ["Access & Channels", "access", [
+      ["Playback controls", draft.djs_only || draft.player_locked ? "DJs and managers" : "Everyone"],
+      ["Player lock", onOff(draft.player_locked)],
+      ["DJ roles", roleNames(draft.dj_roles) || "None selected"],
+      ["Who can skip", draft.skip.access === "moderators" ? "Moderators only" : "Everyone in the call"],
+      ["Skip mode", draft.skip.mode === "majority" ? `Majority vote · ${draft.skip.majority_scope === "eligible" ? "Eligible voters" : "Everyone in the call"}` : "One click"],
+      ...(draft.skip.access === "moderators" ? [["Moderator roles", roleNames(draft.skip.moderator_roles) || "Server moderation permissions"]] : []),
+      ["Voice channels", channels(draft.voice_rules)],
+      ["Text channels", channels(draft.text_rules)],
+    ]],
+    ["Community", "community", [["Optional time-in-call statistics", onOff(draft.statistics)]]],
+    ["Stations", "stations", [["Instrumental stations", String(catalog.filter(item => item.id !== "my").length)], ["My Station", "Personalized radio"]]],
+  ];
+  for (const [title, target, values] of sections) {
+    const section = el("section", undefined, "overview-section");
+    const header = el("div", undefined, "overview-section-heading");
+    const action = overviewLink(target, target === "stations" ? "Browse →" : "Edit →");
+    action.setAttribute("aria-label", `${target === "stations" ? "Browse" : "Edit"} ${title}`);
+    header.append(el("h3", title), action);
+    const list = el("dl", undefined, "overview-values");
+    for (const [label, value] of values) {
+      const item = el("div");
+      item.append(el("dt", label), el("dd", value));
+      list.append(item);
+    }
+    section.append(header, list);
+    choices.append(section);
+  }
+  layout.append(choices, profileMiniature());
+  editor.append(layout);
+}
+
 function render() {
   stopBrowserPreview();
   const editor = $("editor");
@@ -633,130 +751,7 @@ function render() {
     el("h1", pages[page] || pages.overview),
     el("p", descriptions[page] || descriptions.overview, "intro"),
   );
-  if (page === "overview") {
-    const setup = card(
-      "Make Music yours",
-      "Review channels, your station and playback rules together.",
-    );
-    setup.append(button("Open Quick Setup", () => navigate("setup"), true));
-    editor.append(setup);
-    const c = card("Your choices");
-    const list = el("dl", undefined, "overview-values");
-    for (const [k, v] of [
-      [
-        "Station",
-        catalog.find((s) => s.id === draft.default_station)?.name ||
-          draft.default_station,
-      ],
-      ["Volume", `${draft.volume}%`],
-      ["Mode", draft.radio_mode],
-      ["Skip", `${draft.skip.access} · ${draft.skip.mode}`],
-      [
-        "Current playback",
-        model.session
-          ? `${model.session.active === false ? "Stopped" : model.session.paused ? "Paused" : "Playing"} · ${model.session.station} · ${model.session.track}`
-          : "No active session",
-      ],
-    ])
-      list.append(el("dt", k), el("dd", v));
-    c.append(list);
-    editor.append(c);
-  }
-  if (page === "setup") {
-    const titles = [
-      "Channel & mode",
-      "Station & volume",
-      "Permissions",
-      "Review & save",
-    ];
-    editor.append(
-      el("p", `Step ${step + 1} of 4 · ${titles[step]}`, "setup-progress"),
-    );
-    const fields =
-      step === 0
-        ? [
-            field(
-              "voice_channel",
-              "Voice channel",
-              "select",
-              channelOptions(true),
-            ),
-            field(
-              "announcement_channel",
-              "Auto-join notification channel",
-              "select",
-              channelOptions(false),
-              "Player controls appear in voice chat. This text channel is required for Auto-join.",
-            ),
-            field("radio_mode", "Radio mode", "select", [
-              ["session", "Session"],
-              ["always", "24/7"],
-              ["auto_join", "Auto-join"],
-            ]),
-          ]
-        : step === 1
-          ? [
-              field(
-                "default_station",
-                "Default station",
-                "select",
-                stationOptions(),
-              ),
-              field("volume", "Volume", "number"),
-            ]
-          : step === 2
-            ? accessFields()
-            : [];
-    const c = group(
-      titles[step],
-      step === 3
-        ? "Nothing is saved until you choose Save changes."
-        : "Changes remain a draft until the final review.",
-      fields,
-    );
-    if (step === 3)
-      c.append(
-        el(
-          "p",
-          `${catalog.find((s) => s.id === draft.default_station)?.name || draft.default_station} · ${draft.volume}% · ${draft.radio_mode} · ${draft.djs_only ? "DJs" : "Everyone"} controls · ${draft.skip.mode} skip`,
-        ),
-      );
-    const actions = el("div", undefined, "setup-actions");
-    if (step > 0)
-      actions.append(
-        button("Back", () => {
-          step--;
-          render();
-        }),
-      );
-    if (step < 3)
-      actions.append(
-        button(
-          "Continue",
-          () => {
-            const invalid = editor.querySelector(":invalid");
-            if (invalid) {
-              invalid.reportValidity();
-              return;
-            }
-            if (
-              step === 0 &&
-              draft.radio_mode === "auto_join" &&
-              (!draft.voice_channel || !draft.announcement_channel)
-            )
-              throw Error(
-                "Choose both a voice channel and text channel for Auto-join.",
-              );
-            step++;
-            render();
-          },
-          true,
-        ),
-      );
-    else actions.append(button("Save changes", save, true));
-    c.append(actions);
-    editor.append(c);
-  }
+  if (page === "overview") renderOverview(editor);
   if (page === "playback") {
     editor.append(
       group(
@@ -888,7 +883,7 @@ function render() {
   const saveButton = button("Save changes", save, true);
   saveButton.id = "music-save";
   bar.append(status, discard, saveButton);
-  if (page !== "setup" || step === 3) editor.append(bar);
+  editor.append(bar);
   dependent();
   updateSave();
 }
@@ -992,9 +987,7 @@ function updateProfilePreview(view) {
   view.bio.hidden = !view.saved.bio;
   const image = key => {
     if (view.uploads[key]) return view.uploads[key];
-    const hash = view.saved[key], bot = view.saved.bot_id;
-    return /^(a_)?[a-f0-9]{32}$/.test(hash || "") && /^\d+$/.test(bot || "") && /^\d+$/.test(current)
-      ? `https://cdn.discordapp.com/guilds/${current}/users/${bot}/${key}s/${hash}.png?size=512` : "";
+    return profileImageUrl(view.saved, current, key);
   };
   view.avatar.src = image("avatar") || view.saved.default_avatar_url || "/music/avatar.png";
   const banner = image("banner");
@@ -1005,6 +998,11 @@ function updateProfilePreview(view) {
   view.error.textContent = invalid?.validationMessage || (view.pending ? "Preparing your image preview…" : "");
   view.error.hidden = !view.error.textContent;
   view.apply.disabled = view.loading || !!view.pending || !!view.saving || !!invalid;
+}
+function profileImageUrl(profile, guild, key) {
+  const hash = profile[key], bot = profile.bot_id;
+  return /^(a_)?[a-f0-9]{32}$/.test(hash || "") && /^\d+$/.test(bot || "") && /^\d+$/.test(guild)
+    ? `https://cdn.discordapp.com/guilds/${guild}/users/${bot}/${key}s/${hash}.png?size=512` : "";
 }
 async function readProfileFile(file) {
   if (file.size > 2 * 1024 * 1024) throw Error("Images must be no larger than 2 MB.");
@@ -1228,6 +1226,7 @@ async function loadServer(id) {
     $("editor").hidden = false;
     const url = new URL(location.href);
     url.searchParams.set("server", id);
+    if (url.searchParams.has("page")) url.searchParams.set("page", page);
     history.replaceState(null, "", url);
     render();
   } catch (e) {

@@ -4,6 +4,7 @@ const { chromium } = await import(
   process.env.VOZEN_PLAYWRIGHT_MODULE || "playwright"
 );
 const browser = await chromium.launch();
+const dashboard = (process.env.VOZEN_PREVIEW_URL || "http://localhost:4783") + "/music/dashboard";
 const errors = [];
 fs.mkdirSync("output", { recursive: true });
 try {
@@ -13,7 +14,7 @@ try {
       }),
       page = await context.newPage();
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.goto("http://localhost:4783/music/dashboard");
+    await page.goto(dashboard);
     await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(await page.locator("#sidebar").isVisible(), false);
     assert.equal(await page.locator("#editor").isVisible(), false);
@@ -22,6 +23,18 @@ try {
     await page
       .getByRole("heading", { name: "Overview", exact: true })
       .waitFor();
+    assert.equal(await page.getByRole("button", { name: "Quick Setup", exact: true, includeHidden: true }).count(), 0);
+    assert.equal(await page.getByRole("heading", { name: "Your choices", exact: true }).count(), 1);
+    await page.locator(".overview-profile .profile-preview-name").getByText("Vozen Music", { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `overview overflow ${width}`);
+    await page.getByRole("link", { name: "Open Bot Profile", exact: true }).click();
+    await page.getByRole("heading", { name: "Bot Profile", exact: true }).waitFor();
+    assert.equal(new URL(page.url()).searchParams.get("page"), "profile");
+    if (width === 390) {
+      await page.goto(dashboard + "?server=1&page=setup");
+      await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+      assert.equal(new URL(page.url()).searchParams.get("page"), "overview");
+    }
     if (width === 390)
       console.log(
         "Mobile heading position:",
@@ -43,7 +56,6 @@ try {
       "Stations",
       "Community",
       "Bot Profile",
-      "Quick Setup",
     ]) {
       await go(name);
       await page.getByRole("heading", { name, exact: true }).waitFor();
@@ -55,10 +67,6 @@ try {
         `overflow ${name} ${width}`,
       );
     }
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-    assert.match(await page.locator(".setup-progress").innerText(), /Step 4/);
     const level = String(
       30 + [320, 360, 390, 430, 768, 900, 1440].indexOf(width),
     );
@@ -131,7 +139,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    "Music dashboard: seven pages, seven widths, Quick Setup, save/reload, discard, menus and JavaScript checks passed.",
+    "Music dashboard: six pages, seven widths, Overview profile navigation, save/reload, discard, menus and JavaScript checks passed.",
   );
 } finally {
   await browser.close();
