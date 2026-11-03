@@ -594,7 +594,6 @@ function render() {
     $("music-pages").append(b);
   }
   const albumOpen = page === "stations" && [...catalog.map(s => s.id), ...proposals.map(s => s.id), "my"].includes(new URLSearchParams(location.search).get("album"));
-  if (page !== "stations") editor.append(button("← Choose another server", showServerPicker));
   if (!albumOpen) editor.append(
     el("h1", pages[page] || pages.overview),
     el("p", descriptions[page] || descriptions.overview, "intro"),
@@ -1086,11 +1085,13 @@ function renderServers() {
   select.replaceChildren();
   for (const s of serverList)
     select.add(new Option(s.name, s.id, false, s.id === current));
+  select.add(new Option("+ Choose another server", "__choose_server__"));
   select.disabled = saving;
 }
 function showServerPicker() {
   if (saving) return;
   if (current && !persistDraft() && changed()) return;
+  stopBrowserPreview();
   sequence++;
   current = "";
   draft = null;
@@ -1102,6 +1103,7 @@ function showServerPicker() {
   const url = new URL(location.href);
   url.searchParams.delete("server");
   url.searchParams.delete("page");
+  url.searchParams.delete("album");
   history.replaceState(null, "", url);
   const choices = $("server-choices");
   choices.replaceChildren();
@@ -1214,6 +1216,11 @@ function closeSections(focus) {
 }
 $("server-select").addEventListener("change", (e) => {
   if (saving) return;
+  if (e.target.value === "__choose_server__") {
+    e.target.value = current;
+    showServerPicker();
+    return;
+  }
   loadServer(e.target.value);
 });
 $("product-switcher").addEventListener("change", (e) => {

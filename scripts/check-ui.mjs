@@ -91,7 +91,7 @@ try {
       level,
     );
     await go("Access & Channels");
-    await page.getByRole("button", { name: "← Choose another server", exact: true }).click();
+    await page.locator("#server-select").selectOption("__choose_server__");
     await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(new URL(page.url()).searchParams.has("server"), false);
     await page.locator(".server-choice").first().focus();
