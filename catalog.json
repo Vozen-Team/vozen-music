@@ -4317,19 +4317,6 @@
           "id": "rec-0c078ea76847572e03b56df529a4c241e71512805f7742913c0bbb1047d5408f"
         },
         {
-          "title": "i++",
-          "artist": "Yurij Chirkov",
-          "file": "expansion/six-stations/drum-and-bass/c7e3f0b4a4224f528ff3.mp3",
-          "source_url": "https://opengameart.org/content/bright-glitch-dnb-theme-piano",
-          "license": "CC0-1.0",
-          "license_evidence": "licenses/catalog-sources.json",
-          "approved": true,
-          "instrumental": true,
-          "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
-          "gain_db": -3.13,
-          "id": "rec-c7e3f0b4a4224f528ff3010b4ec89a9c93512e995d38a31a5183fc162533afea"
-        },
-        {
           "title": "RC-SOO-XVI-1 | Blacksand Beaches Race",
           "artist": "John Oestmann",
           "file": "expansion/six-stations/drum-and-bass/5f421fde954a92e8e8ac.wav",

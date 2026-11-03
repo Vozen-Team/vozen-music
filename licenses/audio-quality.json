@@ -5345,31 +5345,6 @@
       "file": "expansion/six-stations/drum-and-bass/0c078ea76847572e03b5.mp3"
     },
     {
-      "sha256": "c7e3f0b4a4224f528ff3010b4ec89a9c93512e995d38a31a5183fc162533afea",
-      "pcm_sha256": "c10cf7f2c1e8d4c1bce64d6705d53d53103a446faf37421607733a7512e1803c",
-      "bytes": 9114248,
-      "duration_seconds": 227.8562,
-      "sample_rate": 44100,
-      "channels": 2,
-      "codec": "mp3",
-      "bit_rate": 320000,
-      "decoded_in_full": true,
-      "input_lufs": -15.52,
-      "input_true_peak_dbfs": 1.13,
-      "loudness_range_lu": 9.9,
-      "gain_db": -3.13,
-      "projected_lufs": -18.65,
-      "projected_true_peak_dbfs": -2.0,
-      "silence_events": [
-        "silence_start: 225.014603",
-        "silence_end: 228.04898",
-        "silence_duration: 3.034376"
-      ],
-      "voice_content_checked": false,
-      "subjective_quality_checked": false,
-      "file": "expansion/six-stations/drum-and-bass/c7e3f0b4a4224f528ff3.mp3"
-    },
-    {
       "sha256": "6c854c5e1a173b3c6928f999fbad682e3a2a539c957722434e30fb0e5fe5e14b",
       "pcm_sha256": "4243ce4770e9b9508be0da241cb440714fd2dd24d5296e4eda3e8c9c871b6538",
       "bytes": 4916664,

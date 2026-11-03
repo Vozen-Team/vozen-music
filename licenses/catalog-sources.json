@@ -11646,49 +11646,6 @@
       }
     },
     {
-      "id": "rec-c7e3f0b4a4224f528ff3010b4ec89a9c93512e995d38a31a5183fc162533afea",
-      "station": "drum-and-bass",
-      "title": "i++",
-      "artist": "Yurij Chirkov",
-      "source_url": "https://opengameart.org/content/bright-glitch-dnb-theme-piano",
-      "checked_on": "2026-11-02",
-      "observed_license": "CC0",
-      "selected_license": "CC0-1.0",
-      "instrumental_evidence": "Instrumental selection inferred from the source's music description and genre. Full-file YAMNet screening returned no voice alerts at the review threshold. Human listening is pending.",
-      "instrumental_evidence_kind": "source-based-curation-and-automated-screening",
-      "listening_review": "Pending. Admitted for owner-authorized live testing.",
-      "human_listening_review": {
-        "status": "pending",
-        "reviewer": null,
-        "full_recording": false,
-        "no_voice": null,
-        "station_suitability": null
-      },
-      "download_url": "https://opengameart.org/sites/default/files/i%2B%2B.mp3",
-      "file": "media/expansion/six-stations/drum-and-bass/c7e3f0b4a4224f528ff3.mp3",
-      "sha256": "c7e3f0b4a4224f528ff3010b4ec89a9c93512e995d38a31a5183fc162533afea",
-      "original_sha256": "c7e3f0b4a4224f528ff3010b4ec89a9c93512e995d38a31a5183fc162533afea",
-      "pcm_sha256": "c10cf7f2c1e8d4c1bce64d6705d53d53103a446faf37421607733a7512e1803c",
-      "bytes": 9114248,
-      "duration_seconds": 227.8562,
-      "transformation": "Original recording, unchanged",
-      "source_author": "obscure music",
-      "source_title": "bright glitch d'n'b theme piano",
-      "source_tags": "drum and bass dnb glitch piano",
-      "source_description_excerpt": "Released under public domain. MP3 320 kbps.",
-      "source_page_sha256": "616cee87fbf78a3b5c1c2f36cc5f19562d0f1273c2c01834513611e39f2449ca",
-      "license_urls": [
-        "http://creativecommons.org/publicdomain/zero/1.0/"
-      ],
-      "voice_screening": {
-        "model": "Google MediaPipe YAMNet float32",
-        "model_sha256": "4d8b4a53282dc83ef04e3e7dbc4fbc98082e34e44ed798e16c3a0cdd4c584faf",
-        "threshold": 0.2,
-        "windows": 468,
-        "peak_score": 0.0586
-      }
-    },
-    {
       "id": "rec-6c854c5e1a173b3c6928f999fbad682e3a2a539c957722434e30fb0e5fe5e14b",
       "station": "synthwave",
       "title": "Drama",

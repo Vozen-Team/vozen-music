@@ -1,6 +1,6 @@
 # Vozen Music catalog
 
-320 recordings across 16 stations. The original 250 recordings are listed below. The six new stations add 70 CC0 recordings selected from documented sources and screened for voice. The catalog source manifest records the evidence for each recording and keeps the full listening review pending.
+319 recordings across 16 stations. The original 250 recordings are listed below. The six new stations add 69 CC0 recordings selected from documented sources and screened for voice. The catalog source manifest records the evidence for each recording and keeps the full listening review pending.
 
 | New station | Recordings |
 |---|---:|
@@ -8,7 +8,7 @@
 | Acoustic | 8 |
 | Chiptune | 22 |
 | Chill House | 6 |
-| Drum & Bass | 10 |
+| Drum & Bass | 9 |
 | Bossa Nova | 7 |
 
 Source license and instrumental evidence: [catalog-sources.json](licenses/catalog-sources.json). Objective levels, gain, sample rates, and file hashes: [audio-quality.json](licenses/audio-quality.json).
