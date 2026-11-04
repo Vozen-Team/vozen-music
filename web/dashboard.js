@@ -767,7 +767,24 @@ function renderOverview(editor) {
     section.append(copy, action);
     choices.append(section);
   }
-  layout.append(choices, profileMiniature());
+  const side = el("div", undefined, "overview-side");
+  const stations = pageLink("stations", undefined, "overview-stations");
+  const covers = el("div", undefined, "overview-station-covers");
+  for (const id of ["lofi", "rain", "night"]) {
+    const cover = el("img");
+    cover.src = `/music/albums/${id}-v1.webp`;
+    cover.alt = "";
+    covers.append(cover);
+  }
+  const body = el("div", undefined, "overview-stations-body");
+  const copy = el("div");
+  copy.append(el("strong", "Explore stations"), el("span", "Browse and preview instrumental music."));
+  const arrow = el("span", "→");
+  arrow.setAttribute("aria-hidden", "true");
+  body.append(copy, arrow);
+  stations.append(covers, body);
+  side.append(profileMiniature(), stations);
+  layout.append(choices, side);
   editor.append(layout);
 }
 
