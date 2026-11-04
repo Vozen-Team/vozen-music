@@ -376,7 +376,7 @@ async fn callback(
         ));
     }
     if query.error.is_some() {
-        let mut response = Redirect::to("/music/dashboard?login=cancelled").into_response();
+        let mut response = Redirect::to("/music?login=cancelled").into_response();
         set_cookie(&mut response, STATE_COOKIE, "", 0);
         return Ok(response);
     }
@@ -433,7 +433,7 @@ async fn callback(
             },
         );
     }
-    let mut response = Redirect::to("/music/dashboard").into_response();
+    let mut response = Redirect::to("/music").into_response();
     set_cookie(&mut response, STATE_COOKIE, "", 0);
     set_cookie(&mut response, SESSION_COOKIE, &key, ttl.as_secs());
     Ok(response)
@@ -1009,11 +1009,28 @@ async fn track_cover(
 }
 
 async fn dashboard_page(Query(params): Query<HashMap<String, String>>) -> Html<String> {
+    dashboard_html(params.get("server").is_some_and(|id| valid_server_path(id)))
+}
+
+async fn server_dashboard_page(
+    RoutePath(id): RoutePath<String>,
+) -> Result<Html<String>, StatusCode> {
+    if !valid_server_path(&id) {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(dashboard_html(true))
+}
+
+fn valid_server_path(id: &str) -> bool {
+    id.as_bytes()
+        .first()
+        .is_some_and(|digit| matches!(digit, b'1'..=b'9'))
+        && id.parse::<u64>().is_ok()
+}
+
+fn dashboard_html(workspace: bool) -> Html<String> {
     let html = include_str!("../web/dashboard.html");
-    if params
-        .get("server")
-        .is_some_and(|id| id.parse::<u64>().is_ok_and(|id| id > 0))
-    {
+    if workspace {
         Html(
             html.replace("<aside id=\"sidebar\" hidden", "<aside id=\"sidebar\"")
                 .replace("<section id=\"loading\"", "<section id=\"loading\" hidden")
@@ -1042,7 +1059,10 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route("/music/api/stations", get(station_catalog))
-        .route("/music/api/guilds/{guild}/track-listening", get(track_listening))
+        .route(
+            "/music/api/guilds/{guild}/track-listening",
+            get(track_listening),
+        )
         .route("/music/api/recordings/{id}/audio", get(recording_preview))
         .route(
             "/music/api/guilds/{guild}/playback",
@@ -1067,12 +1087,10 @@ fn router(state: Arc<Dashboard>) -> Router {
                 ))
                 .layer(DefaultBodyLimit::max(6 * 1024 * 1024)),
         )
-        .route("/music", get(|| async { Redirect::to("/music/dashboard") }))
-        .route(
-            "/music/",
-            get(|| async { Redirect::to("/music/dashboard") }),
-        )
+        .route("/music", get(dashboard_page))
+        .route("/music/", get(dashboard_page))
         .route("/music/dashboard", get(dashboard_page))
+        .route("/music/{server}", get(server_dashboard_page))
         .route(
             "/music/dashboard.css",
             get(|| async {
@@ -1400,19 +1418,15 @@ mod tests {
     async fn initial_loading_matches_the_server_route_before_scripts_run() {
         use axum::{body::Body, http::Request};
         let app = router(fixture());
-        for (query, workspace) in [
-            ("", false),
-            ("?server=1&page=stations&album=rain", true),
-            ("?server=invalid", false),
+        for (path, workspace) in [
+            ("/music", false),
+            ("/music/1?page=stations&album=rain", true),
+            ("/music/dashboard?server=1&page=stations&album=rain", true),
+            ("/music/dashboard?server=invalid", false),
         ] {
             let response = app
                 .clone()
-                .oneshot(
-                    Request::builder()
-                        .uri(format!("/music/dashboard{query}"))
-                        .body(Body::empty())
-                        .unwrap(),
-                )
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
                 .await
                 .unwrap();
             assert_eq!(response.status(), StatusCode::OK);

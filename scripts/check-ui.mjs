@@ -33,7 +33,8 @@ try {
     if (width === 390) {
       await page.goto(dashboard + "?server=1&page=setup");
       await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
-      assert.equal(new URL(page.url()).searchParams.get("page"), "overview");
+      assert.equal(new URL(page.url()).pathname, "/music/1");
+      assert.equal(new URL(page.url()).search, "");
     }
     if (width === 390)
       console.log(

@@ -157,7 +157,9 @@ const server = http.createServer(async (req, res) => {
           );
   }
   if (p === "/music/auth/logout") return json({ saved: true });
+  const serverPath = /^\/music\/([1-9][0-9]*)$/.exec(p)?.[1];
   const mapping = {
+    "/music": "web/dashboard.html",
     "/music/dashboard": "web/dashboard.html",
     "/music/": "web/dashboard.html",
     "/music/avatar.png": "assets/brand/v4/vozen-music-avatar.png",
@@ -167,7 +169,7 @@ const server = http.createServer(async (req, res) => {
     "/music/assets/fonts/unbounded-500-latin-ext.woff2": "assets/fonts/unbounded-500-latin-ext.woff2",
   };
   const relative =
-    mapping[p] ?? (p.startsWith("/music/") ? "web/" + p.slice(7) : "");
+    serverPath ? "web/dashboard.html" : mapping[p] ?? (p.startsWith("/music/") ? "web/" + p.slice(7) : "");
   const file = path.resolve(root, relative);
   if (
     !file.startsWith(root + path.sep) ||
@@ -201,7 +203,7 @@ const server = http.createServer(async (req, res) => {
           '<main id="main" tabindex="-1"><p class="small">Local UI preview · sample server · no Discord actions</p>',
         ),
     );
-  if (file.endsWith("dashboard.html") && /^[1-9][0-9]*$/.test(url.searchParams.get("server") || ""))
+  if (file.endsWith("dashboard.html") && (serverPath || /^[1-9][0-9]*$/.test(url.searchParams.get("server") || "")))
     bytes = Buffer.from(bytes.toString()
       .replace('<aside id="sidebar" hidden', '<aside id="sidebar"')
       .replace('<section id="loading"', '<section id="loading" hidden')
@@ -210,5 +212,5 @@ const server = http.createServer(async (req, res) => {
 });
 const port = Number(process.env.VOZEN_PREVIEW_PORT || 4783);
 server.listen(port, "127.0.0.1", () =>
-  console.log(`Music UI fixture: http://localhost:${port}/music/dashboard`),
+  console.log(`Music UI fixture: http://localhost:${port}/music`),
 );

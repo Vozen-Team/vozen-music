@@ -718,7 +718,7 @@ impl Bot {
         }
         if name == "settings" {
             return Ok(Some(format!(
-                "Open Music settings: https://api.vozen.org/music/dashboard?server={g}"
+                "Open Music settings: https://api.vozen.org/music/{g}"
             )));
         }
         if name == "privacy" {

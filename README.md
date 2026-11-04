@@ -2,7 +2,7 @@
 
 Station-based instrumental radio bot for Discord, inspired by the format of [Lofi Bot](https://www.lofibot.xyz/). The active catalog contains 250 recordings across ten stations, selected from sources publishing CC0 licenses and instrumental evidence. Running on the VPS since 2026-10-27, with the previous local gateway stopped. The owner confirmed audible lofi playback from the VPS; the expanded catalog has not been independently listened to in full.
 
-[Open the Music dashboard](https://api.vozen.org/music/dashboard) to configure skip rules through Discord login. There is no public Music marketing page in this release. See [dashboard behavior and security](web/README.md) and the [VPS operation guide](ops/README.md). Real Discord login, server settings read/save, persistence through a Music-only restart, reauthorization and restoration of the original settings were verified on 2026-10-27.
+[Open the Music dashboard](https://api.vozen.org/music) to configure skip rules through Discord login. There is no public Music marketing page in this release. See [dashboard behavior and security](web/README.md) and the [VPS operation guide](ops/README.md). Real Discord login, server settings read/save, persistence through a Music-only restart, reauthorization and restoration of the original settings were verified on 2026-10-27.
 
 Visual identity: [brand guide](assets/brand/README.md), the selected vinyl-and-V concept adapted to Vozen's rounded outlines, cream, violet, blue, and cyan. The avatar has been applied to the Discord application.
 

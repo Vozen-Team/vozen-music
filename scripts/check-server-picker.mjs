@@ -23,6 +23,7 @@ try {
   assert.equal(settingsRequests, 0, "No server is silently selected");
   await page.locator(".server-choice").first().click();
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
+  assert.equal(page.url(), new URL("/music/1", dashboard).href);
   const select = page.locator("#server-select");
   const icon = page.locator("#selected-server-icon");
   assert.equal(await icon.getAttribute("data-initials"), "E");
@@ -47,6 +48,8 @@ try {
   assert.match(await page.locator("#notice").innerText(), /draft was restored/);
   await page.goto(dashboard + "?server=1&page=playback");
   await page.getByLabel("Default and current volume", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/music/1");
+  assert.equal(new URL(page.url()).searchParams.has("server"), false);
   assert.equal(new URL(page.url()).searchParams.get("page"), "settings");
   assert.equal(new URL(page.url()).searchParams.get("section"), "playback");
   assert.equal(await page.locator("#server-picker").isVisible(), false);
@@ -63,6 +66,7 @@ try {
   await page.locator(".station-album-header").waitFor();
   await select.selectOption("__choose_server__");
   await page.locator("#server-picker").waitFor({ state: "visible" });
+  assert.equal(new URL(page.url()).pathname, "/music");
   assert.equal(new URL(page.url()).search, "");
   guilds = [];
   await page.goto(dashboard);

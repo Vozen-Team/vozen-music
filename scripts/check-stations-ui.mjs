@@ -23,7 +23,7 @@ try{
   const album=page.locator('.station-album').filter({hasText:'Vozen Rain'});
   await album.focus();await album.press('Enter');await page.locator('.station-tracks').waitFor();
   assert.equal(new URL(page.url()).searchParams.get('album'),'rain');
-  assert.equal(new URL(page.url()).searchParams.get('server'),'1');
+  assert.equal(new URL(page.url()).pathname,'/music/1');
   assert.equal(await page.locator('.station-tracks tbody tr').count(),25);
   const first=stations.find(s=>s.id==='rain').tracks[0];
   assert.equal(await page.locator('.station-tracks tbody tr').first().locator('.track-text strong').innerText(),first.title);

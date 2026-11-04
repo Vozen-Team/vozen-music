@@ -453,10 +453,15 @@ async function save() {
     updateSave();
   }
 }
+function requestedServer() {
+  return /^\/music\/([1-9][0-9]*)$/.exec(location.pathname)?.[1]
+    || new URLSearchParams(location.search).get("server");
+}
 function pageLocation(target) {
   const url = new URL(location.href);
   const section = Object.hasOwn(settingsSections, target);
-  url.searchParams.set("page", section ? "settings" : target);
+  if (target === "overview") url.searchParams.delete("page");
+  else url.searchParams.set("page", section ? "settings" : target);
   if (section) url.searchParams.set("section", target);
   else url.searchParams.delete("section");
   url.searchParams.delete("album");
@@ -486,7 +491,7 @@ function focusSettingsSection() {
 function navigate(next) {
   const url = pageLocation(next);
   const previous = page;
-  page = url.searchParams.get("page");
+  page = url.searchParams.get("page") || "overview";
   history.replaceState(null, "", url);
   if (previous !== "settings" || page !== "settings") render();
   else showSettingsSection();
@@ -1373,6 +1378,7 @@ function showServerPicker() {
     $(id).hidden = true;
   notice("");
   const url = new URL(location.href);
+  url.pathname = "/music";
   url.searchParams.delete("server");
   url.searchParams.delete("page");
   url.searchParams.delete("section");
@@ -1445,8 +1451,10 @@ async function loadServer(id) {
     if (!Object.hasOwn(pages, page)) page = "overview";
     $("editor").hidden = false;
     const url = new URL(location.href);
-    url.searchParams.set("server", id);
-    if (url.searchParams.has("page")) url.searchParams.set("page", page);
+    url.pathname = `/music/${id}`;
+    url.searchParams.delete("server");
+    if (page === "overview") url.searchParams.delete("page");
+    else if (url.searchParams.has("page")) url.searchParams.set("page", page);
     if (legacySection) url.searchParams.set("section", legacySection);
     history.replaceState(null, "", url);
     render();
@@ -1459,7 +1467,7 @@ async function loadServer(id) {
 }
 async function refreshServers() {
   notice("");
-  showLoading(!!new URLSearchParams(location.search).get("server"));
+  showLoading(!!requestedServer());
   try {
     const data = await api("/api/guilds");
     serverList = data.guilds;
@@ -1471,7 +1479,7 @@ async function refreshServers() {
       $("empty").hidden = false;
       return;
     }
-    const wanted = new URLSearchParams(location.search).get("server");
+    const wanted = requestedServer();
     if (serverList.some((s) => s.id === wanted)) await loadServer(wanted);
     else showServerPicker();
   } catch (e) {
@@ -1537,7 +1545,7 @@ window.addEventListener("beforeunload", (e) => {
 });
 window.addEventListener("pagehide", stopBrowserPreview);
 window.addEventListener("popstate", () => {
-  if (!draft || new URLSearchParams(location.search).get("server") !== current) return;
+  if (!draft || requestedServer() !== current) return;
   page = new URLSearchParams(location.search).get("page") || "overview";
   if (Object.hasOwn(settingsSections, page)) {
     history.replaceState(null, "", pageLocation(page));
@@ -1563,7 +1571,7 @@ if (window.visualViewport) {
 }
 async function loadDashboard() {
   notice("");
-  showLoading(!!new URLSearchParams(location.search).get("server"));
+  showLoading(!!requestedServer());
   try {
     const me = await api("/api/me");
     viewerId = me.user.id;
