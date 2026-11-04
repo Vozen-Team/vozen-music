@@ -39,7 +39,7 @@ const settingsSections = {
   community: "Community",
 };
 const descriptions = {
-  overview: "Your Music settings at a glance.",
+  overview: "Playback, stations and server settings.",
   settings: "Choose how Music plays and what members can do in this server.",
   stations: "Find an instrumental station for your mood.",
   profile: "Change how Music looks in this server only.",
@@ -714,7 +714,7 @@ function profileMiniature() {
   description.hidden = true;
   const status = el("small", "Loading server profile…");
   status.setAttribute("role", "status");
-  body.append(el("span", "Server profile", "overview-kicker"), title, description, status);
+  body.append(el("span", "Bot profile", "overview-profile-label"), title, description, status);
   const overlay = el("span", "Open Bot Profile →", "overview-profile-overlay");
   overlay.setAttribute("aria-hidden", "true");
   link.append(header, frame, body, overlay);
@@ -743,12 +743,18 @@ function renderOverview(editor) {
   const { session } = model;
   const station = id => catalog.find(item => item.id === id)?.name || (id === "my" ? "My Station" : id);
   const state = !session || session.active === false ? "Idle" : session.paused ? "Paused" : "Playing";
-  const live = el("div", undefined, "overview-session");
-  if (state !== "Idle") live.append(el("span", state, "overview-session-state"));
-  live.append(el("strong", state === "Idle" ? "Nothing playing" : session.track),
-    el("span", state === "Idle" ? "Start with /play" : `${station(session.station)} · ${session.volume}%`));
+  const live = el("section", undefined, "overview-session");
+  const playback = el("div", undefined, "overview-session-copy");
+  playback.append(el("h2", state === "Idle" ? "Nothing playing" : session.track));
+  if (state !== "Idle") playback.append(el("span", state, "overview-session-state"));
+  const context = el("div", undefined, "overview-session-context");
+  if (state === "Idle") {
+    context.append(el("span", "Start in Discord"), el("code", "/play"));
+  } else {
+    context.append(el("span", station(session.station)), el("strong", `${session.volume}% volume`));
+  }
+  live.append(playback, context);
   live.dataset.state = state;
-  choices.append(live);
 
   const mode = { session: "Session", always: "24/7", auto_join: "Auto-join" }[draft.radio_mode];
   const skipAccess = draft.skip.access === "moderators" ? "Moderators only" : "Call members";
@@ -768,9 +774,9 @@ function renderOverview(editor) {
     choices.append(section);
   }
   const side = el("div", undefined, "overview-side");
-  side.append(profileMiniature(), stationShortcut());
-  layout.append(choices, side);
-  editor.append(layout);
+  side.append(choices, profileMiniature());
+  layout.append(stationShortcut(), side);
+  editor.append(live, layout);
 }
 
 function stationShortcut() {
@@ -785,12 +791,12 @@ function stationShortcut() {
     covers.append(cover);
   }
   const body = el("div", undefined, "overview-stations-body");
-  const heading = el("h3", "Most listened");
+  const heading = el("h2", "Stations");
   const details = el("div", undefined, "overview-track-details");
   const enabled = model.settings.statistics;
   details.append(el("p", enabled
     ? "Loading listening stats…"
-    : "Turn on time tracking in Community to see the server’s top track."));
+    : "Browse instrumental stations. Enable time tracking in Community to see your server’s top track."));
   const footer = el("div", "Explore stations", "overview-stations-footer");
   const arrow = el("span", "→");
   arrow.setAttribute("aria-hidden", "true");
@@ -802,7 +808,7 @@ function stationShortcut() {
       if (current !== id || !stations.isConnected) return;
       if (!top) {
         details.textContent = enabled
-          ? "Listening time will appear here once someone who opted in listens in Discord."
+          ? "No listening stats yet. Play music in Discord with time tracking on."
           : "Time tracking is off for this server.";
         return;
       }
@@ -813,6 +819,7 @@ function stationShortcut() {
         covers.classList.add("is-featured");
         covers.replaceChildren(cover);
       }
+      heading.textContent = "Most listened";
       details.replaceChildren(el("strong", top.title));
       if (top.artist) details.append(el("p", top.artist));
       const stats = el("dl", undefined, "overview-track-stats");

@@ -415,7 +415,7 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   .settings-jump { gap: 2px; }
   .settings-jump a { padding-inline: 8px; }
 }
-.overview-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.overview-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .overview-side { display: grid; gap: 14px; min-width: 0; }
 .overview-stations {
   display: block;
@@ -431,18 +431,17 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
-  height: clamp(96px, 10vw, 138px);
+  height: clamp(144px, 17vw, 228px);
   background: #253e57;
 }
 .overview-station-covers img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
 .overview-station-covers.is-featured {
   grid-template-columns: minmax(0, 1fr);
-  height: clamp(140px, 15vw, 210px);
 }
 .overview-stations-body {
-  padding: 16px 18px 0;
+  padding: 18px 20px 0;
 }
-.overview-stations-body h3 { margin: 0 0 8px; font-size: 15px; }
+.overview-stations-body h2 { margin: 0 0 8px; font-size: 21px; }
 .overview-track-details { overflow-wrap: anywhere; font-size: 13px; }
 .overview-track-details strong { display: block; font-size: 18px; }
 .overview-track-details p { margin: 3px 0 0; color: var(--muted); }
@@ -465,11 +464,24 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   font-size: 13px;
   font-weight: 650;
 }
-.overview-choices { margin: 0; }
-.overview-session { display: grid; gap: 4px; padding: 14px; margin: 14px 0 8px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }
-.overview-session strong { color: var(--text); overflow-wrap: anywhere; }
-.overview-session > span:last-child { color: var(--muted); font-size: 13px; }
-.overview-session-state, .overview-kicker { color: #a5bdd6; font-size: 12px; font-weight: 650; }
+.overview-choices { margin: 0; padding-block: 18px; }
+.overview-session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  padding: 15px 20px;
+  margin-bottom: 18px;
+  border: 1px solid #2e4860;
+  border-radius: 14px;
+  background: #102438;
+}
+.overview-session-copy, .overview-session-context { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
+.overview-session-copy h2 { margin: 0; font-size: 19px; overflow-wrap: anywhere; }
+.overview-session-context { color: var(--muted); font-size: 13px; }
+.overview-session-context code { padding: 4px 7px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); }
+.overview-session-state, .overview-profile-label { color: #a5bdd6; font-size: 12px; font-weight: 650; }
 .overview-session[data-state=Playing] .overview-session-state { color: #94ece1; }
 .overview-session[data-state=Paused] .overview-session-state { color: #f1ce8d; }
 .overview-section { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #2a3e56; }
@@ -477,13 +489,13 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .overview-section h3 { font-size: 14px; margin: 0 0 3px; }
 .overview-section p { font-size: 13px; margin: 0; }
 .overview-section a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; justify-content: flex-end; font-size: 13px; flex: none; }
-.overview-profile { position: relative; display: block; text-decoration: none; min-width: 0; }
+.overview-profile { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 0 14px 14px; text-decoration: none; min-width: 0; }
 .overview-profile:hover { border-color: #78c6c6; color: var(--text); }
-.overview-profile-banner { height: clamp(98px, 12vw, 156px); background: #253e57; }
-.overview-profile .profile-avatar-editor { width: 78px; height: 78px; margin-top: -37px; }
-.overview-profile .profile-preview-body { gap: 9px; padding-top: 12px; }
-.overview-profile .profile-preview-name strong { font-size: 22px; line-height: 1.2; overflow-wrap: anywhere; }
-.overview-profile .profile-description { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.overview-profile-banner { grid-column: 1 / -1; height: clamp(80px, 8vw, 112px); margin-inline: -14px; background: #253e57; }
+.overview-profile .profile-avatar-editor { width: 52px; height: 52px; margin: 0; border-width: 3px; }
+.overview-profile .profile-preview-body { position: relative; min-width: 0; gap: 3px; padding: 0; }
+.overview-profile .profile-preview-name strong { font-size: 17px; line-height: 1.2; overflow-wrap: anywhere; }
+.overview-profile .profile-description { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .overview-profile-overlay {
   position: absolute;
   inset: 0;
@@ -507,9 +519,16 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 @media (prefers-reduced-motion: reduce) {
   .overview-profile-overlay { transition: none; }
 }
+@media (min-width: 901px) {
+  .overview-layout { align-items: stretch; }
+  .overview-side { grid-template-rows: 1fr auto; }
+  .overview-stations { display: grid; grid-template-rows: minmax(clamp(144px, 17vw, 228px), 1fr) auto; }
+  .overview-station-covers { height: auto; grid-template-rows: minmax(0, 1fr); }
+}
 @media (max-width: 900px) {
   .overview-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-  .overview-side { max-width: 480px; }
+  .overview-session { padding: 12px 16px; margin-bottom: 16px; }
+  .overview-stations-body { padding-inline: 16px; }
 }
 
 /* Station collections: cover shelf, followed by a compact recording table. */
