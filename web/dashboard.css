@@ -271,12 +271,111 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 }
 
 /* Music overview. */
-.settings-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; }
-.settings-jump a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #2a3e56; border-radius: 8px; background: #101d2e; font-size: 13px; text-decoration: none; }
-.settings-jump a:hover { border-color: #78c6c6; }
-.settings-section { margin-bottom: 28px; }
-.settings-section > h2 { margin: 0 0 12px; font-size: 21px; scroll-margin-top: 16px; }
-.settings-section .music-card h2 { font-size: 17px; }
+.settings-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding-bottom: 8px;
+  margin: 0 0 28px;
+  border-bottom: 1px solid var(--line);
+}
+.settings-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.settings-jump a:hover {
+  background: var(--raised);
+  color: var(--text);
+}
+.settings-section { margin-bottom: 36px; }
+.settings-section > h2 {
+  margin: 0 0 12px;
+  font-size: 23px;
+  scroll-margin-top: 16px;
+}
+.settings-section .music-card {
+  background: #101a29;
+  margin-bottom: 12px;
+}
+.settings-section h3 {
+  font-size: 17px;
+  margin: 0 0 6px;
+}
+.settings-section .help { margin-bottom: 14px; }
+.settings-fields .music-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 36%);
+  align-items: center;
+  gap: 12px 24px;
+  padding: 14px 0;
+  border-top: 1px solid #27384c;
+}
+.settings-fields .music-field:last-child { padding-bottom: 0; }
+.settings-field-copy label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.settings-field-copy small {
+  display: block;
+  margin-top: 4px;
+}
+.settings-fields .music-field:has(> [role="switch"]) {
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+.settings-fields .music-field:has(> [role="switch"]) label {
+  cursor: pointer;
+}
+.settings-fields .resource-list label { cursor: pointer; }
+.settings-channel-rules,
+.settings-data-removal {
+  border: 1px solid #2a3e56;
+  border-radius: 12px;
+  background: #101a29;
+}
+.settings-channel-rules > summary,
+.settings-data-removal > summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  border-radius: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-section summary:hover { color: var(--accent); }
+.settings-section summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.settings-channel-rules > .help { margin: 0 16px 8px; }
+.settings-channel-rules .music-card {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #27384c;
+  border-radius: 0;
+  background: transparent;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-data-removal { margin-top: 16px; }
+.settings-data-removal .settings-actions { padding: 0 12px 12px; }
+@media (max-width: 600px) {
+  .settings-fields .music-field:not(:has(> [role="switch"])) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-jump { gap: 2px; }
+  .settings-jump a { padding-inline: 8px; }
+}
 .overview-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .overview-choices { margin: 0; }
 .overview-session { display: grid; gap: 5px; padding: 15px 16px; margin-top: 16px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }

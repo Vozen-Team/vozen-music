@@ -39,7 +39,7 @@ const settingsSections = {
 };
 const descriptions = {
   overview: "Your Music settings at a glance.",
-  settings: "Manage playback, access and community preferences for this server.",
+  settings: "Choose how Music plays and what members can do in this server.",
   stations: "Find an instrumental station for your mood.",
   profile: "Change how Music looks in this server only.",
 };
@@ -171,9 +171,9 @@ function button(text, action, primary = false) {
   );
   return b;
 }
-function card(title, description) {
+function card(title, description, heading = "h2") {
   const c = el("section", undefined, "music-card");
-  c.append(el("h2", title));
+  c.append(el(heading, title));
   if (description) c.append(el("p", description, "help"));
   return c;
 }
@@ -182,7 +182,8 @@ function field(path, label, type = "text", options = [], help = "") {
     id = `field-${path.replaceAll(".", "-")}`;
   const l = el("label", label);
   l.htmlFor = id;
-  wrap.append(l);
+  const copy = el("div", undefined, "settings-field-copy");
+  copy.append(l);
   let input;
   if (type === "select") {
     input = el("select");
@@ -234,6 +235,7 @@ function field(path, label, type = "text", options = [], help = "") {
     input.type = type;
     if (type === "checkbox") {
       input.checked = !!get(path);
+      input.setAttribute("role", "switch");
     } else input.value = get(path) ?? "";
     if (type === "number") {
       input.min = 0;
@@ -271,8 +273,13 @@ function field(path, label, type = "text", options = [], help = "") {
         dependent();
       },
     );
-  wrap.append(input);
-  if (help) wrap.append(el("small", help));
+  if (help) {
+    const hint = el("small", help);
+    hint.id = `${id}-help`;
+    input.setAttribute("aria-describedby", hint.id);
+    copy.append(hint);
+  }
+  wrap.append(copy, input);
   return wrap;
 }
 function stationOptions() {
@@ -290,8 +297,8 @@ function roles() {
   return model.roles.map((r) => [r.id, r.name]);
 }
 function group(title, description, fields) {
-  const c = card(title, description),
-    grid = el("div", undefined, "field-grid");
+  const c = card(title, description, "h3"),
+    grid = el("div", undefined, "settings-fields");
   grid.append(...fields);
   c.append(grid);
   return c;
@@ -308,32 +315,40 @@ function conditional(node, condition) {
 }
 function playbackFields() {
   return [
-    field("default_station", "Default station", "select", stationOptions()),
+    field("default_station", "Default station", "select", stationOptions(),
+      "Used when someone starts Music without picking a station."),
     field(
       "volume",
       "Default and current volume",
       "number",
       [],
-      "0–100%. Track loudness correction is applied separately.",
+      "Set the volume for the current player and future sessions, from 0 to 100.",
     ),
     field("radio_mode", "Radio mode", "select", [
-      ["session", "Session — leave when empty"],
-      ["always", "24/7 — remain connected"],
-      ["auto_join", "Auto-join — start when someone enters"],
+      ["session", "Session · Leave when empty"],
+      ["always", "24/7 · Stay connected"],
+      ["auto_join", "Auto-join · Start on entry"],
     ]),
     field(
       "voice_channel",
-      "Fixed / Auto-join voice channel",
+      "Fixed voice channel",
       "select",
       channelOptions(true),
+      "Limit playback to one voice channel. Required for Auto-join.",
     ),
-    field("announcements", "Show the player in voice chat automatically", "checkbox"),
+  ];
+}
+
+function playerMessageFields() {
+  return [
+    field("announcements", "Show the player automatically", "checkbox", [],
+      "Post the player in the voice channel’s chat."),
     field(
       "announcement_channel",
       "Auto-join notification channel",
       "select",
       channelOptions(false),
-      "Required for Auto-join. Player controls appear in the voice channel's chat.",
+      "Choose where Auto-join posts its notification. Required in Auto-join mode.",
     ),
     field("tips", "Show command tips on the player", "checkbox"),
   ];
@@ -342,11 +357,19 @@ function accessFields() {
   return [
     field(
       "djs_only",
-      "Restrict playback controls to DJs and managers",
+      "DJ-only controls",
       "checkbox",
+      [],
+      "Only DJs and server managers can control playback.",
     ),
-    field("player_locked", "Lock the player to DJs and managers", "checkbox"),
-    field("dj_roles", "DJ roles", "multi", roles()),
+    field("player_locked", "Lock the player", "checkbox", [],
+      "Temporarily restrict playback controls to DJs and server managers."),
+    field("dj_roles", "DJ roles", "multi", roles(), "Members with any of these roles are DJs."),
+  ];
+}
+
+function skipFields() {
+  return [
     field("skip.access", "Who can skip?", "select", [
       ["everyone", "Everyone in the call"],
       ["moderators", "Moderators only"],
@@ -354,7 +377,7 @@ function accessFields() {
     field("skip.mode", "How does a skip happen?", "select", [
       ["instant", "One click"],
       ["majority", "Majority vote"],
-    ]),
+    ], "Choose whether one person can skip or listeners need to vote."),
     conditional(
       field(
         "skip.majority_scope",
@@ -779,21 +802,27 @@ function renderSettings(editor) {
 
   playback.append(
     group(
-      "Radio settings",
-      "Session leaves immediately when the last person leaves. Bots do not count.",
+      "Radio defaults",
+      "Set the station, volume and when Music joins or leaves a call.",
       playbackFields(),
+    ),
+    group(
+      "Player messages",
+      "Choose what Music posts when playback starts.",
+      playerMessageFields(),
     ),
   );
   const timer = card(
     "Sleep timer",
-    "Use /sleep minutes:30 in your call. Use /sleep cancel:true to cancel.",
+    "Stop playback and disconnect after a set number of minutes. Timer changes take effect immediately.",
+    "h3",
   );
   timer.append(
     el(
       "p",
       model.session?.sleep_until
         ? `Current deadline: ${new Date(model.session.sleep_until * 1000).toLocaleString()}`
-        : "No active sleep timer in this snapshot.",
+        : "No timer is set.",
     ),
   );
   const duration = el("input");
@@ -833,19 +862,28 @@ function renderSettings(editor) {
 
   access.append(
     group(
-      "Playback & skip",
-      "DJ restrictions do not override skip voting thresholds.",
+      "Who can control the player",
+      "Choose your DJs and decide when playback controls are restricted.",
       accessFields(),
     ),
+    group(
+      "Skip rules",
+      "The same rules apply to the Skip button and /skip. DJs still need to meet the vote threshold.",
+      skipFields(),
+    ),
   );
+  const channels = el("details", undefined, "settings-channel-rules");
+  channels.append(el("summary", "Channel restrictions"));
+  channels.append(el("p", "Choose where members can use Music. With no channels selected, a blocklist allows all channels and an allowlist allows none.", "help"));
+  access.append(channels);
   for (const [key, label, voice] of [
     ["voice_rules", "Voice channels", true],
     ["text_rules", "Text channels", false],
   ])
-    access.append(
+    channels.append(
       group(
         label,
-        "An empty blocklist allows all channels; an empty allowlist allows none.",
+        "",
         [
           field(`${key}.allow`, "List behaviour", "select", [
             ["false", "Block selected channels"],
@@ -864,7 +902,7 @@ function renderSettings(editor) {
   community.append(
     group(
       "Server statistics",
-      "Individual collection requires each person to opt in with /privacy. No global leaderboard.",
+      "Each member decides whether to track their time and appear on this server’s leaderboard.",
       [
         field(
           "statistics",
@@ -876,7 +914,8 @@ function renderSettings(editor) {
   );
   const personal = card(
     "Your privacy & this server leaderboard",
-    "Time in call while Music is playing, excluding deafened time. This is not proof of listening.",
+    "Tracks time in a call while Music is playing and you aren’t deafened. These preferences apply immediately.",
+    "h3",
   );
   personal.id = "personal-panel";
   community.append(personal);
@@ -1074,21 +1113,28 @@ async function loadPersonal(id, seq, panel) {
     c.append(
       el(
         "p",
-        `${Math.floor(me.seconds / 60)} minutes collected. Collection ${me.privacy.enabled ? "on" : "off"}; leaderboard ${me.privacy.visible ? "visible" : "hidden"}.`,
+        `${Math.floor(me.seconds / 60)} minutes recorded. Tracking is ${me.privacy.enabled ? "on" : "off"}. Your entry is ${me.privacy.visible ? "visible" : "hidden"} on the leaderboard.`,
       ),
     );
+    const preferences = el("div", undefined, "settings-actions");
+    const removal = el("details", undefined, "settings-data-removal");
+    removal.append(el("summary", "Delete your data"));
+    const removalActions = el("div", undefined, "settings-actions");
+    removal.append(removalActions);
     for (const [label, payload] of [
-      ["Opt in", { privacy: { enabled: true, visible: false } }],
+      ["Start tracking privately", { privacy: { enabled: true, visible: false } }],
       ["Show on leaderboard", { privacy: { enabled: true, visible: true } }],
       ["Hide from leaderboard", { privacy: { ...me.privacy, visible: false } }],
-      ["Disable collection", { privacy: { enabled: false, visible: false } }],
+      ["Turn off tracking", { privacy: { enabled: false, visible: false } }],
       ["Erase statistics", { erase_statistics: true }],
       ["Delete my favorites and dislikes", { clear_ratings: true }],
-    ])
-      c.append(
+    ]) {
+      const destructive = payload.erase_statistics || payload.clear_ratings;
+      const actions = destructive ? removalActions : preferences;
+      actions.append(
         button(label, async () => {
           if (
-            (payload.erase_statistics || payload.clear_ratings) &&
+            destructive &&
             !confirm(`${label} in this server?`)
           )
             return;
@@ -1103,10 +1149,12 @@ async function loadPersonal(id, seq, panel) {
           }
         }),
       );
+    }
+    c.append(preferences, removal, el("h4", "Server leaderboard"));
     const list = el("ol");
     for (const [user, seconds] of ranking.rows)
       list.append(el("li", `Member ${user} · ${Math.floor(seconds / 60)} min`));
-    c.append(list);
+    c.append(ranking.rows.length ? list : el("p", "No members are listed yet."));
     for (const control of c.querySelectorAll("button")) control.disabled = saving;
   } catch (e) {
     if (seq !== sequence || current !== id || !panel.isConnected) return;

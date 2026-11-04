@@ -107,7 +107,11 @@ try {
     await page.keyboard.press("Enter");
     await page.getByRole("link", { name: "Edit Access & Channels", exact: true }).click();
     assert.equal(await page.locator("#settings-access").evaluate(e => e === document.activeElement), true);
+    const restrictions = page.locator(".settings-channel-rules summary");
     const rule = page.getByLabel("List behaviour").first();
+    assert.equal(await rule.isVisible(), false);
+    await restrictions.press("Enter");
+    assert.equal(await rule.isVisible(), true);
     await rule.selectOption(
       (await rule.inputValue()) === "true" ? "false" : "true",
     );
