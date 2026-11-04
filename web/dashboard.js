@@ -742,58 +742,29 @@ function renderOverview(editor) {
   choices.classList.add("overview-choices");
   const { session } = model;
   const station = id => catalog.find(item => item.id === id)?.name || (id === "my" ? "My Station" : id);
-  const onOff = enabled => enabled ? "On" : "Off";
-  const channel = (id, empty) => id ? model.channels.find(item => item.id === id)?.name || "Unavailable channel" : empty;
-  const roleNames = ids => ids.map(id => model.roles.find(item => item.id === id)?.name || "Unavailable role").join(", ");
-  const channels = rules => {
-    const names = rules.channels.map(id => channel(id)).join(", ");
-    if (!names) return rules.allow ? "No channels allowed" : "All channels allowed";
-    return `${rules.allow ? "Only" : "Blocked"}: ${names}`;
-  };
   const state = !session || session.active === false ? "Idle" : session.paused ? "Paused" : "Playing";
   const live = el("div", undefined, "overview-session");
-  live.append(el("span", state, "overview-session-state"), el("strong", state === "Idle" ? "No active session" : session.track),
-    el("span", state === "Idle" ? "Start a station with /play in Discord." : `${station(session.station)} · ${session.volume}% volume`));
+  if (state !== "Idle") live.append(el("span", state, "overview-session-state"));
+  live.append(el("strong", state === "Idle" ? "No active session" : session.track),
+    el("span", state === "Idle" ? "Use /play in Discord to start." : `${station(session.station)} · ${session.volume}% volume`));
   live.dataset.state = state;
   choices.append(live);
 
-  const sections = [
-    ["Playback", "playback", [
-      ["Default station", station(draft.default_station)],
-      ["Default volume", `${draft.volume}%`],
-      ["Radio mode", { session: "Session", always: "24/7", auto_join: "Auto-join" }[draft.radio_mode]],
-      ["Fixed voice channel", channel(draft.voice_channel, "None selected")],
-      ["Auto-join notifications", channel(draft.announcement_channel, "None selected")],
-      ["Automatic player panel", onOff(draft.announcements)],
-      ["Player tips", onOff(draft.tips)],
-      ["Sleep timer", session?.sleep_until ? new Date(session.sleep_until * 1000).toLocaleString() : "Off"],
-    ]],
-    ["Access & Channels", "access", [
-      ["Playback controls", draft.djs_only || draft.player_locked ? "DJs and managers" : "Everyone"],
-      ["Player lock", onOff(draft.player_locked)],
-      ["DJ roles", roleNames(draft.dj_roles) || "None selected"],
-      ["Who can skip", draft.skip.access === "moderators" ? "Moderators only" : "Everyone in the call"],
-      ["Skip mode", draft.skip.mode === "majority" ? `Majority vote · ${draft.skip.majority_scope === "eligible" ? "Eligible voters" : "Everyone in the call"}` : "One click"],
-      ...(draft.skip.access === "moderators" ? [["Moderator roles", roleNames(draft.skip.moderator_roles) || "Server moderation permissions"]] : []),
-      ["Voice channels", channels(draft.voice_rules)],
-      ["Text channels", channels(draft.text_rules)],
-    ]],
-    ["Community", "community", [["Optional time-in-call statistics", onOff(draft.statistics)]]],
-    ["Stations", "stations", [["Instrumental stations", String(catalog.filter(item => item.id !== "my").length)], ["My Station", "Personalized radio"]]],
-  ];
-  for (const [title, target, values] of sections) {
+  const mode = { session: "Session", always: "24/7", auto_join: "Auto-join" }[draft.radio_mode];
+  const skipAccess = draft.skip.access === "moderators" ? "Moderators only" : "Everyone in the call";
+  const skipMode = draft.skip.mode === "majority" ? "Majority vote" : "One click";
+  const summaries = {
+    playback: `${station(draft.default_station)} · ${draft.volume}% volume · ${mode}`,
+    access: `Skip · ${skipAccess} · ${skipMode}`,
+    community: draft.statistics ? "Time tracking allowed" : "Time tracking off",
+  };
+  for (const [target, title] of Object.entries(settingsSections)) {
     const section = el("section", undefined, "overview-section");
-    const header = el("div", undefined, "overview-section-heading");
-    const action = pageLink(target, target === "stations" ? "Browse →" : "Edit →");
-    action.setAttribute("aria-label", `${target === "stations" ? "Browse" : "Edit"} ${title}`);
-    header.append(el("h3", title), action);
-    const list = el("dl", undefined, "overview-values");
-    for (const [label, value] of values) {
-      const item = el("div");
-      item.append(el("dt", label), el("dd", value));
-      list.append(item);
-    }
-    section.append(header, list);
+    const copy = el("div");
+    copy.append(el("h3", title), el("p", summaries[target]));
+    const action = pageLink(target, "Edit →");
+    action.setAttribute("aria-label", `Edit ${title}`);
+    section.append(copy, action);
     choices.append(section);
   }
   layout.append(choices, profileMiniature());
