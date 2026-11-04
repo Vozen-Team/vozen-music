@@ -270,7 +270,20 @@ impl Runtime {
         session: &Session,
         active: bool,
     ) -> Result<(), Error> {
-        self.settings.lock().await.db.intent(&PlaybackIntent {
+        self.settings
+            .lock()
+            .await
+            .db
+            .intent(&self.playback_intent(catalog, session, active))
+    }
+
+    fn playback_intent(
+        &self,
+        catalog: &Catalog,
+        session: &Session,
+        active: bool,
+    ) -> PlaybackIntent {
+        PlaybackIntent {
             guild: self.guild.get(),
             channel: self.channel.get(),
             text_channel: self.text.get(),
@@ -283,7 +296,7 @@ impl Runtime {
                 0 => None,
                 v => Some(v as i64),
             },
-        })
+        }
     }
 }
 
@@ -299,9 +312,39 @@ impl Bot {
         control: u64,
         restore: Option<&str>,
         sleep: Option<i64>,
+        actor: Option<(u64, crate::access::Access)>,
     ) -> Result<String, Error> {
         if self.guild.is_some_and(|g| g != guild) {
             return Err("This version is limited to the development server.".into());
+        }
+        let access = match actor {
+            Some((_, access)) => access,
+            None => {
+                let bot_id = ctx.cache.current_user().id.get();
+                self.music_access(bot_id, guild.get()).await?
+            }
+        };
+        let queued_at = std::time::Instant::now();
+        let _slot = if self.entitlements.is_some() {
+            Some(
+                self.playback_queue
+                    .acquire(access == crate::access::Access::Premium)
+                    .await?,
+            )
+        } else {
+            None
+        };
+        if queued_at.elapsed() >= Duration::from_secs(1) {
+            let subject = actor
+                .map(|(user, _)| user)
+                .unwrap_or_else(|| ctx.cache.current_user().id.get());
+            if self.music_access(subject, guild.get()).await? != access {
+                return Err("Music plan access changed while waiting. Try again.".into());
+            }
+        }
+        let station_id = &self.catalog.stations[station].id;
+        if station_id == "my" && !access.shared() {
+            return Err("My Station requires Vozen Premium on this server.".into());
         }
         let cfg = self.settings.lock().await.db.settings(guild.get())?;
         if !cfg.voice_rules.permits(channel.get())
@@ -310,7 +353,7 @@ impl Bot {
         {
             return Err("This channel is not allowed by the server's Music settings.".into());
         }
-        {
+        let channel_bitrate = {
             let server = ctx
                 .cache
                 .guild(guild)
@@ -329,11 +372,35 @@ impl Bot {
             {
                 return Err("Music needs View Channel, Connect and Speak.".into());
             }
-        }
+            c.bitrate
+        };
         let manager = songbird::get(ctx)
             .await
             .ok_or("Voice service unavailable.")?;
         let mut sessions = self.sessions.lock().await;
+        if let Some((user, _)) = actor {
+            let in_channel = ctx.cache.guild(guild).is_some_and(|server| {
+                server
+                    .voice_states
+                    .get(&UserId::new(user))
+                    .and_then(|state| state.channel_id)
+                    == Some(channel)
+            });
+            if !in_channel {
+                return Err("Join the voice channel before selecting a station.".into());
+            }
+            if let Some(call) = manager.get(guild)
+                && call
+                    .lock()
+                    .await
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() != channel.get())
+            {
+                return Err(
+                    "Join the same voice channel as Vozen Music to control the station.".into(),
+                );
+            }
+        }
         if restore.is_some()
             && sessions
                 .get(&guild)
@@ -343,11 +410,34 @@ impl Bot {
         {
             return Ok("Music is already connected.".into());
         }
+        let selection = if let Some((user, _)) = actor
+            && access != crate::access::Access::Unrestricted
+        {
+            self.playback_queue
+                .check_station_cooldown(guild.get(), user, access)?;
+            let day = chrono::Utc::now().timestamp().div_euclid(86_400);
+            let changes = self.settings.lock().await.db.station_changes(
+                guild.get(),
+                station_id,
+                day,
+                !access.personal(),
+            )?;
+            Some((day, changes, user))
+        } else {
+            None
+        };
         let call = tokio::time::timeout(Duration::from_secs(15), manager.join(guild, channel))
             .await
             .map_err(|_| "Voice connection timed out.")??;
         let mut s = Session::new(station, 0, control, cfg.skip, None);
-        s.volume.store(cfg.volume as usize, Ordering::SeqCst);
+        s.volume.store(
+            if access.shared() {
+                cfg.volume as usize
+            } else {
+                100
+            },
+            Ordering::SeqCst,
+        );
         s.tips.store(cfg.tips, Ordering::SeqCst);
         s.sleep_until
             .store(sleep.unwrap_or(0).max(0) as usize, Ordering::SeqCst);
@@ -388,16 +478,35 @@ impl Bot {
             }
         }
         let s = Arc::new(s);
-        s.runtime
+        let intent = s
+            .runtime
             .as_ref()
             .unwrap()
-            .persist(&self.catalog, &s, true)
-            .await?;
+            .playback_intent(&self.catalog, &s, true);
+        let recorded = self
+            .settings
+            .lock()
+            .await
+            .db
+            .start_playback(&intent, selection.map(|(day, changes, _)| (day, changes)));
+        if let Err(error) = recorded {
+            s.active.store(false, Ordering::SeqCst);
+            player::refresh(&ctx.http, &self.catalog, &s, true).await;
+            if !sessions.contains_key(&guild) {
+                let _ = manager.remove(guild).await;
+            }
+            return Err(error);
+        }
         let old = sessions.remove(&guild);
         if let Some(old) = &old {
             old.active.store(false, Ordering::SeqCst);
         }
         let mut locked = call.lock().await;
+        if access != crate::access::Access::Unrestricted {
+            let requested = if access.shared() { 128_000 } else { 64_000 };
+            let bitrate = channel_bitrate.map_or(requested, |cap| requested.min(cap));
+            locked.set_bitrate(songbird::driver::Bitrate::Bits(bitrate as i32));
+        }
         play_track(
             &mut locked,
             Advance {
@@ -411,6 +520,9 @@ impl Bot {
             index,
         )?;
         sessions.insert(guild, s);
+        if let Some((_, _, user)) = selection {
+            self.playback_queue.mark_station_command(guild.get(), user);
+        }
         drop(locked);
         drop(sessions);
         if let Some(old) = old {
@@ -506,6 +618,7 @@ impl Bot {
                             } else {
                                 None
                             },
+                            None,
                         )
                         .await?;
                     }
@@ -537,6 +650,7 @@ impl Bot {
                         ChannelId::new(text),
                         station,
                         rand::random::<u64>().max(1),
+                        None,
                         None,
                         None,
                     )
@@ -600,6 +714,7 @@ impl Bot {
                                 rand::random::<u64>().max(1),
                                 Some(&intent.track),
                                 intent.sleep_until,
+                                None,
                             )
                             .await
                             .is_ok()
@@ -869,6 +984,9 @@ impl Bot {
             let member = command.member.as_deref().ok_or("Member unavailable.")?;
             if !self.member_flags(ctx, g, member)?.0 {
                 return Err("Manage Server is required.".into());
+            }
+            if option("channel").is_some() && !self.music_access(u, g.get()).await?.shared() {
+                return Err("A fixed voice channel requires Vozen Premium on this server.".into());
             }
             let mut store = self.settings.lock().await;
             let mut config = store.db.settings(g.get())?;

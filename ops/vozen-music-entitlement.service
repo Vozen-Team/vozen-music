@@ -1,0 +1,11 @@
+[Unit]
+Description=Forward the private Vozen Music socket to the central resolver
+Requires=vozen-entitlementd.service
+After=vozen-entitlementd.service
+
+[Service]
+ExecStart=/lib/systemd/systemd-socket-proxyd 127.0.0.1:3011
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes

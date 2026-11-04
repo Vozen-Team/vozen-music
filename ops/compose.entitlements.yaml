@@ -1,0 +1,9 @@
+services:
+  music:
+    volumes:
+      - type: bind
+        source: /run/vozen-music-entitlement
+        target: /run/vozen-music-entitlement
+        read_only: true
+        bind:
+          create_host_path: false

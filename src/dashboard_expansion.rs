@@ -134,6 +134,7 @@ async fn expanded_settings(
     let login = state.login(&headers, false).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
+    let access = state.music_access(guild, &login).await?;
     let settings = state
         .bot
         .settings
@@ -155,7 +156,8 @@ async fn expanded_settings(
         .collect::<Vec<_>>();
     let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
-        serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session}),
+        serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session,
+            "music_access":{"plan":access.name(),"personal":access.personal(),"shared":access.shared()}}),
     ))
 }
 
@@ -168,6 +170,7 @@ async fn save_expanded(
     let login = state.login(&headers, true).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
+    let access = state.music_access(guild, &login).await?;
     settings.validate(guild.get()).map_err(|_| {
         WebError(
             StatusCode::BAD_REQUEST,
@@ -225,24 +228,22 @@ async fn save_expanded(
         None
     };
     let mut store = state.bot.settings.lock().await;
-    if store
-        .db
-        .settings(guild.get())
-        .map_err(storage_error)?
-        .revision
-        != settings.revision
-    {
+    let previous = store.db.settings(guild.get()).map_err(storage_error)?;
+    if previous.revision != settings.revision {
         return Err(WebError(
             StatusCode::CONFLICT,
             "Settings changed. Reload before saving.",
         ));
+    }
+    if !access.shared() && settings.changes_shared_music_controls(&previous) {
+        return Err(WebError(StatusCode::FORBIDDEN, "These server controls require Vozen Premium."));
     }
     let saved = store.save(guild.get(), settings).map_err(storage_error)?;
     let mut warning = None;
     if let Some(s) = &active {
         *s.policy.lock().map_err(|_| unavailable())? = saved.skip.clone();
         s.reset_votes(s.generation.load(Ordering::SeqCst)).map_err(|_| unavailable())?;
-        if voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
+        if access.shared() && voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
             let track =
                 &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];
             if let Some(h) = s.handle.lock().map_err(|_| unavailable())?.as_ref()
@@ -634,6 +635,12 @@ async fn save_bot_profile(
     let login = state.login(&headers, true).await?;
     let g = GuildId::new(parse_id(&value)?);
     state.manager(g, &login).await?;
+    if edit.reset != Some(true)
+        && (edit.avatar.is_some() || edit.banner.is_some())
+        && !state.music_access(g, &login).await?.shared()
+    {
+        return Err(WebError(StatusCode::FORBIDDEN, "Custom bot artwork requires Vozen Premium."));
+    }
     validate_profile_text(&edit)?;
     let mut body = serde_json::Map::new();
     if edit.reset == Some(true) {

@@ -1,3 +1,4 @@
+mod access;
 mod controls;
 mod dashboard;
 mod player;
@@ -173,6 +174,8 @@ struct Bot {
     catalog: Arc<Catalog>,
     background: Arc<AtomicBool>,
     guild: Option<GuildId>,
+    entitlements: Option<access::Entitlements>,
+    playback_queue: Arc<access::PlaybackQueue>,
     sessions: Arc<Mutex<HashMap<GuildId, Arc<Session>>>>,
     settings: Arc<Mutex<SettingsStore>>,
     play_cooldowns: Arc<SyncMutex<runtime::PlayCooldowns>>,
@@ -396,12 +399,37 @@ impl Bot {
                 ),
             )
             .await?;
-        if matches!(command.data.name.as_str(), "play" | "station") {
+        let action = command.data.name.as_str();
+        let station_access = if matches!(action, "play" | "station") {
             // Checked before the shared session map is locked for the voice join.
             self.play_cooldowns
                 .lock()
                 .map_err(|_| "Music is busy. Please try again.")?
                 .begin(guild_id, command.user.id, std::time::Instant::now())?;
+            Some(
+                self.music_access(command.user.id.get(), guild_id.get())
+                    .await?,
+            )
+        } else {
+            None
+        };
+        if matches!(action, "volume-down" | "volume-up")
+            || action == "volume"
+                && command
+                    .data
+                    .options
+                    .iter()
+                    .any(|option| option.name == "level")
+        {
+            if !self
+                .music_access(command.user.id.get(), guild_id.get())
+                .await?
+                .shared()
+            {
+                return Err(
+                    "Changing the call volume requires Vozen Premium on this server.".into(),
+                );
+            }
         }
         let manager = songbird::get(ctx)
             .await
@@ -416,6 +444,49 @@ impl Bot {
                 .get(&command.user.id)
                 .and_then(|state| state.channel_id)
         };
+        if let Some(access) = station_access {
+            let choice = command
+                .data
+                .options
+                .iter()
+                .find(|o| o.name == "station")
+                .and_then(|o| o.value.as_str());
+            let fallback = if choice.is_none() && !access.shared() {
+                self.settings
+                    .lock()
+                    .await
+                    .db
+                    .last_playback_station(guild_id.get())?
+                    .filter(|id| id != "my" && self.catalog.stations.iter().any(|s| s.id == *id))
+            } else {
+                None
+            };
+            let id = choice.unwrap_or(if access.shared() {
+                &config.default_station
+            } else {
+                fallback.as_deref().unwrap_or("lofi")
+            });
+            let station_index = self
+                .catalog
+                .stations
+                .iter()
+                .position(|s| s.id == id)
+                .ok_or("Unknown station.")?;
+            let channel_id = member_channel.ok_or("Join a voice channel first.")?;
+            return self
+                .start_session(
+                    ctx,
+                    guild_id,
+                    channel_id,
+                    command.channel_id,
+                    station_index,
+                    command.id.get(),
+                    None,
+                    None,
+                    Some((command.user.id.get(), access)),
+                )
+                .await;
+        }
         let mut sessions = self.sessions.lock().await;
         let existing = manager.get(guild_id);
         let bot_channel = if let Some(call) = &existing {
@@ -427,35 +498,6 @@ impl Bot {
             return Err(
                 "Join the same voice channel as Vozen Music to control the station.".into(),
             );
-        }
-        if matches!(command.data.name.as_str(), "play" | "station") {
-            let id = command
-                .data
-                .options
-                .iter()
-                .find(|o| o.name == "station")
-                .and_then(|o| o.value.as_str())
-                .unwrap_or(&config.default_station);
-            let station_index = self
-                .catalog
-                .stations
-                .iter()
-                .position(|s| s.id == id)
-                .ok_or("Unknown station.")?;
-            let channel_id = member_channel.ok_or("Join a voice channel first.")?;
-            drop(sessions);
-            return self
-                .start_session(
-                    ctx,
-                    guild_id,
-                    channel_id,
-                    command.channel_id,
-                    station_index,
-                    command.id.get(),
-                    None,
-                    None,
-                )
-                .await;
         }
         let session = sessions
             .get(&guild_id)
@@ -901,6 +943,8 @@ async fn main() -> Result<(), Error> {
         catalog,
         background: Arc::new(AtomicBool::new(false)),
         guild,
+        entitlements: access::Entitlements::from_env()?,
+        playback_queue: Arc::default(),
         sessions: Arc::new(Mutex::new(HashMap::new())),
         settings: Arc::new(Mutex::new(SettingsStore::load(
             Path::new("data/skip-settings.json").to_path_buf(),
@@ -982,6 +1026,8 @@ mod tests {
             catalog: Arc::new(catalog),
             background: Arc::new(AtomicBool::new(false)),
             guild: Some(GuildId::new(1)),
+            entitlements: None,
+            playback_queue: Arc::default(),
             sessions: Arc::new(Mutex::new(HashMap::new())),
             settings: Arc::new(Mutex::new(
                 SettingsStore::load(std::env::temp_dir().join(format!(

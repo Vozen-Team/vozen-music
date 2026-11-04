@@ -70,6 +70,19 @@ impl Default for ServerSettings {
     }
 }
 impl ServerSettings {
+    pub fn changes_shared_music_controls(&self, saved: &Self) -> bool {
+        self.volume != saved.volume
+            || self.default_station != saved.default_station
+            || self.voice_channel != saved.voice_channel
+            || self.voice_rules != saved.voice_rules
+            || self.text_rules != saved.text_rules
+            || self.dj_roles != saved.dj_roles
+            || self.djs_only != saved.djs_only
+            || self.player_locked != saved.player_locked
+            || self.announcements != saved.announcements
+            || self.announcement_channel != saved.announcement_channel
+    }
+
     pub fn permits_message_channel(&self, channel: u64, voice: bool) -> bool {
         if voice {
             self.voice_rules.permits(channel)
@@ -205,7 +218,9 @@ impl Store {
           CREATE TABLE IF NOT EXISTS ratings(guild TEXT,user TEXT,track TEXT,value INTEGER NOT NULL CHECK(value IN (-1,1)),PRIMARY KEY(guild,user,track));
           CREATE TABLE IF NOT EXISTS privacy(guild TEXT,user TEXT,enabled INTEGER NOT NULL,visible INTEGER NOT NULL,seconds INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild,user));
           CREATE TABLE IF NOT EXISTS track_listening(guild TEXT,track TEXT,seconds INTEGER NOT NULL,PRIMARY KEY(guild,track));
-          CREATE TABLE IF NOT EXISTS playback(guild TEXT PRIMARY KEY,body TEXT NOT NULL);")?;
+          CREATE TABLE IF NOT EXISTS playback(guild TEXT PRIMARY KEY,body TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS station_usage(guild TEXT PRIMARY KEY,
+            day INTEGER NOT NULL, changes INTEGER NOT NULL CHECK(changes BETWEEN 0 AND 6));")?;
         let imported: bool = db.query_row(
             "SELECT EXISTS(SELECT 1 FROM metadata WHERE key='legacy_imported')",
             [],
@@ -253,6 +268,61 @@ impl Store {
             .unwrap_or_default();
         s.validate(guild)?;
         Ok(s)
+    }
+
+    pub fn last_playback_station(&self, guild: u64) -> Result<Option<String>, Error> {
+        Ok(self
+            .db
+            .query_row(
+                "SELECT json_extract(body,'$.station') FROM playback WHERE guild=?1",
+                [guild.to_string()],
+                |row| row.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn station_changes(
+        &self,
+        guild: u64,
+        station: &str,
+        day: i64,
+        limited: bool,
+    ) -> Result<i64, Error> {
+        let prior_station = self.last_playback_station(guild)?;
+        let mut changes: i64 = self
+            .db
+            .query_row(
+                "SELECT changes FROM station_usage WHERE guild=?1 AND day=?2",
+                params![guild.to_string(), day],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or(0);
+        if limited && prior_station.is_some_and(|previous| previous != station) {
+            if changes >= 6 {
+                return Err("This server has used its six free station changes today. The limit resets at midnight UTC.".into());
+            }
+            changes += 1;
+        }
+        Ok(changes)
+    }
+
+    pub fn start_playback(
+        &self,
+        intent: &PlaybackIntent,
+        usage: Option<(i64, i64)>,
+    ) -> Result<(), Error> {
+        let tx = self.db.unchecked_transaction()?;
+        if let Some((day, changes)) = usage {
+            tx.execute(
+                "INSERT INTO station_usage (guild,day,changes) VALUES(?1,?2,?3)
+                 ON CONFLICT(guild) DO UPDATE SET day=excluded.day,changes=excluded.changes",
+                params![intent.guild.to_string(), day, changes],
+            )?;
+        }
+        Self::write_intent(&tx, intent)?;
+        tx.commit()?;
+        Ok(())
     }
     pub fn save(
         &mut self,
@@ -406,7 +476,11 @@ impl Store {
         Ok(())
     }
     pub fn intent(&self, intent: &PlaybackIntent) -> Result<(), Error> {
-        self.db.execute("INSERT INTO playback VALUES(?1,?2) ON CONFLICT(guild) DO UPDATE SET body=excluded.body",params![intent.guild.to_string(),serde_json::to_string(intent)?])?;
+        Self::write_intent(&self.db, intent)
+    }
+
+    fn write_intent(db: &Connection, intent: &PlaybackIntent) -> Result<(), Error> {
+        db.execute("INSERT INTO playback VALUES(?1,?2) ON CONFLICT(guild) DO UPDATE SET body=excluded.body",params![intent.guild.to_string(),serde_json::to_string(intent)?])?;
         Ok(())
     }
     pub fn update_active_timer(&self, guild: u64, deadline: Option<i64>) -> Result<bool, Error> {
@@ -628,6 +702,65 @@ pub mod optional_id {
 #[cfg(test)]
 mod persistence_tests {
     use super::*;
+    #[test]
+    fn station_quota_is_shared_by_server_and_survives_restart_and_paid_changes() {
+        let root = std::env::temp_dir().join(format!("music-quota-{}", rand::random::<u64>()));
+        let path = root.join("settings.sqlite3");
+        let legacy = root.join("skip-settings.json");
+        let record = |store: &Store, station: &str, day, changes| {
+            store
+                .start_playback(
+                    &PlaybackIntent {
+                        guild: 11,
+                        channel: 1,
+                        text_channel: 2,
+                        station: station.into(),
+                        track: "fixture".into(),
+                        active: true,
+                        sleep_until: None,
+                    },
+                    Some((day, changes)),
+                )
+                .unwrap();
+        };
+        {
+            let store = Store::open(&path, &legacy).unwrap();
+            assert_eq!(store.station_changes(11, "lofi", 4, true).unwrap(), 0);
+            record(&store, "lofi", 4, 0);
+            for i in 1..=6 {
+                let station = if i % 2 == 1 { "night" } else { "lofi" };
+                let used = store.station_changes(11, station, 4, true).unwrap();
+                assert_eq!(used, i);
+                record(&store, station, 4, used);
+            }
+        }
+        let store = Store::open(&path, &legacy).unwrap();
+        assert!(store.station_changes(11, "night", 4, true).is_err());
+        assert_eq!(store.station_changes(11, "lofi", 4, true).unwrap(), 6);
+        let paid = store.station_changes(11, "night", 4, false).unwrap();
+        assert_eq!(paid, 6);
+        record(&store, "night", 4, paid);
+        assert!(store.station_changes(11, "lofi", 4, true).is_err());
+        assert_eq!(store.station_changes(12, "night", 4, true).unwrap(), 0);
+        assert_eq!(store.station_changes(11, "lofi", 5, true).unwrap(), 1);
+        drop(store);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn shared_controls_are_separate_from_free_skip_policy_and_statistics() {
+        let saved = ServerSettings::default();
+        let mut edit = saved.clone();
+        edit.statistics = true;
+        edit.skip.mode = crate::skip::SkipMode::Majority;
+        assert!(!edit.changes_shared_music_controls(&saved));
+        edit.volume = 50;
+        assert!(edit.changes_shared_music_controls(&saved));
+        edit.volume = saved.volume;
+        edit.announcements = false;
+        assert!(edit.changes_shared_music_controls(&saved));
+    }
+
     #[test]
     fn imports_once_and_preserves_original_and_rejects_failed_writes() {
         let root = std::env::temp_dir().join(format!("music-import-{}", rand::random::<u64>()));

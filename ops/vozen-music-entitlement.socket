@@ -1,0 +1,14 @@
+[Unit]
+Description=Private Vozen Music connection to the entitlement resolver
+Requires=vozen-entitlementd.service
+After=vozen-entitlementd.service
+
+[Socket]
+ListenStream=/run/vozen-music-entitlement/resolve.sock
+SocketUser=10001
+SocketMode=0600
+DirectoryMode=0755
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

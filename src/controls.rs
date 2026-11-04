@@ -254,6 +254,10 @@ impl Bot {
             return Err("This version is limited to the development server.".into());
         }
         let config = self.authorize(ctx, guild, member, text, true).await?;
+        let access = self.music_access(member.user.id.get(), guild.get()).await?;
+        if !access.personal() {
+            return Err("Skipping requires Vozen Plus or an active Vozen Premium server.".into());
+        }
         let policy = self.settings.lock().await.get(guild.get());
         let roles = member.roles.iter().map(|id| id.get()).collect::<Vec<_>>();
         let (manager_permission, moderator) = self.member_flags(ctx, guild, member)?;
@@ -351,6 +355,34 @@ impl Bot {
             {
                 eligible.insert(listener.user.id.get());
             }
+        }
+        if access == crate::access::Access::Plus && policy.mode == SkipMode::Majority {
+            let actor = member.user.id.get();
+            let users = eligible
+                .iter()
+                .copied()
+                .filter(|&user| user != actor)
+                .collect::<Vec<_>>();
+            tokio::time::timeout(Duration::from_secs(12), async {
+                for chunk in users.chunks(8) {
+                    let mut checks = tokio::task::JoinSet::new();
+                    for &user in chunk {
+                        let bot = self.clone();
+                        checks.spawn(
+                            async move { (user, bot.music_access(user, guild.get()).await) },
+                        );
+                    }
+                    while let Some(result) = checks.join_next().await {
+                        let (user, access) = result?;
+                        if !access?.personal() {
+                            eligible.remove(&user);
+                        }
+                    }
+                }
+                Ok::<_, Error>(())
+            })
+            .await
+            .map_err(|_| "Music access verification timed out. Try again.")??;
         }
         let mut sessions = self.sessions.lock().await;
         if self

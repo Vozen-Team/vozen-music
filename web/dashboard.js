@@ -187,6 +187,9 @@ function card(title, description, heading = "h2") {
   if (description) c.append(el("p", description, "help"));
   return c;
 }
+function sharedMusicControlsLocked() {
+  return model?.music_access?.shared === false;
+}
 function field(path, label, type = "text", options = [], help = "") {
   const wrap = el("div", undefined, "music-field"),
     id = `field-${path.replaceAll(".", "-")}`;
@@ -194,6 +197,14 @@ function field(path, label, type = "text", options = [], help = "") {
   l.htmlFor = id;
   const copy = el("div", undefined, "settings-field-copy");
   copy.append(l);
+  if (sharedMusicControlsLocked() && (
+    ["volume", "default_station", "voice_channel", "dj_roles", "djs_only", "player_locked",
+      "announcements", "announcement_channel"].includes(path)
+    || /^(voice_rules|text_rules)\./.test(path)
+  )) {
+    wrap.dataset.musicPremiumLocked = "";
+    l.append(" · ", el("span", t("Premium")));
+  }
   let input;
   if (type === "select") {
     input = el("select");
@@ -420,7 +431,7 @@ function updateSave() {
   for (const c of document.querySelectorAll(
     "#editor input,#editor select,#editor button",
   ))
-    c.disabled = saving;
+    c.disabled = saving || !!c.closest("[data-music-premium-locked]");
   for (const control of $("music-pages").querySelectorAll("button"))
     control.disabled = saving || !draft;
   const bar = $("music-savebar");
@@ -568,7 +579,7 @@ function stationLibrary(editor) {
     const cover = art(personal);
     cover.loading = "eager";
     const intro = el("div", undefined, "station-featured-copy");
-    intro.append(el("span", t("Personalized radio"), "station-featured-label"), el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
+    intro.append(el("span", t(sharedMusicControlsLocked() ? "Premium" : "Personalized radio"), "station-featured-label"), el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
     const arrow = el("span", "→", "station-featured-arrow");
     arrow.setAttribute("aria-hidden", "true");
     featured.append(cover, intro, arrow);
@@ -1116,6 +1127,7 @@ function renderProfile(editor) {
     wrap.append(lab, input, help);
     view.fields[key] = wrap;
     if (type === "file") {
+      if (sharedMusicControlsLocked()) wrap.dataset.musicPremiumLocked = "";
       lab.className = "profile-sr-only";
       const clear = button(t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), () => { input.value = ""; delete view.uploads[key]; bindMusicText(input, "", "validity"); notice(""); updateProfilePreview(view); });
       clear.className = "profile-image-undo";
@@ -1326,7 +1338,9 @@ async function loadProfile(id, seq) {
     if (seq !== sequence || page !== "profile" || view !== profileView) return false;
     view.saved = p;
     $("profile-nick").value = p.nick || "";
-    for (const input of view.form.querySelectorAll("input,textarea,button")) input.disabled = !!view.saving;
+    for (const input of view.form.querySelectorAll("input,textarea,button")) {
+      input.disabled = !!view.saving || !!input.closest("[data-music-premium-locked]");
+    }
     view.loading = false; view.retry.hidden = true;
     updateProfilePreview(view);
     return true;
@@ -1373,7 +1387,7 @@ async function saveProfile(reset) {
     }
   } finally {
     view.saving = false;
-    buttons.forEach((b) => (b.disabled = view.loading));
+    buttons.forEach((b) => (b.disabled = view.loading || !!b.closest("[data-music-premium-locked]")));
     updateProfilePreview(view);
   }
 }
