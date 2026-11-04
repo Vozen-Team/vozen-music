@@ -466,13 +466,13 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   font-weight: 650;
 }
 .overview-choices { margin: 0; }
-.overview-session { display: grid; gap: 4px; padding: 11px 14px; margin: 12px 0 8px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }
+.overview-session { display: grid; gap: 4px; padding: 14px; margin: 14px 0 8px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }
 .overview-session strong { color: var(--text); overflow-wrap: anywhere; }
 .overview-session > span:last-child { color: var(--muted); font-size: 13px; }
 .overview-session-state, .overview-kicker { color: #a5bdd6; font-size: 12px; font-weight: 650; }
 .overview-session[data-state=Playing] .overview-session-state { color: #94ece1; }
 .overview-session[data-state=Paused] .overview-session-state { color: #f1ce8d; }
-.overview-section { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid #2a3e56; }
+.overview-section { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid #2a3e56; }
 .overview-section:last-child { padding-bottom: 0; }
 .overview-section h3 { font-size: 14px; margin: 0 0 3px; }
 .overview-section p { font-size: 13px; margin: 0; }
