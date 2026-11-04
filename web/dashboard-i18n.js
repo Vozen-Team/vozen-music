@@ -2847,53 +2847,129 @@ const musicTranslations = {
 };
 
 const musicLanguageKey = "vozen.lang";
-const musicLanguage = (() => {
-  const requested = new URLSearchParams(location.search).get("lang");
-  const supported = code => code === "en" || Object.hasOwn(musicTranslations, code);
-  try {
-    if (supported(requested)) {
-      localStorage.setItem(musicLanguageKey, requested);
-      return requested;
-    }
-    const saved = localStorage.getItem(musicLanguageKey);
-    if (supported(saved)) return saved;
-  } catch {
-    // The explicit URL still works if the browser blocks storage.
+const musicBindings = new WeakMap();
+let musicLanguage = "en";
+let musicLocale;
+let musicNumber;
+
+class MusicMessage {
+  constructor(key, values) {
+    this.key = key;
+    this.values = values;
   }
-  return supported(requested) ? requested : "en";
-})();
-const musicLocale = ({ pt: "pt-PT", zh: "zh-Hant" })[musicLanguage] || musicLanguage;
-const musicNumber = new Intl.NumberFormat(musicLocale);
-function t(message, values = {}) {
-  const dictionary = musicTranslations[musicLanguage];
-  const translated = dictionary && Object.hasOwn(dictionary, message) ? dictionary[message] : message;
-  return translated.replace(/\{(\w+)\}/g, (match, key) =>
-    Object.hasOwn(values, key)
-      ? typeof values[key] === "number" ? musicNumber.format(values[key]) : String(values[key])
-      : match,
-  );
+
+  toString() {
+    const dictionary = musicTranslations[musicLanguage];
+    const text = dictionary && Object.hasOwn(dictionary, this.key)
+      ? dictionary[this.key] : this.key;
+    return text.replace(/\{(\w+)\}/g, (match, key) => {
+      if (!Object.hasOwn(this.values, key)) return match;
+      const value = this.values[key];
+      if (typeof value === "number") return musicNumber.format(value);
+      if (value instanceof Date) return value.toLocaleString(musicLocale);
+      return String(value);
+    });
+  }
 }
 
-document.documentElement.lang = musicLocale;
-document.documentElement.dir = musicLanguage === "ar" ? "rtl" : "ltr";
-document.querySelectorAll("[data-music-text]").forEach(element => {
-  element.textContent = t(element.textContent);
-});
-for (const attr of ["aria-label", "title"]) {
-  document.querySelectorAll("[data-music-" + attr + "]").forEach(element => {
-    element.setAttribute(attr, t(element.getAttribute(attr)));
-  });
+function t(key, values = {}) {
+  return new MusicMessage(key, values);
 }
-for (const link of document.querySelectorAll("#langPanel [data-lang]")) {
-  const code = link.dataset.lang;
-  const target = new URL(location.href);
-  target.searchParams.set("lang", code);
-  link.href = target.pathname + target.search + target.hash;
-  const active = code === musicLanguage;
-  link.classList.toggle("is-active", active);
-  link.setAttribute("aria-selected", String(active));
-  if (active) {
-    document.getElementById("langBtnName").textContent = link.querySelector(".lang__optname").textContent;
-    document.getElementById("langBtnFlag").replaceChildren(link.querySelector("img").cloneNode());
+
+function bindMusicText(element, text, property = "textContent") {
+  let bindings = musicBindings.get(element);
+  if (!bindings && text instanceof MusicMessage) {
+    bindings = new Map();
+    musicBindings.set(element, bindings);
+    element.setAttribute("data-music-live", "");
+  }
+  bindings?.delete(property);
+  if (property === "textContent") {
+    // Bind the text node so nested icons and badges stay in the DOM.
+    const node = document.createTextNode(String(text));
+    element.replaceChildren(node);
+    if (text instanceof MusicMessage) {
+      bindings.set(property, { apply() {
+        if (node.parentNode === element) node.nodeValue = String(text);
+      } });
+    }
+    return;
+  }
+  const apply = () => {
+    if (property === "validity") element.setCustomValidity(String(text));
+    else if (text === null) element.removeAttribute(property);
+    else element.setAttribute(property, String(text));
+  };
+  if (text instanceof MusicMessage) bindings.set(property, { apply, message: text });
+  apply();
+}
+
+function musicValidityMessage(element) {
+  return musicBindings.get(element)?.get("validity")?.message || element.validationMessage;
+}
+
+function supportedMusicLanguage(code) {
+  return code === "en" || Object.hasOwn(musicTranslations, code);
+}
+
+function refreshMusicLanguageLinks() {
+  for (const link of document.querySelectorAll("#langPanel [data-lang]")) {
+    const code = link.dataset.lang;
+    const target = new URL(location.href);
+    target.searchParams.set("lang", code);
+    link.href = target.pathname + target.search + target.hash;
   }
 }
+
+function applyMusicLanguage(code) {
+  musicLanguage = code;
+  musicLocale = ({ pt: "pt-PT", zh: "zh-Hant" })[code] || code;
+  musicNumber = new Intl.NumberFormat(musicLocale);
+  document.documentElement.lang = musicLocale;
+  document.documentElement.dir = code === "ar" ? "rtl" : "ltr";
+  for (const attr of ["text", "aria-label", "title"]) {
+    const marker = "data-music-" + attr;
+    for (const element of document.querySelectorAll("[" + marker + "]")) {
+      if (!element.getAttribute(marker)) {
+        element.setAttribute(marker, attr === "text" ? element.textContent : element.getAttribute(attr));
+      }
+      const text = String(t(element.getAttribute(marker)));
+      if (attr === "text") element.textContent = text;
+      else element.setAttribute(attr, text);
+    }
+  }
+  for (const element of document.querySelectorAll("[data-music-live]")) {
+    for (const binding of musicBindings.get(element)?.values() || []) binding.apply();
+  }
+  for (const link of document.querySelectorAll("#langPanel [data-lang]")) {
+    const active = link.dataset.lang === code;
+    link.classList.toggle("is-active", active);
+    link.setAttribute("aria-selected", String(active));
+    if (active) {
+      document.getElementById("langBtnName").textContent = link.querySelector(".lang__optname").textContent;
+      document.getElementById("langBtnFlag").replaceChildren(link.querySelector("img").cloneNode());
+    }
+  }
+}
+
+function rememberMusicLanguage(code) {
+  try {
+    localStorage.setItem(musicLanguageKey, code);
+  } catch {
+    // The current URL still retains the selection if storage is disabled.
+  }
+}
+
+const requestedMusicLanguage = new URLSearchParams(location.search).get("lang");
+let initialMusicLanguage = requestedMusicLanguage;
+if (supportedMusicLanguage(requestedMusicLanguage)) {
+  rememberMusicLanguage(requestedMusicLanguage);
+} else {
+  try {
+    initialMusicLanguage = localStorage.getItem(musicLanguageKey);
+  } catch {
+    // Default to English when storage is unavailable.
+  }
+}
+applyMusicLanguage(supportedMusicLanguage(initialMusicLanguage) ? initialMusicLanguage : "en");
+refreshMusicLanguageLinks();

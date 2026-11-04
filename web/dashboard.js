@@ -41,12 +41,12 @@ const settingsSections = {
 };
 function el(tag, text, cls) {
   const e = document.createElement(tag);
-  if (text !== undefined) e.textContent = text;
+  if (text !== undefined) bindMusicText(e, text);
   if (cls) e.className = cls;
   return e;
 }
 function notice(message, kind = "info", retry = null) {
-  $("notice").textContent = message;
+  bindMusicText($("notice"), typeof message === "string" && message ? t(message) : message);
   $("notice").dataset.kind = kind;
   $("notice").hidden = !message;
   $("load-retry").hidden = !retry;
@@ -70,7 +70,7 @@ async function api(path, options = {}) {
         await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
         continue;
       }
-      throw Error(read ? t("Could not connect to Music. Try again.") : t("The response was lost. Reload to check whether your change was applied."));
+      throw Error(read ? "Could not connect to Music. Try again." : "The response was lost. Reload to check whether your change was applied.");
     }
     if (read && attempt < 2 && [502, 503, 504].includes(r.status)) {
       await r.body?.cancel();
@@ -79,16 +79,16 @@ async function api(path, options = {}) {
     }
     if (r.status === 401) {
       signedOut();
-      throw Object.assign(Error(t("Your session expired. Sign in again.")), { status: 401 });
+      throw Object.assign(Error("Your session expired. Sign in again."), { status: 401 });
     }
     let data;
     try {
       data = await r.json();
     } catch {
-      throw Object.assign(Error(t("The server could not respond. Try again.")), { status: r.status });
+      throw Object.assign(Error("The server could not respond. Try again."), { status: r.status });
     }
     if (!r.ok) {
-      throw Object.assign(Error(t(data.error || "The request failed.")), {
+      throw Object.assign(Error(data.error || "The request failed."), {
         status: r.status,
       });
     }
@@ -197,7 +197,11 @@ function field(path, label, type = "text", options = [], help = "") {
   let input;
   if (type === "select") {
     input = el("select");
-    for (const [value, text] of options) input.add(new Option(text, value));
+    for (const [value, text] of options) {
+      const option = new Option("", value);
+      bindMusicText(option, text);
+      input.add(option);
+    }
     input.value = get(path) ?? "";
   } else if (type === "multi") {
     input = el("div", undefined, "resource-list");
@@ -258,15 +262,15 @@ function field(path, label, type = "text", options = [], help = "") {
     input.addEventListener(
       type === "checkbox" || type === "select" ? "change" : "input",
       () => {
-        input.setCustomValidity("");
+        bindMusicText(input, "", "validity");
         if (
           type === "number" &&
           (!input.validity.valid || input.value === "")
         ) {
-          input.setCustomValidity(t("Choose a whole number from 0 to 100."));
+          bindMusicText(input, t("Choose a whole number from 0 to 100."), "validity");
           return;
         }
-        input.setCustomValidity("");
+        bindMusicText(input, "", "validity");
         let value =
           type === "checkbox"
             ? input.checked
@@ -424,9 +428,7 @@ function updateSave() {
   bar.hidden = !changed() && !saving;
   $("music-save").disabled = saving || !changed();
   $("music-discard").disabled = saving;
-  $("music-save-status").textContent = saving
-    ? t("Saving…")
-    : t("You have unsaved changes");
+  bindMusicText($("music-save-status"), t(saving ? "Saving…" : "You have unsaved changes"));
   $("server-select").disabled = saving;
 }
 async function save() {
@@ -481,9 +483,13 @@ function pageLocation(target) {
   return url;
 }
 function acceptLocation(url, push = false) {
-  if (push) history.pushState(null, "", url);
-  else history.replaceState(null, "", url);
+  const destination = new URL(url, location.href);
+  if (destination.searchParams.has("lang") || new URL(location.href).searchParams.has("lang"))
+    destination.searchParams.set("lang", musicLanguage);
+  if (push) history.pushState(null, "", destination);
+  else history.replaceState(null, "", destination);
   acceptedUrl = location.href;
+  refreshMusicLanguageLinks();
 }
 function showSettingsSection() {
   const nav = document.querySelector(".settings-jump");
@@ -604,8 +610,8 @@ function stationLibrary(editor) {
   const hero = el("section", undefined, "station-album-header");
   const info = el("div");
   const metadata = el("p", undefined, "album-metadata");
-  if (selected.proposed) metadata.textContent = t("In preparation · Not available for playback");
-  else if (selected.id === "my") metadata.textContent = t("Built from the listeners in your call.");
+  if (selected.proposed) bindMusicText(metadata, t("In preparation · Not available for playback"));
+  else if (selected.id === "my") bindMusicText(metadata, t("Built from the listeners in your call."));
   else metadata.append(el("strong", t("{count} tracks", { count: selected.tracks.length })), el("span", t("Various artists")));
   info.append(el("p", selected.id === "my" ? t("Personalized radio") : t("Instrumental radio"), "album-label"), el("h1", selected.name), metadata);
   const cover = art(selected);
@@ -637,9 +643,9 @@ function stationLibrary(editor) {
       control.classList.toggle("is-playing", playing);
       row.classList.toggle("is-previewing", playing);
       control.setAttribute("aria-pressed", String(playing));
-      control.setAttribute("aria-label", t(playing ? "Pause preview of {title}" : "Play preview of {title}", { title: track.title }));
+      bindMusicText(control, t(playing ? "Pause preview of {title}" : "Play preview of {title}", { title: track.title }), "aria-label");
     }
-    previewStatus.textContent = active ? t("{status}: {title} — {artist}. Only in this browser.", { status: t(audio.ended ? "Finished" : audio.paused ? "Paused" : "Previewing"), title: active.title, artist: active.artist }) : t("Preview tracks in this browser. Discord playback stays unchanged.");
+    bindMusicText(previewStatus, active ? t("{status}: {title} — {artist}. Only in this browser.", { status: t(audio.ended ? "Finished" : audio.paused ? "Paused" : "Previewing"), title: active.title, artist: active.artist }) : t("Preview tracks in this browser. Discord playback stays unchanged."));
   };
   for (const event of ["play", "pause", "ended", "emptied"]) audio.addEventListener(event, syncPreview);
   const playPreview = async track => {
@@ -673,7 +679,7 @@ function stationLibrary(editor) {
     const position = el("td", undefined, "track-number");
     const play = button("", () => playPreview(track));
     play.className = "track-preview";
-    play.setAttribute("aria-label", t("Play preview of {title}", { title: track.title }));
+    bindMusicText(play, t("Play preview of {title}", { title: track.title }), "aria-label");
     play.setAttribute("aria-pressed", "false");
     for (const [text, cls] of [[String(index + 1), "preview-number"], ["▶︎", "preview-play"], ["⏸︎", "preview-pause"]]) {
       const icon = el("span", text, cls); icon.setAttribute("aria-hidden", "true"); play.append(icon);
@@ -718,7 +724,7 @@ function pageLink(target, label, cls) {
 function profileMiniature() {
   const id = current, seq = sequence;
   const link = pageLink("profile", undefined, "discord-profile overview-profile");
-  link.setAttribute("aria-label", t("Open Bot Profile"));
+  bindMusicText(link, t("Open Bot Profile"), "aria-label");
   const header = el("div", undefined, "overview-profile-banner");
   const banner = el("img", undefined, "profile-banner");
   banner.alt = "";
@@ -756,7 +762,7 @@ function profileMiniature() {
     description.hidden = !profile.bio;
     status.hidden = true;
   }).catch(() => {
-    if (link.isConnected && seq === sequence) status.textContent = t("Server profile could not be loaded.");
+    if (link.isConnected && seq === sequence) bindMusicText(status, t("Server profile could not be loaded."));
   });
   return link;
 }
@@ -785,7 +791,7 @@ function renderOverview(editor) {
   const skipAccess = draft.skip.access === "moderators" ? t("Moderators only") : t("Call members");
   const skipMode = draft.skip.mode === "majority" ? t("Majority vote") : t("One click");
   const summaries = {
-    playback: `${station(draft.default_station)} · ${draft.volume}% · ${mode}`,
+    playback: t("{station} · {volume}% · {mode}", { station: station(draft.default_station), volume: draft.volume, mode }),
     access: t("Skip · {access} · {mode}", { access: skipAccess, mode: skipMode }),
     community: draft.statistics ? t("Tracking allowed") : t("Tracking off"),
   };
@@ -794,7 +800,7 @@ function renderOverview(editor) {
     const copy = el("div");
     copy.append(el("h3", title), el("p", summaries[target]));
     const action = pageLink(target, t("Edit →"));
-    action.setAttribute("aria-label", t("Edit {section}", { section: title }));
+    bindMusicText(action, t("Edit {section}", { section: title }), "aria-label");
     section.append(copy, action);
     choices.append(section);
   }
@@ -807,7 +813,7 @@ function renderOverview(editor) {
 function stationShortcut() {
   const id = current;
   const stations = pageLink("stations", undefined, "overview-stations");
-  stations.setAttribute("aria-label", t("Explore stations"));
+  bindMusicText(stations, t("Explore stations"), "aria-label");
   const covers = el("div", undefined, "overview-station-covers");
   for (const station of ["lofi", "rain", "night"]) {
     const cover = el("img");
@@ -832,9 +838,9 @@ function stationShortcut() {
     api(`/api/guilds/${id}/track-listening`).then(({ enabled, top }) => {
       if (current !== id || !stations.isConnected) return;
       if (!top) {
-        details.textContent = enabled
+        bindMusicText(details, enabled
           ? t("No listening stats yet. Play music in Discord with time tracking on.")
-          : t("Time tracking is off for this server.");
+          : t("Time tracking is off for this server."));
         return;
       }
       if (top.cover) {
@@ -844,7 +850,7 @@ function stationShortcut() {
         covers.classList.add("is-featured");
         covers.replaceChildren(cover);
       }
-      heading.textContent = t("Most listened");
+      bindMusicText(heading, t("Most listened"));
       details.replaceChildren(el("strong", top.title));
       if (top.artist) details.append(el("p", top.artist));
       const stats = el("dl", undefined, "overview-track-stats");
@@ -858,7 +864,7 @@ function stationShortcut() {
       }
       details.append(stats);
     }).catch(() => {
-      if (current === id && stations.isConnected) details.textContent = t("Listening stats could not load.");
+      if (current === id && stations.isConnected) bindMusicText(details, t("Listening stats could not load."));
     });
   }
   return stations;
@@ -866,7 +872,7 @@ function stationShortcut() {
 
 function renderSettings(editor) {
   const nav = el("nav", undefined, "settings-jump");
-  nav.setAttribute("aria-label", t("Settings sections"));
+  bindMusicText(nav, t("Settings sections"), "aria-label");
   const sections = {};
   for (const [key, title] of Object.entries(settingsSections)) {
     const heading = el("h2", title);
@@ -906,7 +912,7 @@ function renderSettings(editor) {
     el(
       "p",
       model.session?.sleep_until
-        ? t("Current deadline: {deadline}", { deadline: new Date(model.session.sleep_until * 1000).toLocaleString(musicLocale) })
+        ? t("Current deadline: {deadline}", { deadline: new Date(model.session.sleep_until * 1000) })
         : t("No timer is set."),
     ),
   );
@@ -1106,30 +1112,31 @@ function renderProfile(editor) {
     lab.htmlFor = input.id;
     help.id = `profile-${key}-help`;
     input.setAttribute("aria-describedby", help.id);
-    help.textContent = type === "file" ? t("Static PNG, JPEG or WebP · up to 2 MB. Changes are previewed before upload.") : "";
+    bindMusicText(help, type === "file" ? t("Static PNG, JPEG or WebP · up to 2 MB. Changes are previewed before upload.") : "");
     wrap.append(lab, input, help);
     view.fields[key] = wrap;
     if (type === "file") {
       lab.className = "profile-sr-only";
-      const clear = button(t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), () => { input.value = ""; delete view.uploads[key]; input.setCustomValidity(""); notice(""); updateProfilePreview(view); });
+      const clear = button(t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), () => { input.value = ""; delete view.uploads[key]; bindMusicText(input, "", "validity"); notice(""); updateProfilePreview(view); });
       clear.className = "profile-image-undo";
-      clear.setAttribute("aria-label", t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection")); clear.title = t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"); clear.textContent = "↶";
+      bindMusicText(clear, t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), "aria-label"); bindMusicText(clear, t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), "title"); clear.textContent = "↶";
       clear.hidden = true; view.clear[key] = clear;
       clear.disabled = true;
       const trigger = button("", () => input.click());
       trigger.disabled = true; trigger.className = "profile-image-trigger";
-      trigger.setAttribute("aria-label", t(key === "avatar" ? "Edit avatar" : "Edit banner"));
+      bindMusicText(trigger, t(key === "avatar" ? "Edit avatar" : "Edit banner"), "aria-label");
       const pencil = el("span", "✎", "profile-pencil"); pencil.setAttribute("aria-hidden", "true");
       trigger.append(pencil, el("span", t(key === "avatar" ? "Edit avatar" : "Edit banner"), "profile-edit-label"));
       const area = el("div", undefined, `profile-${key}-editor`);
-      const image = el("img", undefined, `profile-${key}`); image.alt = t("{label} preview", { label });
+      const image = el("img", undefined, `profile-${key}`);
+      bindMusicText(image, t("{label} preview", { label }), "alt");
       if (key === "avatar") image.src = "/music/avatar.png"; else image.hidden = true;
       view[key] = image;
       area.append(image, trigger, clear);
       wrap.prepend(area);
       input.addEventListener("change", async () => {
         notice("");
-        delete view.uploads[key]; input.setCustomValidity("");
+        delete view.uploads[key]; bindMusicText(input, "", "validity");
         const file = input.files[0];
         if (!file) { updateProfilePreview(view); return; }
         view.pending++;
@@ -1137,10 +1144,10 @@ function renderProfile(editor) {
         try {
           const data = await readProfileFile(file);
           const image = new Image(); image.src = data; await image.decode();
-          if (image.naturalWidth > 4096 || image.naturalHeight > 4096) throw Error(t("Images must be no larger than 4096 pixels on either side."));
+          if (image.naturalWidth > 4096 || image.naturalHeight > 4096) throw Error("Images must be no larger than 4096 pixels on either side.");
           if (profileView === view && input.files[0] === file) view.uploads[key] = data;
         } catch (e) {
-          if (profileView === view && input.files[0] === file) input.setCustomValidity(e.message || t("Choose a valid image."));
+          if (profileView === view && input.files[0] === file) bindMusicText(input, t(e.message || "Choose a valid image."), "validity");
         } finally { view.pending--; updateProfilePreview(view); }
       });
     } else input.addEventListener("input", () => { notice(""); updateProfilePreview(view); });
@@ -1166,9 +1173,9 @@ function updateProfilePreview(view) {
   if (profileView !== view || !view.form.isConnected) return;
   const nick = $("profile-nick");
   const message = profileTextError(nick.value, view.saved.policy) || (nick.value && (!nick.value.trim() || /[\u0000-\u001f\u007f]/.test(nick.value)) ? t("Use a visible name without line breaks.") : "");
-  nick.setCustomValidity(message);
+  bindMusicText(nick, message, "validity");
   nick.setAttribute("aria-invalid", String(!!message));
-  $("profile-nick-help").textContent = t("{length}/{limit} characters · Leave empty for the default name.", { length: [...nick.value].length, limit: nick.maxLength });
+  bindMusicText($("profile-nick-help"), t("{length}/{limit} characters · Leave empty for the default name.", { length: [...nick.value].length, limit: nick.maxLength }));
   nick.placeholder = view.saved.default_name || "Vozen Music";
   view.bio.textContent = view.saved.bio || "";
   view.bio.hidden = !view.saved.bio;
@@ -1182,7 +1189,9 @@ function updateProfilePreview(view) {
   if (banner) view.banner.src = banner; else view.banner.removeAttribute("src");
   for (const key of ["avatar", "banner"]) view.clear[key].hidden = !$(`profile-${key}`).files.length;
   const invalid = [...view.form.querySelectorAll("input,textarea")].find(i => !i.validity.valid);
-  view.error.textContent = invalid?.validationMessage || (view.pending ? t("Preparing your image preview…") : "");
+  bindMusicText(view.error, invalid
+    ? musicValidityMessage(invalid)
+    : view.pending ? t("Preparing your image preview…") : "");
   view.error.hidden = !view.error.textContent;
   view.apply.disabled = view.loading || !!view.pending || !!view.saving || !!invalid;
 }
@@ -1192,11 +1201,11 @@ function profileImageUrl(profile, guild, key) {
     ? `https://cdn.discordapp.com/guilds/${guild}/users/${bot}/${key}s/${hash}.png?size=512` : "";
 }
 async function readProfileFile(file) {
-  if (file.size > 2 * 1024 * 1024) throw Error(t("Images must be no larger than 2 MB."));
-  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw Error(t("Choose a PNG, JPEG or WebP image."));
+  if (file.size > 2 * 1024 * 1024) throw Error("Images must be no larger than 2 MB.");
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw Error("Choose a PNG, JPEG or WebP image.");
   return new Promise((resolve, reject) => {
     const reader = new FileReader(); reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(Error(t("The image could not be read."))); reader.readAsDataURL(file);
+    reader.onerror = () => reject(Error("The image could not be read.")); reader.readAsDataURL(file);
   });
 }
 async function loadPersonal(id, seq, panel, leaderboard, focusId) {
@@ -1292,7 +1301,7 @@ async function loadPersonal(id, seq, panel, leaderboard, focusId) {
     ));
   } catch (e) {
     if (connected()) {
-      const error = el("p", e.message);
+      const error = el("p", t(e.message));
       error.setAttribute("role", "status");
       panel.replaceChildren(error, button(t("Retry"), () => loadPersonal(id, seq, panel, leaderboard)));
       leaderboard.replaceChildren(el("p", t("The leaderboard could not load."), "community-empty"));
@@ -1395,7 +1404,9 @@ function renderServers() {
       select.before(icon);
     }
   }
-  select.add(new Option(t("Choose another server"), "__choose_server__"));
+  const choose = new Option("", "__choose_server__");
+  bindMusicText(choose, t("Choose another server"));
+  select.add(choose);
   select.disabled = saving;
 }
 function showServerPicker() {
@@ -1577,17 +1588,19 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 $("langPanel").addEventListener("click", event => {
-  if (!event.target.closest("[data-lang]") || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  if (saving || profileView?.saving || !canLeaveServer()) {
-    event.preventDefault();
-    return;
+  const option = event.target.closest("[data-lang]");
+  if (!option || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  const code = option.dataset.lang;
+  if (code !== musicLanguage) {
+    const url = new URL(location.href);
+    url.searchParams.set("lang", code);
+    rememberMusicLanguage(code);
+    applyMusicLanguage(code);
+    acceptLocation(url);
   }
-  const nick = $("profile-nick");
-  const editingProfile = nick && (nick.value !== (profileView.saved.nick || "") ||
-    ["avatar", "banner"].some(key => $(`profile-${key}`).files.length));
-  if (editingProfile && !confirm(t("Change language and discard the unsaved profile changes?"))) {
-    event.preventDefault();
-  }
+  closeNavigation();
+  $("langBtn").focus();
 });
 window.addEventListener("pagehide", stopBrowserPreview);
 window.addEventListener("popstate", () => {
