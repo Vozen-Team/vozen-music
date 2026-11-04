@@ -545,9 +545,8 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .music-workspace-loading[data-view=stations] [data-shape=stations],
 .music-workspace-loading[data-view=album] [data-shape=album],
 .music-workspace-loading[data-view=profile] [data-shape=profile] { display: block; }
-.skeleton-heading { display: grid; gap: 18px; margin-bottom: 36px; }
-.skeleton-heading i:first-child { width: min(218px, 62%); height: 34px; }
-.skeleton-heading i:last-child { width: min(326px, 88%); }
+#editor > h1, .workspace-skeleton .skeleton-heading { margin-bottom: 24px; }
+.workspace-skeleton .skeleton-heading { width: min(218px, 62%); height: 34px; }
 .music-workspace-loading[data-view=album] .skeleton-heading { display: none; }
 .skeleton-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .skeleton-strip, .skeleton-inset { padding: 18px 20px; }
@@ -606,7 +605,7 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .station-featured .station-featured-label{color:#9aece0;font-weight:600}
 .station-featured .station-featured-arrow{display:grid;place-items:center;flex:none;width:42px;height:42px;border:1px solid #cad8f278;border-radius:50%;background:#142238d9;color:#fff;font-size:20px}
 .station-featured:hover .station-featured-arrow,.station-featured:focus-visible .station-featured-arrow{background:#9aece0;color:#101929;border-color:#9aece0}
-.music-dashboard main:has(.station-album-header){padding-top:0}
+.music-dashboard main:has(#editor:not([hidden]) .station-album-header, #workspace-loading[data-view=album]:not([hidden])) { padding-top: 0; }
 .album-back{position:absolute;top:24px;left:var(--album-gutter);display:inline-flex;align-items:center;gap:10px;min-height:44px;margin:0;padding:8px 18px 8px 14px;background:#07101b99;border:1px solid #ffffff29;border-radius:999px;backdrop-filter:blur(16px);box-shadow:0 3px 14px #03091426;color:#f4f7fb;font-size:13px;font-weight:500;transition:background-color .16s,border-color .16s}
 .album-back:hover{background:#07101bd9;border-color:#ffffff66;color:#fff}
 .album-back-icon{display:grid;place-items:center;width:20px;height:20px;flex:none}

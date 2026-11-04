@@ -38,12 +38,6 @@ const settingsSections = {
   access: "Access & Channels",
   community: "Community",
 };
-const descriptions = {
-  overview: "Playback, stations and server settings.",
-  settings: "Choose how Music plays and what members can do in this server.",
-  stations: "Find an instrumental station for your mood.",
-  profile: "Change how Music looks in this server only.",
-};
 function el(tag, text, cls) {
   const e = document.createElement(tag);
   if (text !== undefined) e.textContent = text;
@@ -1029,10 +1023,7 @@ function render() {
     $("music-pages").append(b);
   }
   const albumOpen = page === "stations" && [...catalog.map(s => s.id), ...proposals.map(s => s.id), "my"].includes(new URLSearchParams(location.search).get("album"));
-  if (!albumOpen) editor.append(
-    el("h1", pages[page] || pages.overview),
-    el("p", descriptions[page] || descriptions.overview, "intro"),
-  );
+  if (!albumOpen) editor.append(el("h1", pages[page] || pages.overview));
   if (page === "overview") renderOverview(editor);
   if (page === "settings") renderSettings(editor);
   if (page === "stations") {
