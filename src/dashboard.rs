@@ -1009,16 +1009,20 @@ async fn track_cover(
 }
 
 async fn dashboard_page(Query(params): Query<HashMap<String, String>>) -> Html<String> {
-    dashboard_html(params.get("server").is_some_and(|id| valid_server_path(id)))
+    dashboard_html(
+        params.get("server").is_some_and(|id| valid_server_path(id)),
+        &params,
+    )
 }
 
 async fn server_dashboard_page(
     RoutePath(id): RoutePath<String>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> Result<Html<String>, StatusCode> {
     if !valid_server_path(&id) {
         return Err(StatusCode::NOT_FOUND);
     }
-    Ok(dashboard_html(true))
+    Ok(dashboard_html(true, &params))
 }
 
 fn valid_server_path(id: &str) -> bool {
@@ -1028,15 +1032,24 @@ fn valid_server_path(id: &str) -> bool {
         && id.parse::<u64>().is_ok()
 }
 
-fn dashboard_html(workspace: bool) -> Html<String> {
+fn dashboard_html(workspace: bool, params: &HashMap<String, String>) -> Html<String> {
     let html = include_str!("../web/dashboard.html");
     if workspace {
+        let view = match params.get("page").map(String::as_str) {
+            Some("stations") if params.get("album").is_some_and(|album| !album.is_empty()) => {
+                "album"
+            }
+            Some("stations") => "stations",
+            Some("settings" | "playback" | "access" | "community") => "settings",
+            Some("profile") => "profile",
+            _ => "overview",
+        };
         Html(
             html.replace("<aside id=\"sidebar\" hidden", "<aside id=\"sidebar\"")
                 .replace("<section id=\"loading\"", "<section id=\"loading\" hidden")
                 .replace(
-                    "aria-busy=\"true\" hidden><h1>Loading your dashboard",
-                    "aria-busy=\"true\"><h1>Loading your dashboard",
+                    "data-view=\"overview\" role=\"status\" hidden",
+                    &format!("data-view=\"{view}\" role=\"status\""),
                 ),
         )
     } else {
@@ -1418,12 +1431,21 @@ mod tests {
     async fn initial_loading_matches_the_server_route_before_scripts_run() {
         use axum::{body::Body, http::Request};
         let app = router(fixture());
-        for (path, workspace) in [
-            ("/music", false),
-            ("/music/1?page=stations&album=rain", true),
-            ("/music/dashboard?server=1&page=stations&album=rain", true),
-            ("/music/dashboard?server=invalid", false),
+        for (path, view) in [
+            ("/music", None),
+            ("/music/1", Some("overview")),
+            ("/music/1?page=playback", Some("settings")),
+            ("/music/1?page=stations", Some("stations")),
+            ("/music/1?page=profile", Some("profile")),
+            ("/music/1?page=stations&album=rain", Some("album")),
+            (
+                "/music/dashboard?server=1&page=stations&album=rain",
+                Some("album"),
+            ),
+            ("/music/dashboard?server=invalid", None),
+            ("/music/1?page=%22%3E%3Cscript%3E", Some("overview")),
         ] {
+            let workspace = view.is_some();
             let response = app
                 .clone()
                 .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
@@ -1439,10 +1461,11 @@ mod tests {
             .unwrap();
             assert_eq!(text.contains("<section id=\"loading\" hidden"), workspace);
             assert_eq!(text.contains("<aside id=\"sidebar\" hidden"), !workspace);
-            assert_eq!(
-                text.contains("aria-busy=\"true\" hidden><h1>Loading your dashboard"),
-                !workspace
-            );
+            let state = match view {
+                Some(view) => format!("data-view=\"{view}\" role=\"status\">"),
+                None => "data-view=\"overview\" role=\"status\" hidden>".to_owned(),
+            };
+            assert!(text.contains(&state), "wrong skeleton for {path}");
             assert!(!text.contains("<script>"));
         }
     }

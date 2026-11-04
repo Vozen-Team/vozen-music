@@ -102,7 +102,12 @@ async function api(path, options = {}) {
 }
 function showLoading(workspace) {
   $("loading").hidden = workspace !== false;
-  $("workspace-loading").hidden = workspace !== true;
+  const loader = $("workspace-loading");
+  if (workspace === true) {
+    const album = page === "stations" && new URLSearchParams(location.search).get("album");
+    loader.dataset.view = album ? "album" : Object.hasOwn(settingsSections, page) ? "settings" : Object.hasOwn(pages, page) ? page : "overview";
+  }
+  loader.hidden = workspace !== true;
 }
 function signedOut() {
   stopBrowserPreview();
@@ -1284,6 +1289,17 @@ async function loadPersonal(id, seq, panel, leaderboard, focusId) {
 }
 async function loadProfile(id, seq) {
   const view = profileView;
+  let placeholder;
+  if (view.loading) {
+    placeholder = el("div", undefined, "workspace-skeleton");
+    placeholder.setAttribute("role", "status");
+    const shape = document.querySelector('#workspace-loading [data-shape="profile"]').cloneNode(true);
+    shape.removeAttribute("data-shape");
+    shape.setAttribute("aria-hidden", "true");
+    placeholder.append(el("span", "Loading server profile", "vp-sr"), shape);
+    view.form.hidden = true;
+    view.form.before(placeholder);
+  }
   try {
     const p = await api(`/api/guilds/${id}/profile`);
     if (seq !== sequence || page !== "profile" || view !== profileView) return false;
@@ -1296,6 +1312,11 @@ async function loadProfile(id, seq) {
   } catch (e) {
     if (id === current && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
     return false;
+  } finally {
+    if (placeholder) {
+      placeholder.remove();
+      view.form.hidden = false;
+    }
   }
 }
 async function saveProfile(reset) {

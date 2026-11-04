@@ -14,6 +14,7 @@ try {
    assert.equal(await page.locator('#loading .vp-initial-skeleton').isVisible(),false,`Server picker flashed during ${phase}`);
    assert.equal(await page.locator('#sidebar').isVisible(),true);
    assert.equal(await page.locator('.music-workspace-loading').isVisible(),true);
+   assert.equal(await page.locator('#workspace-loading [data-shape]:visible').getAttribute('data-shape'),'stations');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
    release();await page.locator('.station-albums').waitFor();
    let documents=0;page.on('request',r=>{if(r.isNavigationRequest()&&r.frame()===page.mainFrame())documents++;});
@@ -27,13 +28,21 @@ try {
    console.log(`Workspace ${width}px ${phase}: no picker flash; album navigation stays in the workspace`);
   } finally {release();await page.close();}
  }
- const firstPaint=await browser.newPage({javaScriptEnabled:false});
- await firstPaint.goto(base+'/music/dashboard?server=1&page=stations&album=rain');
- assert.equal(await firstPaint.locator('#loading').isVisible(),false);
- assert.equal(await firstPaint.locator('#workspace-loading').isVisible(),true);
- assert.equal(await firstPaint.locator('#sidebar').isVisible(),true);
- assert.equal(await firstPaint.locator('#server-select').isDisabled(),true);
- await firstPaint.close();
+ for(const width of [320,390,1440]) {
+  const firstPaint=await browser.newPage({javaScriptEnabled:false,viewport:{width,height:950},reducedMotion:'reduce'});
+  for(const [query,shape] of [['','overview'],['?page=settings','settings'],['?page=stations','stations'],['?page=stations&album=rain','album'],['?page=profile','profile']]) {
+   await firstPaint.goto(base+'/music/1'+query);
+   const visible=firstPaint.locator('#workspace-loading [data-shape]:visible');
+   assert.equal(await visible.getAttribute('data-shape'),shape);
+   assert.equal(await visible.locator('i').first().evaluate(el=>getComputedStyle(el).animationName),'none');
+   assert.equal(await firstPaint.locator('#loading').isVisible(),false);
+   assert.equal(await firstPaint.locator('#sidebar').isVisible(),true);
+   assert.equal(await firstPaint.locator('#server-select').isDisabled(),true);
+   assert.equal(await firstPaint.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   if(width!==320) await firstPaint.screenshot({path:`output/skeleton-${shape}-${width}.png`});
+  }
+  await firstPaint.close();
+ }
  const retry=await browser.newPage();let fail=true;
  await retry.route('**/music/api/guilds/1/server-settings',r=>fail?r.fulfill({status:503,json:{error:'Synthetic settings failure'}}):r.continue());
  await retry.goto(base+'/music/dashboard?server=1&page=stations');

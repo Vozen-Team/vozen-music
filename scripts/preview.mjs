@@ -203,11 +203,16 @@ const server = http.createServer(async (req, res) => {
           '<main id="main" tabindex="-1"><p class="small">Local UI preview · sample server · no Discord actions</p>',
         ),
     );
-  if (file.endsWith("dashboard.html") && (serverPath || /^[1-9][0-9]*$/.test(url.searchParams.get("server") || "")))
+  if (file.endsWith("dashboard.html") && (serverPath || /^[1-9][0-9]*$/.test(url.searchParams.get("server") || ""))) {
+    const page = url.searchParams.get("page");
+    const view = page === "stations" && url.searchParams.get("album") ? "album"
+      : ["settings", "playback", "access", "community"].includes(page) ? "settings"
+      : ["stations", "profile"].includes(page) ? page : "overview";
     bytes = Buffer.from(bytes.toString()
       .replace('<aside id="sidebar" hidden', '<aside id="sidebar"')
       .replace('<section id="loading"', '<section id="loading" hidden')
-      .replace('aria-busy="true" hidden><h1>Loading your dashboard', 'aria-busy="true"><h1>Loading your dashboard'));
+      .replace('data-view="overview" role="status" hidden', `data-view="${view}" role="status"`));
+  }
   res.end(bytes);
 });
 const port = Number(process.env.VOZEN_PREVIEW_PORT || 4783);

@@ -79,7 +79,44 @@
           <div class="vp-add"><span class="vp-pulse vp-loading-add"></span></div>
         </div>
       </section>
-      <section id="workspace-loading" class="loading music-workspace-loading" role="status" aria-live="polite" aria-busy="true" hidden><h1>Loading your dashboard…</h1><p>Loading server settings.</p></section>
+      <section id="workspace-loading" class="music-workspace-loading" data-view="overview" role="status" hidden>
+        <span class="vp-sr">Loading Music dashboard</span>
+        <div class="workspace-skeleton" aria-hidden="true">
+          <div class="skeleton-heading"><i></i><i></i></div>
+          <div data-shape="overview">
+            <div class="skeleton-panel skeleton-strip"><i></i><i></i></div>
+            <div class="overview-layout">
+              <div class="skeleton-panel"><i class="skeleton-art"></i><div class="skeleton-inset"><i></i><i></i></div></div>
+              <div class="overview-side">
+                <div class="skeleton-panel skeleton-inset"><i></i><i></i><i></i><i></i></div>
+                <div class="skeleton-panel"><i class="skeleton-banner"></i><div class="skeleton-strip"><i class="skeleton-avatar"></i><i></i></div></div>
+              </div>
+            </div>
+          </div>
+          <div data-shape="settings">
+            <div class="skeleton-tabs"><i></i><i></i><i></i></div>
+            <div class="skeleton-panel skeleton-inset"><i></i><div class="skeleton-field"><i></i><i></i></div><div class="skeleton-field"><i></i><i></i></div></div>
+            <div class="skeleton-panel skeleton-inset"><i></i><div class="skeleton-field"><i></i><i></i></div><div class="skeleton-field"><i></i><i></i></div></div>
+          </div>
+          <div data-shape="stations">
+            <div class="skeleton-panel skeleton-strip skeleton-featured"><i></i></div>
+            <i class="skeleton-shelf-title"></i>
+            <div class="station-shelf-grid">
+              <div><i></i><i></i></div><div><i></i><i></i></div><div><i></i><i></i></div><div><i></i><i></i></div><div><i></i><i></i></div>
+            </div>
+          </div>
+          <div data-shape="album">
+            <div class="station-album-header"><i class="skeleton-back"></i><div><i></i><i></i></div></div>
+            <div class="skeleton-track"><i></i><i></i><i></i></div>
+            <div class="skeleton-track"><i></i><i></i><i></i></div>
+            <div class="skeleton-track"><i></i><i></i><i></i></div>
+          </div>
+          <div data-shape="profile" class="skeleton-panel skeleton-profile-card">
+            <i class="skeleton-banner"></i>
+            <div class="skeleton-inset"><i class="skeleton-avatar"></i><i></i><i></i></div>
+          </div>
+        </div>
+      </section>
       <section id="empty" hidden><h1>No servers to manage yet</h1><p>You need Manage Server permission and Vozen Music must be installed. After adding the bot, refresh this list.</p><button id="refresh" type="button">Refresh servers</button></section>
       <section id="server-picker" class="vozen-server-picker" hidden aria-labelledby="picker-title">
         <div class="vp-intro"><div><p class="vp-product"><img src="/music/avatar.png" alt="">Vozen Music</p><h1 id="picker-title" class="vp-title">Your servers<span>.</span></h1></div><div class="vp-symbol" aria-hidden="true"><img src="/music/vozen.svg" alt=""><span></span><span></span></div></div>

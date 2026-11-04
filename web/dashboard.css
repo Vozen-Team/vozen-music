@@ -531,6 +531,61 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   .overview-stations-body { padding-inline: 16px; }
 }
 
+/* Dashboard loading states follow the shape of the destination. */
+.workspace-skeleton i {
+  display: block;
+  width: min(144px, 70%);
+  height: 12px;
+  border-radius: 6px;
+  background: #20344b;
+}
+.workspace-skeleton [data-shape] { display: none; }
+.music-workspace-loading[data-view=overview] [data-shape=overview],
+.music-workspace-loading[data-view=settings] [data-shape=settings],
+.music-workspace-loading[data-view=stations] [data-shape=stations],
+.music-workspace-loading[data-view=album] [data-shape=album],
+.music-workspace-loading[data-view=profile] [data-shape=profile] { display: block; }
+.skeleton-heading { display: grid; gap: 18px; margin-bottom: 36px; }
+.skeleton-heading i:first-child { width: min(218px, 62%); height: 34px; }
+.skeleton-heading i:last-child { width: min(326px, 88%); }
+.music-workspace-loading[data-view=album] .skeleton-heading { display: none; }
+.skeleton-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.skeleton-strip, .skeleton-inset { padding: 18px 20px; }
+.skeleton-strip { display: flex; align-items: center; gap: 16px; min-height: 60px; }
+.skeleton-strip > i + i { margin-inline-start: auto; width: min(84px, 28%); }
+.skeleton-inset { display: grid; gap: 22px; }
+.workspace-skeleton .skeleton-inset > i:first-child:not(.skeleton-avatar) { height: 17px; }
+.workspace-skeleton .skeleton-art,
+.workspace-skeleton .skeleton-banner { width: 100%; height: 228px; border-radius: 0; }
+.workspace-skeleton .skeleton-banner { height: clamp(80px, 8vw, 112px); }
+.workspace-skeleton .skeleton-avatar { width: 44px; height: 44px; border-radius: 50%; flex: none; }
+[data-shape=overview] > .skeleton-strip { margin-bottom: 18px; }
+[data-shape=settings] > .skeleton-panel + .skeleton-panel { margin-top: 14px; }
+.skeleton-tabs { display: flex; gap: 10px; padding-bottom: 14px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+.workspace-skeleton .skeleton-tabs i { width: min(110px, 30%); height: 36px; }
+.skeleton-field, .skeleton-track { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.workspace-skeleton .skeleton-field i:last-child { width: min(175px, 44%); height: 34px; }
+.skeleton-featured { min-height: 118px; }
+.workspace-skeleton .skeleton-shelf-title { margin: 24px 0 12px; height: 18px; }
+.workspace-skeleton .station-shelf-grid i:first-child { width: 100%; height: auto; aspect-ratio: 1; border-radius: 8px; }
+.workspace-skeleton .station-shelf-grid i + i { width: 76%; margin-top: 12px; }
+.workspace-skeleton .station-album-header { background: var(--surface); }
+.workspace-skeleton .station-album-header div > i:first-child { width: min(380px, 65vw); height: 44px; margin-bottom: 18px; }
+.workspace-skeleton .skeleton-back { position: absolute; inset: 24px auto auto var(--album-gutter); width: 108px; height: 40px; border-radius: 20px; }
+.skeleton-track { min-height: 64px; justify-content: flex-start; border-bottom: 1px solid var(--line); }
+.workspace-skeleton .skeleton-track i:first-child { width: 42px; height: 42px; }
+.workspace-skeleton .skeleton-track i:last-child { width: 34px; margin-inline-start: auto; }
+.skeleton-profile-card { max-width: 660px; }
+.workspace-skeleton .skeleton-profile-card .skeleton-banner { height: 180px; }
+.workspace-skeleton .skeleton-profile-card .skeleton-avatar { width: 82px; height: 82px; margin-top: -56px; border: 5px solid var(--surface); }
+@media (max-width: 600px) {
+  .workspace-skeleton .skeleton-art, .workspace-skeleton .skeleton-profile-card .skeleton-banner { height: 140px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .workspace-skeleton i { animation: workspace-pulse 1.65s ease-in-out infinite alternate; }
+  @keyframes workspace-pulse { to { background-color: #2a435a; } }
+}
+
 /* Station collections: cover shelf, followed by a compact recording table. */
 .station-albums{display:grid;gap:32px;margin:26px 0 40px}
 .station-shelf{min-width:0}
