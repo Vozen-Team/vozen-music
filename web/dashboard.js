@@ -26,6 +26,12 @@ const pages = {
   stations: "Stations",
   profile: "Bot Profile",
 };
+const pageIcons = {
+  overview: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
+  settings: "M4 7h16 M4 17h16 M8 4v6 M16 14v6",
+  stations: "M3 10v4 M7 7v10 M12 4v16 M17 7v10 M21 10v4",
+  profile: "M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z M4 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2",
+};
 const settingsSections = {
   playback: "Playback",
   access: "Access & Channels",
@@ -884,6 +890,17 @@ function render() {
   $("music-pages").replaceChildren();
   for (const [key, label] of Object.entries(pages)) {
     const b = button(label, () => navigate(key));
+    const namespace = "http://www.w3.org/2000/svg";
+    const icon = document.createElementNS(namespace, "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(namespace, "path");
+    path.setAttribute("d", pageIcons[key]);
+    icon.append(path);
+    const badge = el("span", undefined, "music-page-icon");
+    badge.append(icon);
+    b.prepend(badge);
+    b.dataset.page = key;
     b.setAttribute("aria-current", key === page ? "page" : "false");
     $("music-pages").append(b);
   }

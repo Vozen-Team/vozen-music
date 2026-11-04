@@ -77,7 +77,112 @@ body{background:radial-gradient(65% 48% at 0 0,rgba(94,112,255,.19),transparent 
 
 /* Expanded Music settings reuse the shared workspace and navigation. */
 [hidden]{display:none!important}
-#music-pages{display:flex;flex-direction:column;gap:4px;margin:22px 0}#music-pages button{text-align:left;min-height:44px;border-color:transparent;background:transparent;color:var(--muted)}#music-pages button[aria-current=page]{background:#263347;border-color:#416275;color:#9eefe5}
+#music-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 22px 0;
+}
+#music-pages button {
+  --nav-accent: #9eefe5;
+  --nav-tint: #64d8ca;
+  --nav-icon-motion: translateY(-2px) scale(1.08);
+  position: relative;
+  isolation: isolate;
+  justify-content: flex-start;
+  min-height: 48px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  text-align: start;
+}
+#music-pages button[data-page="settings"] {
+  --nav-accent: #d8c8ff;
+  --nav-tint: #b29bff;
+  --nav-icon-motion: rotate(-14deg);
+}
+#music-pages button[data-page="stations"] {
+  --nav-accent: #b8dcff;
+  --nav-tint: #82bdff;
+  --nav-icon-motion: scaleY(1.24);
+}
+#music-pages button[data-page="profile"] {
+  --nav-accent: #ffe2b2;
+  --nav-tint: #f0bd73;
+  --nav-icon-motion: scale(1.13) rotate(-6deg);
+}
+#music-pages button::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, var(--nav-tint), transparent 90%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease-out;
+}
+#music-pages button::after {
+  content: "";
+  position: absolute;
+  inset-inline-end: 14px;
+  width: 6px;
+  height: 6px;
+  border-block-start: 1.5px solid var(--nav-accent);
+  border-inline-end: 1.5px solid var(--nav-accent);
+  opacity: 0;
+  transform: translateX(-3px) rotate(45deg);
+  pointer-events: none;
+  transition: opacity .16s ease-out, transform .18s cubic-bezier(.2,0,0,1);
+}
+.music-page-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  color: var(--nav-accent);
+  background: color-mix(in srgb, var(--nav-tint) 12%, transparent);
+}
+.music-page-icon svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform .2s cubic-bezier(.2,0,0,1);
+}
+#music-pages button[aria-current="page"] {
+  background: #263347;
+  border-color: color-mix(in srgb, var(--nav-tint) 45%, #283b53);
+  color: var(--nav-accent);
+}
+#music-pages button:is(:focus-visible, :active) { color: var(--nav-accent); }
+#music-pages button:is(:focus-visible, :active)::before { opacity: .22; }
+#music-pages button:focus-visible::after { opacity: 1; }
+@media (hover: hover) and (pointer: fine) {
+  #music-pages button:hover { color: var(--nav-accent); }
+  #music-pages button:hover::before { opacity: .22; }
+  #music-pages button:hover::after { opacity: 1; transform: rotate(45deg); }
+  #music-pages button:hover .music-page-icon svg { transform: var(--nav-icon-motion); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #music-pages button::before,
+  #music-pages button::after,
+  .music-page-icon svg { transition: none; }
+  #music-pages button:hover .music-page-icon svg { transform: none; }
+  #music-pages button::after,
+  #music-pages button:hover::after { transform: rotate(45deg); }
+}
+@media (max-width: 900px) {
+  #music-pages button { justify-content: center; gap: 5px; }
+  #music-pages button::after { display: none; }
+  .music-page-icon { flex-basis: 18px; width: 18px; height: 20px; border-radius: 5px; }
+  .music-page-icon svg { width: 14px; height: 14px; }
+}
 #editor{min-width:0}#editor>h1{font-size:34px}.music-card{padding:22px;border:1px solid #2a3e56;border-radius:14px;background:linear-gradient(125deg,#101d2e,#0c1624);margin:0 0 18px;min-width:0}.music-card h2{font-size:19px;margin:0 0 10px}.music-card .help{color:var(--muted);margin-bottom:20px}.field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.music-field{min-width:0;display:flex;flex-direction:column;gap:8px}.music-field>label{font-size:14px;font-weight:550}.music-field input:not([type=checkbox]),.music-field select{width:100%;max-width:none;min-height:44px;background:#080f1b;border:1px solid #344b68;border-radius:8px;padding:10px 12px;color:var(--text);font:inherit}.music-field input[type=checkbox]{width:24px;height:24px;accent-color:#64d8ca}.music-field small{color:var(--muted);font-size:12px;line-height:1.5}.resource-list{max-height:220px;overflow:auto;border:1px solid #344b68;border-radius:8px;padding:6px}.resource-list label{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13px}.resource-list span{overflow-wrap:anywhere}.music-card a{color:#91e7dc}.music-card li{margin:10px 0;overflow-wrap:anywhere}.music-card summary{min-height:44px;cursor:pointer}.overview-values{display:grid;grid-template-columns:1fr 1fr;gap:12px}.overview-values dd{margin:0;text-align:right;overflow-wrap:anywhere}.music-card>button{margin:8px 8px 0 0}#profile-form{display:grid;gap:18px}#music-savebar:not([hidden]){display:flex;gap:12px;align-items:center;position:sticky;bottom:0;background:#101d2e;padding:16px;border:1px solid #344b68;border-radius:10px;z-index:20}#music-savebar p{margin-right:auto}#music-savebar button{min-height:44px;flex:none}#editor{padding-bottom:80px}
 @media(max-width:900px){#music-pages{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;margin:0;gap:4px}#music-pages button{min-height:44px;text-align:center;padding:8px;font-size:13px}#sidebar:not(.sections-open) #music-pages button:nth-child(n+3){display:none}.field-grid{grid-template-columns:1fr}.music-card{padding:18px}.music-dashboard main{padding:22px 16px 120px}.music-identity span{display:none}.music-card .help{font-size:13px}#music-savebar:not([hidden]){position:fixed;bottom:var(--keyboard-offset,0px);left:0;right:0;border-radius:0;padding:10px 12px calc(10px + env(safe-area-inset-bottom));flex-direction:row}#music-savebar p{display:none}#music-savebar button{width:auto;flex:1}#editor>h1{font-size:28px}.overview-values{font-size:14px}}
 
