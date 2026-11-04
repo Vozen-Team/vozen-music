@@ -3,19 +3,19 @@ function renderAccount(user) {
   link.replaceChildren();
   link.classList.toggle("nav__login--account", !!user);
   if (!user) {
-    link.textContent = "Log in";
+    link.textContent = t("Log in");
     link.removeAttribute("aria-label");
     return;
   }
   const name = user.global_name || user.username;
-  link.setAttribute("aria-label", `Discord account: ${name}`);
+  link.setAttribute("aria-label", t("Discord account: {name}", { name }));
   const avatar = document.createElement("span");
   avatar.className = "discord-avatar nav__login-av-wrap";
   const image = document.createElement("img");
   image.className = "nav__login-av";
   image.width = 24;
   image.height = 24;
-  image.alt = `${name} avatar`;
+  image.alt = t("Avatar for {name}", { name });
   image.referrerPolicy = "no-referrer";
   const initial = document.createElement("span");
   initial.className = "nav__login-av nav__login-av--none";

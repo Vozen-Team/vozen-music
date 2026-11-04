@@ -629,6 +629,7 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .station-tracks .track-number{width:36px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
 .station-tracks .track-album{width:22%;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .station-tracks .track-duration{width:76px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+.station-tracks th.track-duration{overflow-wrap:anywhere}
 .track-identity{display:flex;gap:13px;align-items:center;min-width:0}
 .track-identity>img{width:48px;height:48px;flex:none;object-fit:cover;border-radius:4px}
 .track-text{min-width:0}.track-text>strong{display:block;font-size:14px;font-weight:500;line-height:1.5;overflow-wrap:anywhere}
@@ -658,3 +659,42 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 .album-credits li{margin:10px 0;overflow-wrap:anywhere}.album-credits a{color:#b6d8d7}
 @media(hover:none){.station-tracks .track-preview .preview-number{opacity:0}.station-tracks .track-preview .preview-play{opacity:1}.station-tracks .track-preview.is-playing .preview-play{opacity:0}}
 @media(prefers-reduced-motion:reduce){.track-preview>span{transition:none}}
+[dir="rtl"] .music-dashboard #sidebar {
+  border-right: 0;
+  border-inline-end: 1px solid #283b53;
+}
+[dir="rtl"] .music-dashboard :is(.server-choice, .station-tracks th, .station-tracks td) {
+  text-align: start;
+}
+[dir="rtl"] .music-dashboard :is(.station-tracks th, .station-tracks td).track-duration {
+  text-align: end;
+}
+[dir="rtl"] .music-dashboard .album-back {
+  left: auto;
+  inset-inline-start: var(--album-gutter);
+}
+[dir="rtl"] .music-dashboard :is(.album-back-icon, .vp-arrow, .station-featured-arrow) {
+  scale: -1 1;
+}
+[dir="rtl"] .music-dashboard :is(h1, h2, h3, .vp-title) {
+  letter-spacing: normal;
+}
+@media (max-width: 900px) {
+  [dir="rtl"] .music-dashboard #sidebar { border-inline-end: 0; }
+}
+@media (min-width: 1280px) {
+  .music-dashboard:lang(pt) .nav__inner,
+  .music-dashboard:lang(fr) .nav__inner,
+  .music-dashboard:lang(es) .nav__inner,
+  .music-dashboard:lang(de) .nav__inner { gap: 12px; }
+  .music-dashboard:lang(pt) .nav__links,
+  .music-dashboard:lang(fr) .nav__links,
+  .music-dashboard:lang(es) .nav__links,
+  .music-dashboard:lang(de) .nav__links { gap: 16px; }
+  .music-dashboard .nav__login--account > span:last-child {
+    max-inline-size: 104px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

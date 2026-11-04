@@ -8,7 +8,7 @@ body :is(#vp-picker,#server-picker,#loading).vozen-server-picker{box-sizing:bord
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-product{display:flex;align-items:center;gap:10px;color:#f3f5ff;font-size:14px;margin:0 0 12px}
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-product img{width:30px;height:30px;border-radius:8px;object-fit:contain}
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker :is(h1,.vp-loading-title).vp-title{font:500 clamp(29px,3.4vw,48px)/1.25 VozenPickerDisplay,Unbounded,'Vozen Outfit',sans-serif;letter-spacing:-1.8px;margin:0;text-wrap:balance;color:#f3f5ff}
-:is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-title>span{color:#48dfc9}
+:is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-title>span:not([data-music-text]){color:#48dfc9}
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-symbol{position:relative;width:92px;height:92px;display:grid;place-items:center;flex:none}
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-symbol img{width:44px;height:44px;border-radius:12px;transform:rotate(-8deg)}
 :is(#vp-picker,#server-picker,#loading).vozen-server-picker .vp-symbol span{position:absolute;inset:0;border:1px solid #43507680;border-radius:50%;transform:rotate(-26deg) scaleY(.65);pointer-events:none}
