@@ -160,7 +160,7 @@ try {
     assert.equal(
       await page.evaluate(
         () =>
-          typeof JSON.parse(localStorage.getItem("music-draft:1") || "{}")
+          typeof JSON.parse(localStorage.getItem("music-draft:1:1") || "{}")
             .voice_rules?.allow,
       ),
       "undefined",

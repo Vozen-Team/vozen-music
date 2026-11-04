@@ -40,20 +40,30 @@ async fn playback_timer(
 ) -> WebResult<Json<serde_json::Value>> {
     let login = state.login(&headers, true).await?;
     let guild = GuildId::new(parse_id(&value)?);
+    let session = state.bot.sessions.lock().await.get(&guild).cloned();
     state.manager(guild, &login).await?;
-    let session = state
-        .bot
-        .sessions
-        .lock()
-        .await
-        .get(&guild)
-        .cloned()
-        .ok_or(WebError(
-            StatusCode::CONFLICT,
-            "Start Music in a voice channel first.",
-        ))?;
+    let session = session.ok_or(WebError(
+        StatusCode::CONFLICT,
+        "Start Music in a voice channel first.",
+    ))?;
+    apply_playback_timer(&state, guild, &session, UserId::new(parse_id(&login.user.id)?), edit).await
+}
+
+async fn apply_playback_timer(
+    state: &Dashboard,
+    guild: GuildId,
+    session: &Arc<Session>,
+    actor: UserId,
+    edit: TimerEdit,
+) -> WebResult<Json<serde_json::Value>> {
+    let sessions = state.bot.sessions.lock().await;
+    let stopped = || WebError(StatusCode::CONFLICT, "Playback has stopped or changed. Try again.");
+    if !sessions.get(&guild).is_some_and(|active| Arc::ptr_eq(active, session))
+        || !session.active.load(Ordering::SeqCst)
+    {
+        return Err(stopped());
+    }
     let runtime = session.runtime.as_ref().ok_or_else(unavailable)?;
-    let actor = UserId::new(parse_id(&login.user.id)?);
     let same_channel = state
         .cache
         .guild(guild)
@@ -73,12 +83,12 @@ async fn playback_timer(
             "Choose 1–720 minutes or cancel.",
         ));
     }
-    runtime::set_timer(&state.bot.catalog, &session, edit.minutes, edit.cancel)
+    let deadline = runtime::set_timer(session, edit.minutes, edit.cancel)
         .await
-        .map_err(storage_error)?;
-    Ok(Json(
-        serde_json::json!({"sleep_until":session.sleep_until.load(Ordering::SeqCst)}),
-    ))
+        .map_err(storage_error)?
+        .ok_or_else(stopped)?;
+    drop(sessions);
+    Ok(Json(serde_json::json!({"sleep_until":deadline})))
 }
 
 fn storage_error(_: Error) -> WebError {
@@ -616,6 +626,92 @@ async fn save_bot_profile(
 #[cfg(test)]
 mod expansion_web_tests {
     use super::*;
+    #[tokio::test]
+    async fn dashboard_timer_rejects_stopped_and_replaced_sessions() {
+        let state = tests::fixture();
+        let guild = GuildId::new(1);
+        let actor = UserId::new(123);
+        let channel = ChannelId::new(2);
+        let mut cached_guild = Guild::default();
+        cached_guild.id = guild;
+        cached_guild.voice_states.insert(actor, serde_json::from_value(serde_json::json!({
+            "guild_id":"1","channel_id":"2","user_id":"123","session_id":"fixture",
+            "deaf":false,"mute":false,"self_deaf":false,"self_mute":false,"self_video":false,"suppress":false
+        })).unwrap());
+        let mut event: GuildCreateEvent =
+            serde_json::from_value(serde_json::to_value(cached_guild).unwrap()).unwrap();
+        state.cache.update(&mut event);
+        let legacy = std::env::temp_dir().join(format!("music-timer-{}.json", nonce()));
+        let settings = Arc::new(Mutex::new(SettingsStore::load(legacy.clone()).unwrap()));
+        let mut session = Session::new(0, 0, 1, SkipSettings::default(), None);
+        session.runtime = Some(Arc::new(runtime::Runtime {
+            guild,
+            channel,
+            text: channel,
+            cache: state.cache.clone(),
+            http: state.http.clone(),
+            settings: settings.clone(),
+            voice: Weak::new(),
+        }));
+        let session = Arc::new(session);
+        let mut intent = vozen_music::expansion::PlaybackIntent {
+            guild: guild.get(),
+            channel: channel.get(),
+            text_channel: channel.get(),
+            station: "lofi".into(),
+            track: "first".into(),
+            active: true,
+            sleep_until: None,
+        };
+        settings.lock().await.db.intent(&intent).unwrap();
+        state.bot.sessions.lock().await.insert(guild, session.clone());
+        let update = || TimerEdit { minutes: Some(1), cancel: false };
+        let response = apply_playback_timer(&state, guild, &session, actor, update())
+            .await
+            .ok()
+            .unwrap();
+        let deadline = response.0["sleep_until"].as_u64().unwrap();
+        assert_eq!(settings.lock().await.db.intents().unwrap()[0].sleep_until, Some(deadline as i64));
+        assert_eq!(settings.lock().await.db.intents().unwrap()[0].track, "first");
+
+        let connection = rusqlite::Connection::open(legacy.with_extension("sqlite3")).unwrap();
+        connection.execute_batch("CREATE TRIGGER reject_timer BEFORE UPDATE ON playback
+            BEGIN SELECT RAISE(ABORT, 'test write failure'); END;").unwrap();
+        assert_eq!(runtime::set_timer(&session, None, false).await.unwrap(), Some(deadline as usize));
+        assert!(runtime::set_timer(&session, None, true).await.is_err());
+        assert_eq!(session.sleep_until.load(Ordering::SeqCst), deadline as usize);
+        assert_eq!(settings.lock().await.db.intents().unwrap()[0].sleep_until, Some(deadline as i64));
+        connection.execute_batch("DROP TRIGGER reject_timer").unwrap();
+
+        for replace in [false, true] {
+            let mut sessions = state.bot.sessions.lock().await;
+            sessions.insert(guild, session.clone());
+            session.active.store(true, Ordering::SeqCst);
+            let request = apply_playback_timer(&state, guild, &session, actor, update());
+            tokio::pin!(request);
+            tokio::select! {
+                biased;
+                _ = &mut request => panic!("Timer completed while the session lock was held"),
+                _ = std::future::ready(()) => {}
+            }
+            session.active.store(false, Ordering::SeqCst);
+            intent.active = replace;
+            intent.track = if replace { "replacement" } else { "stopped" }.into();
+            settings.lock().await.db.intent(&intent).unwrap();
+            if replace {
+                sessions.insert(guild, Arc::new(Session::new(0, 0, 2, SkipSettings::default(), None)));
+            } else {
+                sessions.remove(&guild);
+            }
+            drop(sessions);
+            assert_eq!(request.await.err().unwrap().0, StatusCode::CONFLICT);
+            let stored = &settings.lock().await.db.intents().unwrap()[0];
+            assert_eq!(stored.active, replace);
+            assert_eq!(stored.track, intent.track);
+            assert_eq!(stored.sleep_until, None);
+        }
+    }
+
     #[test]
     fn profile_text_rejects_slurs_before_discord_and_preserves_normal_names() {
         for name in [

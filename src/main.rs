@@ -552,7 +552,14 @@ impl Bot {
                 .iter()
                 .find(|o| o.name == "minutes")
                 .and_then(|o| o.value.as_i64());
-            return runtime::set_timer(&self.catalog, session, minutes, cancel).await;
+            let deadline = runtime::set_timer(session, minutes, cancel)
+                .await?
+                .ok_or("No station is active. Use /play to start one.")?;
+            return Ok(if deadline == 0 {
+                "No sleep timer is active.".into()
+            } else {
+                format!("Playback stops <t:{deadline}:R>.")
+            });
         }
         if command.data.name == "panel" {
             let panel = player::post(ctx, &self.catalog, session).await?;

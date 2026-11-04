@@ -13,37 +13,39 @@ pub struct Runtime {
 }
 
 pub async fn set_timer(
-    catalog: &Catalog,
     session: &Session,
     minutes: Option<i64>,
     cancel: bool,
-) -> Result<String, Error> {
+) -> Result<Option<usize>, Error> {
     if cancel && minutes.is_some() {
         return Err("Choose a duration or cancel, not both.".into());
     }
     if minutes.is_some_and(|m| !(1..=720).contains(&m)) {
         return Err("Choose 1 to 720 minutes.".into());
     }
-    let previous = session.sleep_until.load(Ordering::SeqCst);
-    let deadline = if cancel {
-        0
-    } else {
-        minutes
-            .map(|m| (chrono::Utc::now().timestamp() + m * 60) as usize)
-            .unwrap_or(previous)
-    };
-    session.sleep_until.store(deadline, Ordering::SeqCst);
-    if let Some(r) = &session.runtime
-        && let Err(e) = r.persist(catalog, session, true).await
-    {
-        session.sleep_until.store(previous, Ordering::SeqCst);
-        return Err(e);
+    if !session.active.load(Ordering::SeqCst) {
+        return Ok(None);
     }
-    Ok(if deadline == 0 {
-        "No sleep timer is active.".into()
+    let deadline = match (cancel, minutes) {
+        (true, _) => 0,
+        (false, Some(minutes)) => (chrono::Utc::now().timestamp() + minutes * 60) as usize,
+        (false, None) => return Ok(Some(session.sleep_until.load(Ordering::SeqCst))),
+    };
+    if let Some(runtime) = &session.runtime {
+        let store = runtime.settings.lock().await;
+        if !session.active.load(Ordering::SeqCst)
+            || !store.db.update_active_timer(
+                runtime.guild.get(),
+                (deadline != 0).then_some(deadline as i64),
+            )?
+        {
+            return Ok(None);
+        }
+        session.sleep_until.store(deadline, Ordering::SeqCst);
     } else {
-        format!("Playback stops <t:{deadline}:R>.")
-    })
+        session.sleep_until.store(deadline, Ordering::SeqCst);
+    }
+    Ok(Some(deadline))
 }
 
 pub fn definitions() -> Vec<CreateCommand> {
@@ -916,16 +918,15 @@ mod tests {
 
     #[tokio::test]
     async fn timer_boundaries_cancel_and_replacement_session_are_isolated() {
-        let catalog = Catalog { stations: vec![] };
         let old = Session::new(0, 0, 1, SkipSettings::default(), None);
         let replacement = Session::new(0, 0, 2, SkipSettings::default(), None);
-        assert!(set_timer(&catalog, &old, Some(0), false).await.is_err());
-        assert!(set_timer(&catalog, &old, Some(721), false).await.is_err());
-        assert!(set_timer(&catalog, &old, Some(1), true).await.is_err());
-        set_timer(&catalog, &old, Some(1), false).await.unwrap();
+        assert!(set_timer(&old, Some(0), false).await.is_err());
+        assert!(set_timer(&old, Some(721), false).await.is_err());
+        assert!(set_timer(&old, Some(1), true).await.is_err());
+        set_timer(&old, Some(1), false).await.unwrap();
         assert!(old.sleep_until.load(Ordering::SeqCst) > chrono::Utc::now().timestamp() as usize);
         assert_eq!(replacement.sleep_until.load(Ordering::SeqCst), 0);
-        set_timer(&catalog, &old, None, true).await.unwrap();
+        set_timer(&old, None, true).await.unwrap();
         assert_eq!(old.sleep_until.load(Ordering::SeqCst), 0);
     }
     #[test]

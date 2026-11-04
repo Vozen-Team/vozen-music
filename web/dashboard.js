@@ -14,6 +14,7 @@ let csrf = "",
   current = "",
   saving = false,
   sequence = 0,
+  acceptedUrl = location.href,
   serverList = [],
   model = null,
   baseline = "",
@@ -106,7 +107,10 @@ function showLoading(workspace) {
 function signedOut() {
   stopBrowserPreview();
   csrf = "";
+  viewerId = "";
   current = "";
+  draft = null;
+  baseline = "";
   sequence++;
   for (const id of ["editor", "sidebar", "loading", "workspace-loading", "empty", "server-picker"])
     $(id).hidden = true;
@@ -149,11 +153,14 @@ function validDraft(value, base) {
     );
   });
 }
+function draftKey(id) {
+  return `music-draft:${viewerId}:${id}`;
+}
 function persistDraft() {
   try {
     if (changed())
-      localStorage.setItem(`music-draft:${current}`, JSON.stringify(draft));
-    else localStorage.removeItem(`music-draft:${current}`);
+      localStorage.setItem(draftKey(current), JSON.stringify(draft));
+    else localStorage.removeItem(draftKey(current));
     return true;
   } catch {
     notice(
@@ -162,6 +169,9 @@ function persistDraft() {
     );
     return false;
   }
+}
+function canLeaveServer() {
+  return !saving && (!changed() || persistDraft());
 }
 function button(text, action, primary = false) {
   const b = el("button", text, primary ? "primary" : "");
@@ -404,9 +414,11 @@ function skipFields() {
 }
 function updateSave() {
   for (const c of document.querySelectorAll(
-    "#editor input,#editor select,#editor button,#music-pages button",
+    "#editor input,#editor select,#editor button",
   ))
     c.disabled = saving;
+  for (const control of $("music-pages").querySelectorAll("button"))
+    control.disabled = saving || !draft;
   const bar = $("music-savebar");
   if (!bar) return;
   bar.hidden = !changed() && !saving;
@@ -426,14 +438,16 @@ async function save() {
     invalid.reportValidity();
     return;
   }
+  const id = current, seq = sequence;
   saving = true;
   updateSave();
   try {
-    const result = await api(`/api/guilds/${current}/server-settings`, {
+    const result = await api(`/api/guilds/${id}/server-settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(draft),
     });
+    if (seq !== sequence) return;
     draft = structuredClone(result.settings);
     baseline = JSON.stringify(draft);
     model.settings = draft;
@@ -466,6 +480,11 @@ function pageLocation(target) {
   url.searchParams.delete("album");
   return url;
 }
+function acceptLocation(url, push = false) {
+  if (push) history.pushState(null, "", url);
+  else history.replaceState(null, "", url);
+  acceptedUrl = location.href;
+}
 function showSettingsSection() {
   const nav = document.querySelector(".settings-jump");
   if (!nav) return;
@@ -488,10 +507,11 @@ function focusSettingsSection() {
   return true;
 }
 function navigate(next) {
+  if (!draft || saving) return;
   const url = pageLocation(next);
   const previous = page;
   page = url.searchParams.get("page") || "overview";
-  history.replaceState(null, "", url);
+  acceptLocation(url);
   if (previous !== "settings" || page !== "settings") render();
   else showSettingsSection();
   closeSections(false);
@@ -514,7 +534,8 @@ function stationLibrary(editor) {
   const openAlbum = event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
-    history.pushState(null, "", event.currentTarget.href);
+    if (!draft || saving) return;
+    acceptLocation(event.currentTarget.href, true);
     render();
     $("main").scrollTop = 0;
     $("main").focus();
@@ -1378,8 +1399,6 @@ function renderServers() {
   select.disabled = saving;
 }
 function showServerPicker() {
-  if (saving) return;
-  if (current && !persistDraft() && changed()) return;
   stopBrowserPreview();
   sequence++;
   current = "";
@@ -1395,7 +1414,7 @@ function showServerPicker() {
   url.searchParams.delete("page");
   url.searchParams.delete("section");
   url.searchParams.delete("album");
-  history.replaceState(null, "", url);
+  acceptLocation(url);
   const choices = $("server-choices");
   choices.replaceChildren();
   for (const server of serverList) {
@@ -1419,6 +1438,7 @@ function showServerPicker() {
 }
 async function loadServer(id) {
   const seq = ++sequence;
+  stopBrowserPreview();
   current = id;
   notice("");
   baseline = "";
@@ -1426,8 +1446,14 @@ async function loadServer(id) {
   $("server-picker").hidden = true;
   $("sidebar").hidden = false;
   renderServers();
+  for (const control of $("music-pages").querySelectorAll("button"))
+    control.disabled = true;
   $("editor").hidden = true;
   $("empty").hidden = true;
+  const url = new URL(location.href);
+  url.pathname = `/music/${id}`;
+  url.searchParams.delete("server");
+  acceptLocation(url);
   showLoading(true);
   try {
     const [data, stations] = await Promise.all([
@@ -1442,7 +1468,7 @@ async function loadServer(id) {
     draft = structuredClone(data.settings);
     try {
       const saved = JSON.parse(
-        localStorage.getItem(`music-draft:${id}`) || "null",
+        localStorage.getItem(draftKey(id)) || "null",
       );
       if (
         saved &&
@@ -1462,13 +1488,10 @@ async function loadServer(id) {
     if (legacySection) page = "settings";
     if (!Object.hasOwn(pages, page)) page = "overview";
     $("editor").hidden = false;
-    const url = new URL(location.href);
-    url.pathname = `/music/${id}`;
-    url.searchParams.delete("server");
     if (page === "overview") url.searchParams.delete("page");
     else if (url.searchParams.has("page")) url.searchParams.set("page", page);
     if (legacySection) url.searchParams.set("section", legacySection);
-    history.replaceState(null, "", url);
+    acceptLocation(url);
     render();
     if (page === "settings") focusSettingsSection();
   } catch (e) {
@@ -1507,13 +1530,11 @@ function closeSections(focus) {
   if (focus) $("sections-trigger").focus();
 }
 $("server-select").addEventListener("change", (e) => {
-  if (saving) return;
-  if (e.target.value === "__choose_server__") {
-    e.target.value = current;
-    showServerPicker();
-    return;
-  }
-  loadServer(e.target.value);
+  const destination = e.target.value;
+  e.target.value = current;
+  if (!canLeaveServer()) return;
+  if (destination === "__choose_server__") showServerPicker();
+  else if (destination !== current) loadServer(destination);
 });
 $("product-switcher").addEventListener("change", (e) => {
   if (
@@ -1557,11 +1578,26 @@ window.addEventListener("beforeunload", (e) => {
 });
 window.addEventListener("pagehide", stopBrowserPreview);
 window.addEventListener("popstate", () => {
-  if (!draft || requestedServer() !== current) return;
+  if (!viewerId) return;
+  const wanted = requestedServer();
+  if (saving || (wanted !== current && !canLeaveServer())) {
+    acceptLocation(acceptedUrl);
+    return;
+  }
   page = new URLSearchParams(location.search).get("page") || "overview";
+  if (!serverList.some((server) => server.id === wanted)) {
+    showServerPicker();
+    return;
+  }
+  if (wanted !== current || !draft) {
+    loadServer(wanted);
+    return;
+  }
   if (Object.hasOwn(settingsSections, page)) {
-    history.replaceState(null, "", pageLocation(page));
+    acceptLocation(pageLocation(page));
     page = "settings";
+  } else {
+    acceptedUrl = location.href;
   }
   if (!Object.hasOwn(pages, page)) page = "overview";
   render();

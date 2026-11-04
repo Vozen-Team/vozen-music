@@ -409,6 +409,13 @@ impl Store {
         self.db.execute("INSERT INTO playback VALUES(?1,?2) ON CONFLICT(guild) DO UPDATE SET body=excluded.body",params![intent.guild.to_string(),serde_json::to_string(intent)?])?;
         Ok(())
     }
+    pub fn update_active_timer(&self, guild: u64, deadline: Option<i64>) -> Result<bool, Error> {
+        Ok(self.db.execute(
+            "UPDATE playback SET body=json_set(body, '$.sleep_until', ?2)
+             WHERE guild=?1 AND json_extract(body, '$.active')=1",
+            params![guild.to_string(), deadline],
+        )? != 0)
+    }
     pub fn intents(&self) -> Result<Vec<PlaybackIntent>, Error> {
         let mut s = self.db.prepare("SELECT body FROM playback")?;
         let rows = s
