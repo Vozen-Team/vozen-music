@@ -136,6 +136,7 @@ const server = http.createServer(async (req, res) => {
       return json(personal);
     }
     if (action === "community") return json({ rows: [] });
+    if (action === "track-listening") return json({ enabled: settings.statistics, top: null });
     if (action === "playback")
       return json(
         {

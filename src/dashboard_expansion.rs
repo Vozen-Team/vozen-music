@@ -222,6 +222,45 @@ async fn station_catalog(
     ))
 }
 
+async fn track_listening(
+    State(state): State<Arc<Dashboard>>,
+    headers: HeaderMap,
+    RoutePath(value): RoutePath<String>,
+) -> WebResult<Json<serde_json::Value>> {
+    let login = state.login(&headers, false).await?;
+    let guild = GuildId::new(parse_id(&value)?);
+    state.manager(guild, &login).await?;
+    let store = state.bot.settings.lock().await;
+    let enabled = store
+        .db
+        .settings(guild.get())
+        .map_err(storage_error)?
+        .statistics;
+    let top = if enabled {
+        store.db.top_track(guild.get()).map_err(storage_error)?
+    } else {
+        None
+    };
+    drop(store);
+    let top = top.map(|(id, seconds, total_seconds)| {
+        let recording = state.bot.catalog.stations.iter().find_map(|station| {
+            station.tracks.iter().find(|track| track.id == id).map(|track| (station, track))
+        });
+        let (title, artist, cover) = recording.map_or_else(
+            || ("Unavailable track", None, None),
+            |(station, track)| {
+                let cover = track.cover.as_ref().and_then(|path| path.file_name())
+                    .and_then(|name| name.to_str())
+                    .map(|name| format!("/music/covers/{name}"))
+                    .unwrap_or_else(|| format!("/music/albums/{}-v1.webp", station.id));
+                (track.title.as_str(), Some(track.artist.as_str()), Some(cover))
+            },
+        );
+        serde_json::json!({"title":title,"artist":artist,"cover":cover,"seconds":seconds,"total_seconds":total_seconds})
+    });
+    Ok(Json(serde_json::json!({"enabled":enabled,"top":top})))
+}
+
 async fn personal_member(
     state: &Dashboard,
     headers: &HeaderMap,

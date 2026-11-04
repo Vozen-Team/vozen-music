@@ -768,24 +768,68 @@ function renderOverview(editor) {
     choices.append(section);
   }
   const side = el("div", undefined, "overview-side");
+  side.append(profileMiniature(), stationShortcut());
+  layout.append(choices, side);
+  editor.append(layout);
+}
+
+function stationShortcut() {
+  const id = current;
   const stations = pageLink("stations", undefined, "overview-stations");
+  stations.setAttribute("aria-label", "Explore stations");
   const covers = el("div", undefined, "overview-station-covers");
-  for (const id of ["lofi", "rain", "night"]) {
+  for (const station of ["lofi", "rain", "night"]) {
     const cover = el("img");
-    cover.src = `/music/albums/${id}-v1.webp`;
+    cover.src = `/music/albums/${station}-v1.webp`;
     cover.alt = "";
     covers.append(cover);
   }
   const body = el("div", undefined, "overview-stations-body");
-  const copy = el("div");
-  copy.append(el("strong", "Explore stations"), el("span", "Browse and preview instrumental music."));
+  const heading = el("h3", "Most listened");
+  const details = el("div", undefined, "overview-track-details");
+  const enabled = model.settings.statistics;
+  details.append(el("p", enabled
+    ? "Loading listening stats…"
+    : "Turn on time tracking in Community to see the server’s top track."));
+  const footer = el("div", "Explore stations", "overview-stations-footer");
   const arrow = el("span", "→");
   arrow.setAttribute("aria-hidden", "true");
-  body.append(copy, arrow);
+  footer.append(arrow);
+  body.append(heading, details, footer);
   stations.append(covers, body);
-  side.append(profileMiniature(), stations);
-  layout.append(choices, side);
-  editor.append(layout);
+  if (enabled) {
+    api(`/api/guilds/${id}/track-listening`).then(({ enabled, top }) => {
+      if (current !== id || !stations.isConnected) return;
+      if (!top) {
+        details.textContent = enabled
+          ? "Listening time will appear here once someone who opted in listens in Discord."
+          : "Time tracking is off for this server.";
+        return;
+      }
+      if (top.cover) {
+        const cover = el("img");
+        cover.src = top.cover;
+        cover.alt = "";
+        covers.classList.add("is-featured");
+        covers.replaceChildren(cover);
+      }
+      details.replaceChildren(el("strong", top.title));
+      if (top.artist) details.append(el("p", top.artist));
+      const stats = el("dl", undefined, "overview-track-stats");
+      for (const [label, seconds] of [["Track time", top.seconds], ["Server total", top.total_seconds]]) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor(seconds / 60) % 60;
+        const duration = hours ? `${hours} h ${minutes} min` : minutes ? `${minutes} min` : `${seconds} s`;
+        const stat = el("div");
+        stat.append(el("dt", label), el("dd", duration));
+        stats.append(stat);
+      }
+      details.append(stats);
+    }).catch(() => {
+      if (current === id && stations.isConnected) details.textContent = "Listening stats could not load.";
+    });
+  }
+  return stations;
 }
 
 function renderSettings(editor) {
@@ -925,7 +969,7 @@ function renderSettings(editor) {
   );
   const personal = card(
     "Your activity & privacy",
-    "Time counts while Music is playing in your call and you aren’t deafened. Your choices below apply immediately.",
+    "Time counts while Music plays in your call and you aren’t deafened. It also contributes to server track totals without your name. Your choices apply immediately.",
     "h3",
   );
   const leaderboard = card(

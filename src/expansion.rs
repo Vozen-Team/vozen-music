@@ -204,6 +204,7 @@ impl Store {
           CREATE TABLE IF NOT EXISTS settings(guild TEXT PRIMARY KEY, revision INTEGER NOT NULL, body TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS ratings(guild TEXT,user TEXT,track TEXT,value INTEGER NOT NULL CHECK(value IN (-1,1)),PRIMARY KEY(guild,user,track));
           CREATE TABLE IF NOT EXISTS privacy(guild TEXT,user TEXT,enabled INTEGER NOT NULL,visible INTEGER NOT NULL,seconds INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(guild,user));
+          CREATE TABLE IF NOT EXISTS track_listening(guild TEXT,track TEXT,seconds INTEGER NOT NULL,PRIMARY KEY(guild,track));
           CREATE TABLE IF NOT EXISTS playback(guild TEXT PRIMARY KEY,body TEXT NOT NULL);")?;
         let imported: bool = db.query_row(
             "SELECT EXISTS(SELECT 1 FROM metadata WHERE key='legacy_imported')",
@@ -346,12 +347,49 @@ impl Store {
         self.db.execute("INSERT INTO privacy(guild,user,enabled,visible) VALUES(?1,?2,?3,?4) ON CONFLICT(guild,user) DO UPDATE SET enabled=excluded.enabled,visible=excluded.visible,seconds=CASE WHEN ?5 THEN 0 ELSE privacy.seconds END",params![g.to_string(),u.to_string(),p.enabled,p.visible,erase])?;
         Ok(())
     }
-    pub fn add_seconds(&self, g: u64, u: u64, seconds: u64) -> Result<(), Error> {
-        self.db.execute(
-            "UPDATE privacy SET seconds=seconds+?3 WHERE guild=?1 AND user=?2 AND enabled=1",
-            params![g.to_string(), u.to_string(), seconds.min(60) as i64],
-        )?;
+    pub fn record_listening(
+        &mut self,
+        guild: u64,
+        track: &str,
+        listeners: &BTreeSet<u64>,
+        seconds: u64,
+    ) -> Result<(), Error> {
+        if listeners.is_empty() || seconds == 0 {
+            return Ok(());
+        }
+        let guild = guild.to_string();
+        let seconds = seconds.min(60) as i64;
+        let tx = self.db.transaction()?;
+        let mut total = 0;
+        {
+            let mut add_personal = tx.prepare_cached(
+                "UPDATE privacy SET seconds=seconds+?3 WHERE guild=?1 AND user=?2 AND enabled=1",
+            )?;
+            for user in listeners {
+                total += add_personal.execute(params![guild, user.to_string(), seconds])? as i64
+                    * seconds;
+            }
+        }
+        if total > 0 {
+            tx.execute(
+                "INSERT INTO track_listening(guild,track,seconds) VALUES(?1,?2,?3)
+                 ON CONFLICT(guild,track) DO UPDATE SET seconds=seconds+excluded.seconds",
+                params![guild, track, total],
+            )?;
+        }
+        tx.commit()?;
         Ok(())
+    }
+    pub fn top_track(&self, guild: u64) -> Result<Option<(String, i64, i64)>, Error> {
+        Ok(self
+            .db
+            .query_row(
+                "SELECT track,seconds,SUM(seconds) OVER () FROM track_listening
+             WHERE guild=?1 ORDER BY seconds DESC,track LIMIT 1",
+                [guild.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?)
     }
     pub fn leaderboard(&self, g: u64) -> Result<Vec<(String, u64)>, Error> {
         let mut s=self.db.prepare("SELECT user,seconds FROM privacy WHERE guild=?1 AND enabled=1 AND visible=1 ORDER BY seconds DESC,user LIMIT 20")?;
@@ -470,8 +508,10 @@ mod tests {
         s.rate(1, 2, "a", -1).unwrap();
         assert_eq!(s.ratings(1, &BTreeSet::from([2])).unwrap()[&2]["a"], -1);
         assert!(s.ratings(9, &BTreeSet::from([2])).unwrap().is_empty());
-        s.add_seconds(1, 2, 30).unwrap();
+        s.record_listening(1, "a", &BTreeSet::from([2]), 30)
+            .unwrap();
         assert_eq!(s.privacy(1, 2).unwrap().1, 0);
+        assert!(s.top_track(1).unwrap().is_none());
         s.set_privacy(
             1,
             2,
@@ -482,7 +522,12 @@ mod tests {
             false,
         )
         .unwrap();
-        s.add_seconds(1, 2, 30).unwrap();
+        s.record_listening(1, "a", &BTreeSet::from([2, 3]), 30)
+            .unwrap();
+        s.record_listening(1, "b", &BTreeSet::from([2]), 10)
+            .unwrap();
+        assert_eq!(s.top_track(1).unwrap(), Some(("a".into(), 30, 40)));
+        assert!(s.top_track(9).unwrap().is_none());
         assert!(s.leaderboard(1).unwrap().is_empty());
         s.set_privacy(
             1,
@@ -494,7 +539,7 @@ mod tests {
             false,
         )
         .unwrap();
-        assert_eq!(s.leaderboard(1).unwrap()[0].1, 30);
+        assert_eq!(s.leaderboard(1).unwrap()[0].1, 40);
         s.set_privacy(1, 2, Privacy::default(), true).unwrap();
         assert_eq!(s.privacy(1, 2).unwrap().1, 0);
         assert_eq!(s.ratings(1, &BTreeSet::from([2])).unwrap()[&2]["a"], -1);
@@ -655,7 +700,8 @@ mod persistence_tests {
     }
     #[test]
     fn ratings_and_counts_are_scoped_and_deletion_is_separate() {
-        let s = Store::open(Path::new(":memory:"), Path::new("nonexistent-import.json")).unwrap();
+        let mut s =
+            Store::open(Path::new(":memory:"), Path::new("nonexistent-import.json")).unwrap();
         s.rate(1, 2, "a", 1).unwrap();
         s.set_privacy(
             1,
@@ -667,9 +713,11 @@ mod persistence_tests {
             false,
         )
         .unwrap();
-        s.add_seconds(1, 2, 20).unwrap();
+        s.record_listening(1, "a", &BTreeSet::from([2]), 20)
+            .unwrap();
         s.set_privacy(1, 2, Privacy::default(), false).unwrap();
-        s.add_seconds(1, 2, 20).unwrap();
+        s.record_listening(1, "a", &BTreeSet::from([2]), 20)
+            .unwrap();
         assert_eq!(s.privacy(1, 2).unwrap().1, 20);
         assert_eq!(s.privacy(9, 2).unwrap().1, 0);
         s.clear_ratings(1, 2).unwrap();

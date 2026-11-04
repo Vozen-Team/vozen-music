@@ -82,7 +82,7 @@ pub fn definitions() -> Vec<CreateCommand> {
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Boolean,
                 "enabled",
-                "Opt in to time-in-call statistics",
+                "Opt in to your time in calls and unnamed server track totals",
             ))
             .add_option(CreateCommandOption::new(
                 CommandOptionType::Boolean,
@@ -594,6 +594,8 @@ impl Bot {
                     let Some(r) = &s.runtime else {
                         continue;
                     };
+                    let generation = s.generation.load(Ordering::SeqCst);
+                    let index = s.current.load(Ordering::SeqCst);
                     let enabled = bot
                         .settings
                         .lock()
@@ -606,11 +608,25 @@ impl Bot {
                         && let Ok(people) =
                             humans(&ctx.cache, &ctx.http, guild, r.channel, true).await
                     {
-                        let store = bot.settings.lock().await;
-                        for u in people {
-                            if let Err(e) = store.db.add_seconds(guild.get(), u, elapsed) {
-                                eprintln!("Could not save time-in-call: {e}");
-                            }
+                        let mut store = bot.settings.lock().await;
+                        if !s.active.load(Ordering::SeqCst)
+                            || s.paused.load(Ordering::SeqCst)
+                            || generation != s.generation.load(Ordering::SeqCst)
+                            || index != s.current.load(Ordering::SeqCst)
+                            || !store
+                                .db
+                                .settings(guild.get())
+                                .is_ok_and(|settings| settings.statistics)
+                        {
+                            continue;
+                        }
+                        let track = &bot.catalog.stations[s.station].tracks[index];
+                        if let Err(e) =
+                            store
+                                .db
+                                .record_listening(guild.get(), &track.id, &people, elapsed)
+                        {
+                            eprintln!("Could not save time-in-call: {e}");
                         }
                     }
                 }

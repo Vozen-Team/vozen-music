@@ -1042,6 +1042,7 @@ fn router(state: Arc<Dashboard>) -> Router {
             }),
         )
         .route("/music/api/stations", get(station_catalog))
+        .route("/music/api/guilds/{guild}/track-listening", get(track_listening))
         .route("/music/api/recordings/{id}/audio", get(recording_preview))
         .route(
             "/music/api/guilds/{guild}/playback",
@@ -1767,6 +1768,17 @@ mod tests {
         let response = app
             .clone()
             .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/music/api/guilds/1524199248248176751/track-listening")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

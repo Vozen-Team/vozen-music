@@ -431,20 +431,40 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 2px;
-  height: clamp(70px, 8vw, 108px);
+  height: clamp(96px, 10vw, 138px);
   background: #253e57;
 }
 .overview-station-covers img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+.overview-station-covers.is-featured {
+  grid-template-columns: minmax(0, 1fr);
+  height: clamp(140px, 15vw, 210px);
+}
 .overview-stations-body {
+  padding: 16px 18px 0;
+}
+.overview-stations-body h3 { margin: 0 0 8px; font-size: 15px; }
+.overview-track-details { overflow-wrap: anywhere; font-size: 13px; }
+.overview-track-details strong { display: block; font-size: 18px; }
+.overview-track-details p { margin: 3px 0 0; color: var(--muted); }
+.overview-track-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.overview-track-stats dt { color: var(--muted); }
+.overview-track-stats dd { margin: 2px 0 0; font-size: 16px; font-weight: 650; }
+.overview-stations-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 18px;
+  margin-top: 14px;
+  min-height: 44px;
+  border-top: 1px solid var(--line);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 650;
 }
-.overview-stations-body strong { display: block; font-size: 16px; }
-.overview-stations-body div > span { display: block; margin-top: 3px; color: var(--muted); font-size: 13px; }
-.overview-stations-body > span { color: var(--accent); font-size: 20px; }
 .overview-choices { margin: 0; }
 .overview-session { display: grid; gap: 4px; padding: 11px 14px; margin: 12px 0 8px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }
 .overview-session strong { color: var(--text); overflow-wrap: anywhere; }
