@@ -374,6 +374,40 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 }
 .settings-data-removal { margin-top: 16px; }
 .settings-data-removal .settings-actions { padding: 0 12px 12px; }
+.community-layout {
+  display: grid;
+  align-items: start;
+  gap: 0 16px;
+}
+@media (min-width: 1240px) {
+  .community-layout { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
+.community-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border-top: 1px solid var(--line);
+  padding: 14px 0;
+}
+.community-row h4 { margin: 0 0 4px; font-size: 14px; }
+.community-row p,
+.community-empty { margin: 0; font-size: 13px; }
+.community-row button { padding-inline: 12px; }
+.community-layout .settings-data-removal { margin-top: 4px; }
+.community-layout .settings-data-removal p { margin: 0 12px 12px; font-size: 13px; }
+.community-leaderboard { margin: 0; padding-inline-start: 24px; }
+.community-leaderboard li { padding: 10px 0 0; border-top: 1px solid var(--line); }
+.community-leaderboard li > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+}
+.community-leaderboard small { display: block; font-size: 11px; color: var(--muted); }
+.community-leaderboard strong { white-space: nowrap; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) {
   .settings-fields .music-field:not(:has(> [role="switch"])) {
     grid-template-columns: minmax(0, 1fr);

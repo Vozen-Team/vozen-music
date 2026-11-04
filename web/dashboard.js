@@ -10,6 +10,7 @@ function stopBrowserPreview() {
   browserPreview = null;
 }
 let csrf = "",
+  viewerId = "",
   current = "",
   saving = false,
   sequence = 0,
@@ -921,25 +922,40 @@ function renderSettings(editor) {
 
   community.append(
     group(
-      "Server statistics",
-      "Each member decides whether to track their time and appear on this server’s leaderboard.",
+      "Server settings",
+      "Choose whether members of this server can track their time with Music.",
       [
         field(
           "statistics",
-          "Allow optional time-in-call statistics",
+          "Allow time tracking",
           "checkbox",
+          [],
+          "Members choose whether to take part. Use Save changes to apply this to the server.",
         ),
       ],
     ),
   );
   const personal = card(
-    "Your privacy & this server leaderboard",
-    "Tracks time in a call while Music is playing and you aren’t deafened. These preferences apply immediately.",
+    "Your activity & privacy",
+    "Time counts while Music is playing in your call and you aren’t deafened. Your choices below apply immediately.",
     "h3",
   );
-  personal.id = "personal-panel";
-  community.append(personal);
-  loadPersonal(current, sequence, personal);
+  const leaderboard = card(
+    "Server leaderboard",
+    "Only members who choose to appear are listed.",
+    "h3",
+  );
+  const preferences = el("div");
+  const ranking = el("div");
+  const loading = el("p", "Loading your preferences…", "community-empty");
+  loading.setAttribute("role", "status");
+  preferences.append(loading);
+  personal.append(preferences);
+  leaderboard.append(ranking);
+  const layout = el("div", undefined, "community-layout");
+  layout.append(personal, leaderboard);
+  community.append(layout);
+  loadPersonal(current, sequence, preferences, ranking);
 }
 
 function render() {
@@ -1122,65 +1138,104 @@ async function readProfileFile(file) {
     reader.onerror = () => reject(Error("The image could not be read.")); reader.readAsDataURL(file);
   });
 }
-async function loadPersonal(id, seq, panel) {
+async function loadPersonal(id, seq, panel, leaderboard, focusId) {
+  const connected = () => seq === sequence && current === id && panel.isConnected;
   try {
     const [me, ranking] = await Promise.all([
       api(`/api/guilds/${id}/personal`),
       api(`/api/guilds/${id}/community`),
     ]);
-    if (seq !== sequence || current !== id || !panel.isConnected) return;
-    const c = panel;
-    c.append(
-      el(
-        "p",
-        `${Math.floor(me.seconds / 60)} minutes recorded. Tracking is ${me.privacy.enabled ? "on" : "off"}. Your entry is ${me.privacy.visible ? "visible" : "hidden"} on the leaderboard.`,
-      ),
-    );
-    const preferences = el("div", undefined, "settings-actions");
-    const removal = el("details", undefined, "settings-data-removal");
-    removal.append(el("summary", "Delete your data"));
-    const removalActions = el("div", undefined, "settings-actions");
-    removal.append(removalActions);
-    for (const [label, payload] of [
-      ["Start tracking privately", { privacy: { enabled: true, visible: false } }],
-      ["Show on leaderboard", { privacy: { enabled: true, visible: true } }],
-      ["Hide from leaderboard", { privacy: { ...me.privacy, visible: false } }],
-      ["Turn off tracking", { privacy: { enabled: false, visible: false } }],
-      ["Erase statistics", { erase_statistics: true }],
-      ["Delete my favorites and dislikes", { clear_ratings: true }],
-    ]) {
-      const destructive = payload.erase_statistics || payload.clear_ratings;
-      const actions = destructive ? removalActions : preferences;
-      actions.append(
-        button(label, async () => {
-          if (
-            destructive &&
-            !confirm(`${label} in this server?`)
-          )
-            return;
+    if (!connected()) return;
+    const enabled = me.privacy.enabled;
+    const visible = enabled && me.privacy.visible;
+    const serverEnabled = JSON.parse(baseline).statistics;
+    let pending = false;
+    const action = (label, payload, controlId = "") => {
+      const control = button(label, async () => {
+        if (pending || saving) return;
+        if ((payload.erase_statistics || payload.clear_ratings) &&
+            !confirm(`${label} in this server?`)) return;
+        pending = true;
+        control.disabled = true;
+        try {
           await api(`/api/guilds/${id}/personal`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          if (id === current) {
+          if (connected()) {
             notice("Your preferences were saved.", "success");
-            render();
+            await loadPersonal(id, seq, panel, leaderboard, controlId);
           }
-        }),
+        } finally {
+          pending = false;
+          control.disabled = saving;
+        }
+      });
+      if (controlId) control.id = controlId;
+      control.disabled = saving;
+      return control;
+    };
+    const tracking = el("div", undefined, "community-row");
+    const trackingCopy = el("div");
+    trackingCopy.append(
+      el("h4", "My time tracking"),
+      el("p", `${enabled ? (serverEnabled ? "On" : "Paused by server") : "Off"} · ${Math.floor(me.seconds / 60)} min recorded`),
+    );
+    tracking.append(trackingCopy, action(
+      enabled ? "Turn off tracking" : "Turn on tracking",
+      { privacy: { enabled: !enabled, visible: false } },
+      "community-tracking",
+    ));
+    const visibility = el("div", undefined, "community-row");
+    const visibilityCopy = el("div");
+    visibilityCopy.append(
+      el("h4", "My leaderboard visibility"),
+      el("p", visible
+        ? (serverEnabled ? "Visible to this server" : "Set to visible when the server leaderboard is available")
+        : enabled ? "Hidden from the leaderboard" : "Turn on tracking to choose who can see your time."),
+    );
+    visibility.append(visibilityCopy);
+    if (enabled) visibility.append(action(
+      visible ? "Hide my entry" : "Show my entry",
+      { privacy: { enabled: true, visible: !visible } },
+      "community-visibility",
+    ));
+    const removal = el("details", undefined, "settings-data-removal");
+    removal.append(el("summary", "Delete your data"));
+    const removalActions = el("div", undefined, "settings-actions");
+    removalActions.append(
+      action("Erase my recorded time", { erase_statistics: true }),
+      action("Delete my likes and dislikes", { clear_ratings: true }),
+    );
+    removal.append(el("p", "Erasing your time also turns off tracking. Your song ratings can be deleted separately."), removalActions);
+    panel.replaceChildren(tracking, visibility, removal);
+    if (focusId) $(focusId)?.focus({ preventScroll: true });
+
+    const list = el("ol", undefined, "community-leaderboard");
+    for (const [user, seconds] of ranking.rows) {
+      const row = el("li");
+      const entry = el("div");
+      const member = el("span", user === viewerId ? "You" : "Member");
+      if (user !== viewerId) member.append(el("small", `Discord ID ${user}`));
+      entry.append(
+        member,
+        el("strong", `${Math.floor(seconds / 60)} min`),
       );
+      row.append(entry);
+      list.append(row);
     }
-    c.append(preferences, removal, el("h4", "Server leaderboard"));
-    const list = el("ol");
-    for (const [user, seconds] of ranking.rows)
-      list.append(el("li", `Member ${user} · ${Math.floor(seconds / 60)} min`));
-    c.append(ranking.rows.length ? list : el("p", "No members are listed yet."));
-    for (const control of c.querySelectorAll("button")) control.disabled = saving;
+    leaderboard.replaceChildren(ranking.rows.length ? list : el("p",
+      serverEnabled ? "No members have joined the leaderboard yet." : "Time tracking is turned off for this server.",
+      "community-empty",
+    ));
   } catch (e) {
-    if (seq !== sequence || current !== id || !panel.isConnected) return;
-    const error = el("p", e.message);
-    error.setAttribute("role", "status");
-    panel.append(error);
+    if (connected()) {
+      const error = el("p", e.message);
+      error.setAttribute("role", "status");
+      panel.replaceChildren(error, button("Retry", () => loadPersonal(id, seq, panel, leaderboard)));
+      leaderboard.replaceChildren(el("p", "The leaderboard could not load.", "community-empty"));
+    }
   }
 }
 async function loadProfile(id, seq) {
@@ -1472,6 +1527,7 @@ async function loadDashboard() {
   showLoading(!!new URLSearchParams(location.search).get("server"));
   try {
     const me = await api("/api/me");
+    viewerId = me.user.id;
     csrf = me.csrf;
     renderAccount(me.user);
     await refreshServers();

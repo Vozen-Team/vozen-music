@@ -96,6 +96,24 @@ try {
     await page.reload();
     await page.getByRole("heading", { name: "Community", exact: true }).waitFor();
     assert.deepEqual(await visibleSection.allTextContents(), ["Community"]);
+    if (width === 390) {
+      const control = name => page.getByRole("button", { name, exact: true });
+      await control("Turn on tracking").click();
+      await page.getByText("Hidden from the leaderboard", { exact: true }).waitFor();
+      await control("Show my entry").click();
+      await control("Hide my entry").waitFor();
+      await control("Hide my entry").click();
+      await control("Show my entry").waitFor();
+      await page.getByText("Delete your data", { exact: true }).click();
+      page.once("dialog", dialog => dialog.dismiss());
+      await control("Erase my recorded time").click();
+      assert.equal(await control("Turn off tracking").isVisible(), true);
+      page.once("dialog", dialog => dialog.accept());
+      await control("Erase my recorded time").click();
+      await control("Turn on tracking").waitFor();
+      assert.equal(await control("Show my entry").count(), 0);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    }
     await page.getByRole("link", { name: "Playback", exact: true }).click();
     await page
       .getByLabel("Default and current volume", { exact: true })
