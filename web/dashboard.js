@@ -421,6 +421,8 @@ async function save() {
   if (saving || !changed()) return;
   const invalid = $("editor").querySelector(".music-field :invalid");
   if (invalid) {
+    const panel = invalid.closest(".settings-section[hidden]");
+    if (panel) navigate(panel.dataset.settingsSection);
     invalid.reportValidity();
     return;
   }
@@ -459,12 +461,25 @@ function pageLocation(target) {
   url.searchParams.delete("album");
   return url;
 }
+function showSettingsSection() {
+  const nav = document.querySelector(".settings-jump");
+  if (!nav) return;
+  const section = new URLSearchParams(location.search).get("section");
+  const active = Object.hasOwn(settingsSections, section) ? section : "playback";
+  for (const link of nav.children) {
+    const key = link.dataset.settingsSection;
+    $(`settings-${key}`).parentElement.hidden = key !== active;
+    if (key === active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+}
 function focusSettingsSection() {
+  if (page !== "settings") return false;
   const section = new URLSearchParams(location.search).get("section");
   const heading = $("settings-" + section);
   if (!heading) return false;
+  document.querySelector(".settings-jump").scrollIntoView({ block: "nearest" });
   heading.focus({ preventScroll: true });
-  heading.scrollIntoView({ block: "start" });
   return true;
 }
 function navigate(next) {
@@ -473,6 +488,7 @@ function navigate(next) {
   page = url.searchParams.get("page");
   history.replaceState(null, "", url);
   if (previous !== "settings" || page !== "settings") render();
+  else showSettingsSection();
   closeSections(false);
   if (!focusSettingsSection()) {
     $("main").scrollTop = 0;
@@ -792,13 +808,17 @@ function renderSettings(editor) {
     heading.id = "settings-" + key;
     heading.tabIndex = -1;
     const section = el("section", undefined, "settings-section");
+    section.dataset.settingsSection = key;
     section.setAttribute("aria-labelledby", heading.id);
     section.append(heading);
-    nav.append(pageLink(key, title));
+    const link = pageLink(key, title);
+    link.dataset.settingsSection = key;
+    nav.append(link);
     sections[key] = section;
   }
   const { playback, access, community } = sections;
   editor.append(nav, playback, access, community);
+  showSettingsSection();
 
   playback.append(
     group(

@@ -69,16 +69,34 @@ try {
       30 + [320, 360, 390, 430, 768, 900, 1440].indexOf(width),
     );
     await go("Settings");
-    assert.deepEqual(await page.locator(".settings-section > h2").allTextContents(), ["Playback", "Access & Channels", "Community"]);
+    const visibleSection = page.locator(".settings-section:visible > h2");
+    const activeSection = page.locator(".settings-jump [aria-current=page]");
+    assert.deepEqual(await visibleSection.allTextContents(), ["Playback"]);
+    assert.equal(await activeSection.textContent(), "Playback");
     assert.equal(await page.locator("#music-pages button").count(), 4);
     await page
       .getByLabel("Default and current volume", { exact: true })
       .fill(level);
+    if (width === 390) {
+      const volume = page.getByLabel("Default and current volume", { exact: true });
+      await volume.fill("101");
+      await page.getByRole("link", { name: "Access & Channels", exact: true }).click();
+      await page.locator("#music-save").click();
+      assert.deepEqual(await visibleSection.allTextContents(), ["Playback"]);
+      assert.equal(await volume.evaluate(input => input === document.activeElement && !input.validity.valid), true);
+      await volume.fill(level);
+    }
+    await page.getByRole("link", { name: "Community", exact: true }).press("Enter");
+    assert.deepEqual(await visibleSection.allTextContents(), ["Community"]);
+    assert.equal(await activeSection.textContent(), "Community");
     await page.locator("#music-save").click();
     await page
       .getByText("Settings saved for this server.", { exact: true })
       .waitFor();
     await page.reload();
+    await page.getByRole("heading", { name: "Community", exact: true }).waitFor();
+    assert.deepEqual(await visibleSection.allTextContents(), ["Community"]);
+    await page.getByRole("link", { name: "Playback", exact: true }).click();
     await page
       .getByLabel("Default and current volume", { exact: true })
       .waitFor();
@@ -100,6 +118,7 @@ try {
     );
     await page.getByRole("link", { name: "Access & Channels", exact: true }).click();
     assert.equal(new URL(page.url()).searchParams.get("section"), "access");
+    assert.deepEqual(await visibleSection.allTextContents(), ["Access & Channels"]);
     await page.locator("#server-select").selectOption("__choose_server__");
     await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(new URL(page.url()).searchParams.has("server"), false);

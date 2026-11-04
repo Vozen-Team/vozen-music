@@ -294,6 +294,11 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   background: var(--raised);
   color: var(--text);
 }
+.settings-jump a[aria-current="page"] {
+  background: #25223c;
+  box-shadow: inset 0 0 0 1px #555074;
+  color: #ded2ff;
+}
 .settings-section { margin-bottom: 36px; }
 .settings-section > h2 {
   margin: 0 0 12px;
