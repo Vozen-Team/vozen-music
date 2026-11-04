@@ -1,4 +1,4 @@
-use vozen_music::expansion::{Privacy, ServerSettings};
+use vozen_music::expansion::{Privacy, RadioMode, ServerSettings};
 static PROFILE_UPLOADS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
 async fn profile_upload_guard(
@@ -214,6 +214,36 @@ async fn save_expanded(
             "Choose Auto-join and announcement channels you can view.",
         ));
     }
+    if stored.revision != settings.revision {
+        return Err(WebError(
+            StatusCode::CONFLICT,
+            "Settings changed. Reload before saving.",
+        ));
+    }
+    if !access.shared() && settings.changes_shared_music_controls(&stored) {
+        return Err(WebError(
+            StatusCode::FORBIDDEN,
+            "These server controls require Vozen Premium.",
+        ));
+    }
+    if settings.radio_mode != stored.radio_mode
+        && settings.radio_mode != RadioMode::Session
+        && !state
+            .bot
+            .radio_vote_allowed(parse_id(&login.user.id)?, access)
+            .await
+            .map_err(|_| {
+                WebError(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    crate::access::VOTE_UNAVAILABLE,
+                )
+            })?
+    {
+        return Err(WebError(
+            StatusCode::FORBIDDEN,
+            crate::access::VOTE_REQUIRED,
+        ));
+    }
     // Match command lock order: session map, voice call, then settings storage.
     let sessions = state.bot.sessions.lock().await;
     let active = sessions.get(&guild).cloned();
@@ -234,9 +264,6 @@ async fn save_expanded(
             StatusCode::CONFLICT,
             "Settings changed. Reload before saving.",
         ));
-    }
-    if !access.shared() && settings.changes_shared_music_controls(&previous) {
-        return Err(WebError(StatusCode::FORBIDDEN, "These server controls require Vozen Premium."));
     }
     let saved = store.save(guild.get(), settings).map_err(storage_error)?;
     let mut warning = None;
@@ -711,6 +738,7 @@ mod expansion_web_tests {
             http: state.http.clone(),
             settings: settings.clone(),
             voice: Weak::new(),
+            quality: Arc::default(),
         }));
         let session = Arc::new(session);
         let mut intent = vozen_music::expansion::PlaybackIntent {

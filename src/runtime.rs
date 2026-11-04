@@ -1,4 +1,5 @@
 use super::*;
+use crate::access::Access;
 use std::collections::BTreeSet;
 use vozen_music::expansion::{PlaybackIntent, Privacy, RadioMode, ServerSettings};
 
@@ -10,6 +11,35 @@ pub struct Runtime {
     pub http: Arc<Http>,
     pub settings: Arc<Mutex<SettingsStore>>,
     pub voice: Weak<songbird::Songbird>,
+    pub quality: Arc<Mutex<Option<VoiceQuality>>>,
+}
+
+pub struct VoiceQuality {
+    members: BTreeSet<u64>,
+    checked: std::time::Instant,
+    bitrate: u32,
+}
+
+fn paid_voice(access: Access, subject: u64, members: &BTreeSet<u64>) -> bool {
+    access == Access::Premium || access == Access::Plus && members.contains(&subject)
+}
+
+fn voice_bitrate(boosted: bool, cap: Option<u32>) -> u32 {
+    let target = if boosted { 128_000 } else { 64_000 };
+    target.min(cap.unwrap_or(target))
+}
+
+#[cfg(test)]
+#[test]
+fn plus_voice_depends_on_presence_and_respects_the_channel_cap() {
+    let members = BTreeSet::from([7]);
+    assert!(paid_voice(Access::Plus, 7, &members));
+    assert!(!paid_voice(Access::Plus, 9, &members));
+    assert!(!paid_voice(Access::Free, 7, &members));
+    assert!(paid_voice(Access::Premium, 9, &BTreeSet::new()));
+    assert_eq!(voice_bitrate(true, None), 128_000);
+    assert_eq!(voice_bitrate(true, Some(96_000)), 96_000);
+    assert_eq!(voice_bitrate(false, None), 64_000);
 }
 
 pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
@@ -301,6 +331,97 @@ impl Runtime {
 }
 
 impl Bot {
+    async fn voice_boost(
+        &self,
+        guild: GuildId,
+        bot_id: u64,
+        members: &BTreeSet<u64>,
+        known: Option<(u64, Access)>,
+    ) -> bool {
+        if known.is_some_and(|(subject, access)| paid_voice(access, subject, members)) {
+            return true;
+        }
+        let Some(client) = &self.entitlements else {
+            return false;
+        };
+        tokio::time::timeout(Duration::from_secs(4), async {
+            let subjects = members
+                .iter()
+                .copied()
+                .chain(members.is_empty().then_some(bot_id))
+                .filter(|subject| known.is_none_or(|(id, _)| id != *subject));
+            let mut pending = tokio::task::JoinSet::new();
+            for subject in subjects {
+                let client = client.clone();
+                pending.spawn(async move { (subject, client.resolve(subject, guild.get()).await) });
+                if pending.len() == 8
+                    && let Some(Ok((id, Ok(access)))) = pending.join_next().await
+                    && paid_voice(access, id, members)
+                {
+                    return true;
+                }
+            }
+            while let Some(result) = pending.join_next().await {
+                if let Ok((id, Ok(access))) = result
+                    && paid_voice(access, id, members)
+                {
+                    return true;
+                }
+            }
+            false
+        })
+        .await
+        .unwrap_or(false)
+    }
+
+    fn refresh_voice_quality(&self, runtime: &Arc<Runtime>, members: BTreeSet<u64>) {
+        let Ok(mut quality) = runtime.quality.clone().try_lock_owned() else {
+            return;
+        };
+        if quality.as_ref().is_some_and(|last| {
+            last.members == members && last.checked.elapsed() < Duration::from_secs(30)
+        }) {
+            return;
+        }
+        let bot = self.clone();
+        let runtime = runtime.clone();
+        tokio::spawn(async move {
+            let bot_id = runtime.cache.current_user().id.get();
+            let boosted = bot.voice_boost(runtime.guild, bot_id, &members, None).await;
+            let cap = runtime.cache.guild(runtime.guild).and_then(|g| {
+                g.channels
+                    .get(&runtime.channel)
+                    .and_then(|channel| channel.bitrate)
+            });
+            let bitrate = voice_bitrate(boosted, cap);
+            if quality.as_ref().is_none_or(|last| last.bitrate != bitrate) {
+                let sessions = bot.sessions.lock().await;
+                if !sessions.get(&runtime.guild).is_some_and(|s| {
+                    s.active.load(Ordering::SeqCst)
+                        && s.runtime.as_ref().is_some_and(|r| Arc::ptr_eq(r, &runtime))
+                }) {
+                    return;
+                }
+                let Some(call) = runtime.voice.upgrade().and_then(|v| v.get(runtime.guild)) else {
+                    return;
+                };
+                let mut call = call.lock().await;
+                if !call
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() == runtime.channel.get())
+                {
+                    return;
+                }
+                call.set_bitrate(songbird::driver::Bitrate::Bits(bitrate as i32));
+            }
+            *quality = Some(VoiceQuality {
+                members,
+                checked: std::time::Instant::now(),
+                bitrate,
+            });
+        });
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn start_session(
         &self,
@@ -324,13 +445,19 @@ impl Bot {
                 self.music_access(bot_id, guild.get()).await?
             }
         };
+        let bot_id = ctx.cache.current_user().id.get();
+        let (members, boosted) = if self.entitlements.is_some() {
+            let members = humans(&ctx.cache, &ctx.http, guild, channel, false).await?;
+            let boosted = self
+                .voice_boost(guild, bot_id, &members, actor.or(Some((bot_id, access))))
+                .await;
+            (members, boosted)
+        } else {
+            (BTreeSet::new(), false)
+        };
         let queued_at = std::time::Instant::now();
         let _slot = if self.entitlements.is_some() {
-            Some(
-                self.playback_queue
-                    .acquire(access == crate::access::Access::Premium)
-                    .await?,
-            )
+            Some(self.playback_queue.acquire(boosted).await?)
         } else {
             None
         };
@@ -374,6 +501,7 @@ impl Bot {
             }
             c.bitrate
         };
+        let bitrate = voice_bitrate(boosted, channel_bitrate);
         let manager = songbird::get(ctx)
             .await
             .ok_or("Voice service unavailable.")?;
@@ -449,6 +577,13 @@ impl Bot {
             http: ctx.http.clone(),
             settings: self.settings.clone(),
             voice: Arc::downgrade(&manager),
+            quality: Arc::new(Mutex::new(
+                (queued_at.elapsed() < Duration::from_secs(1)).then_some(VoiceQuality {
+                    members,
+                    checked: queued_at,
+                    bitrate,
+                }),
+            )),
         }));
         let index = if let Some(id) = restore {
             self.catalog.stations[station]
@@ -503,8 +638,6 @@ impl Bot {
         }
         let mut locked = call.lock().await;
         if access != crate::access::Access::Unrestricted {
-            let requested = if access.shared() { 128_000 } else { 64_000 };
-            let bitrate = channel_bitrate.map_or(requested, |cap| requested.min(cap));
             locked.set_bitrate(songbird::driver::Bitrate::Bits(bitrate as i32));
         }
         play_track(
@@ -582,11 +715,9 @@ impl Bot {
                     return Ok(());
                 }
                 let deadline = s.sleep_until.load(Ordering::SeqCst);
-                let empty = humans(&ctx.cache, &ctx.http, guild, r.channel, false)
-                    .await?
-                    .is_empty();
+                let members = humans(&ctx.cache, &ctx.http, guild, r.channel, false).await?;
                 if deadline > 0 && deadline <= chrono::Utc::now().timestamp() as usize
-                    || cfg.radio_mode != RadioMode::Always && empty
+                    || cfg.radio_mode != RadioMode::Always && members.is_empty()
                     || !cfg.voice_rules.permits(r.channel.get())
                     || cfg.voice_channel.is_some_and(|c| c != r.channel.get())
                 {
@@ -601,7 +732,9 @@ impl Bot {
                     } else {
                         false
                     };
-                    if !connected && s.recovery_attempts.fetch_add(1, Ordering::SeqCst) < 3 {
+                    if connected && self.entitlements.is_some() {
+                        self.refresh_voice_quality(r, members);
+                    } else if !connected && s.recovery_attempts.fetch_add(1, Ordering::SeqCst) < 3 {
                         let track = &self.catalog.stations[s.station].tracks
                             [s.current.load(Ordering::SeqCst)]
                         .id;
@@ -985,17 +1118,14 @@ impl Bot {
             if !self.member_flags(ctx, g, member)?.0 {
                 return Err("Manage Server is required.".into());
             }
-            if option("channel").is_some() && !self.music_access(u, g.get()).await?.shared() {
-                return Err("A fixed voice channel requires Vozen Premium on this server.".into());
-            }
-            let mut store = self.settings.lock().await;
-            let mut config = store.db.settings(g.get())?;
+            let mut config = self.settings.lock().await.db.settings(g.get())?;
             if command.data.options.is_empty() {
                 return Ok(Some(format!(
                     "Current radio mode: {:?}.",
                     config.radio_mode
                 )));
             }
+            let previous_mode = config.radio_mode;
             if let Some(mode) = option("mode").and_then(|v| v.as_str()) {
                 config.radio_mode = match mode {
                     "session" => RadioMode::Session,
@@ -1003,6 +1133,24 @@ impl Bot {
                     "auto_join" => RadioMode::AutoJoin,
                     _ => return Err("Invalid radio mode.".into()),
                 };
+            }
+            let needs_vote =
+                config.radio_mode != previous_mode && config.radio_mode != RadioMode::Session;
+            if needs_vote || option("channel").is_some() {
+                let access = self.music_access(u, g.get()).await?;
+                if option("channel").is_some() && !access.shared() {
+                    return Err(
+                        "A fixed voice channel requires Vozen Premium on this server.".into(),
+                    );
+                }
+                if needs_vote
+                    && !self
+                        .radio_vote_allowed(u, access)
+                        .await
+                        .map_err(|_| crate::access::VOTE_UNAVAILABLE)?
+                {
+                    return Err(crate::access::VOTE_REQUIRED.into());
+                }
             }
             if let Some(channel) = option("channel").and_then(|v| v.as_channel_id()) {
                 config.voice_channel = Some(channel.get());
@@ -1026,6 +1174,10 @@ impl Bot {
                 config.validate_resources(g.get(), &roles, &voice, &text, &stations)?;
             }
             let mode = config.radio_mode;
+            let mut store = self.settings.lock().await;
+            if store.db.settings(g.get())?.revision != config.revision {
+                return Err("Settings changed. Try again.".into());
+            }
             store.save(g.get(), config)?;
             return Ok(Some(format!("Radio mode saved: {mode:?}.")));
         }
@@ -1170,6 +1322,7 @@ mod tests {
             http: Arc::new(Http::new("synthetic-token")),
             settings,
             voice: Weak::new(),
+            quality: Arc::default(),
         };
         assert!(!runtime.allows_recording("recording").await.unwrap());
         assert!(runtime.allows_recording("another").await.unwrap());

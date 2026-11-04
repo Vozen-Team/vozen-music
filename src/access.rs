@@ -42,6 +42,37 @@ pub struct Entitlements {
     http: reqwest::Client,
     endpoint: reqwest::Url,
     secret: String,
+    votes: Option<(reqwest::Client, String)>,
+}
+
+pub const VOTE_REQUIRED: &str = "Vote for Vozen Music on Top.gg before enabling this radio mode.";
+pub const VOTE_UNAVAILABLE: &str = "Music vote access could not be checked. Try again.";
+
+#[derive(Deserialize)]
+struct Vote {
+    expires_at: String,
+}
+
+impl Vote {
+    fn is_current(&self, now: chrono::DateTime<chrono::Utc>) -> Result<bool, chrono::ParseError> {
+        Ok(chrono::DateTime::parse_from_rfc3339(&self.expires_at)? > now)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn topgg_votes_expire_at_the_reported_boundary() {
+    let vote = Vote {
+        expires_at: "2026-11-05T00:00:00Z".into(),
+    };
+    let expiry = "2026-11-05T00:00:00Z"
+        .parse::<chrono::DateTime<chrono::Utc>>()
+        .unwrap();
+    assert!(
+        vote.is_current(expiry - chrono::Duration::seconds(1))
+            .unwrap()
+    );
+    assert!(!vote.is_current(expiry).unwrap());
 }
 
 #[derive(Deserialize)]
@@ -83,6 +114,9 @@ fn signature(secret: &str, timestamp: i64, nonce: &str, body: &[u8]) -> Result<S
 
 impl Entitlements {
     pub fn from_env() -> Result<Option<Self>, Error> {
+        let vote_token = std::env::var("MUSIC_TOPGG_TOKEN")
+            .ok()
+            .filter(|v| !v.is_empty());
         let socket = std::env::var_os("MUSIC_ENTITLEMENT_SOCKET").filter(|v| !v.is_empty());
         let url = std::env::var("MUSIC_ENTITLEMENT_URL")
             .ok()
@@ -91,7 +125,7 @@ impl Entitlements {
             .ok()
             .filter(|v| !v.is_empty());
         match (url, secret) {
-            (None, None) if socket.is_none() => Ok(None),
+            (None, None) if socket.is_none() && vote_token.is_none() => Ok(None),
             (Some(url), Some(secret)) => {
                 let endpoint = reqwest::Url::parse(&url)?;
                 if !matches!(endpoint.scheme(), "http" | "https")
@@ -135,10 +169,21 @@ impl Entitlements {
                     builder
                 };
                 let http = builder.build()?;
+                let votes = if let Some(token) = vote_token {
+                    let client = reqwest::Client::builder()
+                        .https_only(true)
+                        .redirect(reqwest::redirect::Policy::none())
+                        .timeout(Duration::from_secs(3))
+                        .build()?;
+                    Some((client, token))
+                } else {
+                    None
+                };
                 Ok(Some(Self {
                     http,
                     endpoint,
                     secret,
+                    votes,
                 }))
             }
             _ => Err("Configure both Music entitlement variables together.".into()),
@@ -172,6 +217,30 @@ impl Entitlements {
 }
 
 impl crate::Bot {
+    pub async fn radio_vote_allowed(&self, subject: u64, access: Access) -> Result<bool, Error> {
+        if access.personal() {
+            return Ok(true);
+        }
+        let Some((http, token)) = self.entitlements.as_ref().and_then(|e| e.votes.as_ref()) else {
+            return Ok(true);
+        };
+        let response = http
+            .get(format!(
+                "https://top.gg/api/v1/projects/@me/votes/{subject}?source=discord"
+            ))
+            .bearer_auth(token)
+            .send()
+            .await?;
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            return Ok(false);
+        }
+        Ok(response
+            .error_for_status()?
+            .json::<Vote>()
+            .await?
+            .is_current(chrono::Utc::now())?)
+    }
+
     pub async fn music_access(&self, subject: u64, guild: u64) -> Result<Access, Error> {
         match &self.entitlements {
             None => Ok(Access::Unrestricted),
@@ -366,6 +435,7 @@ mod tests {
                 .parse()
                 .unwrap(),
             secret: SECRET.into(),
+            votes: None,
         };
         assert_eq!(client.resolve(17, 24).await.unwrap(), Access::Plus);
         assert_eq!(client.resolve(18, 24).await.unwrap(), Access::Free);
