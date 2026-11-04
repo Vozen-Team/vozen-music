@@ -745,18 +745,18 @@ function renderOverview(editor) {
   const state = !session || session.active === false ? "Idle" : session.paused ? "Paused" : "Playing";
   const live = el("div", undefined, "overview-session");
   if (state !== "Idle") live.append(el("span", state, "overview-session-state"));
-  live.append(el("strong", state === "Idle" ? "No active session" : session.track),
-    el("span", state === "Idle" ? "Use /play in Discord to start." : `${station(session.station)} · ${session.volume}% volume`));
+  live.append(el("strong", state === "Idle" ? "Nothing playing" : session.track),
+    el("span", state === "Idle" ? "Start with /play" : `${station(session.station)} · ${session.volume}%`));
   live.dataset.state = state;
   choices.append(live);
 
   const mode = { session: "Session", always: "24/7", auto_join: "Auto-join" }[draft.radio_mode];
-  const skipAccess = draft.skip.access === "moderators" ? "Moderators only" : "Everyone in the call";
+  const skipAccess = draft.skip.access === "moderators" ? "Moderators only" : "Call members";
   const skipMode = draft.skip.mode === "majority" ? "Majority vote" : "One click";
   const summaries = {
-    playback: `${station(draft.default_station)} · ${draft.volume}% volume · ${mode}`,
+    playback: `${station(draft.default_station)} · ${draft.volume}% · ${mode}`,
     access: `Skip · ${skipAccess} · ${skipMode}`,
-    community: draft.statistics ? "Time tracking allowed" : "Time tracking off",
+    community: draft.statistics ? "Tracking allowed" : "Tracking off",
   };
   for (const [target, title] of Object.entries(settingsSections)) {
     const section = el("section", undefined, "overview-section");
