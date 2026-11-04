@@ -22,18 +22,19 @@ let csrf = "",
   page = new URLSearchParams(location.search).get("page") || "overview";
 const pages = {
   overview: "Overview",
+  settings: "Settings",
+  stations: "Stations",
+  profile: "Bot Profile",
+};
+const settingsSections = {
   playback: "Playback",
   access: "Access & Channels",
-  stations: "Stations",
   community: "Community",
-  profile: "Bot Profile",
 };
 const descriptions = {
   overview: "Your Music settings at a glance.",
-  playback: "Choose the sound and behaviour of your radio.",
-  access: "Choose who can control Music and where it can play.",
+  settings: "Manage playback, access and community preferences for this server.",
   stations: "Find an instrumental station for your mood.",
-  community: "Optional time-in-call profiles for this server.",
   profile: "Change how Music looks in this server only.",
 };
 function el(tag, text, cls) {
@@ -389,7 +390,7 @@ function updateSave() {
 }
 async function save() {
   if (saving || !changed()) return;
-  const invalid = $("editor").querySelector(":invalid");
+  const invalid = $("editor").querySelector(".music-field :invalid");
   if (invalid) {
     invalid.reportValidity();
     return;
@@ -420,16 +421,34 @@ async function save() {
     updateSave();
   }
 }
-function navigate(next) {
-  if (!pages[next]) next = "overview";
-  page = next;
+function pageLocation(target) {
   const url = new URL(location.href);
-  url.searchParams.set("page", page);
+  const section = Object.hasOwn(settingsSections, target);
+  url.searchParams.set("page", section ? "settings" : target);
+  if (section) url.searchParams.set("section", target);
+  else url.searchParams.delete("section");
   url.searchParams.delete("album");
+  return url;
+}
+function focusSettingsSection() {
+  const section = new URLSearchParams(location.search).get("section");
+  const heading = $("settings-" + section);
+  if (!heading) return false;
+  heading.focus({ preventScroll: true });
+  heading.scrollIntoView({ block: "start" });
+  return true;
+}
+function navigate(next) {
+  const url = pageLocation(next);
+  const previous = page;
+  page = url.searchParams.get("page");
   history.replaceState(null, "", url);
-  render();
-  closeSections(true);
-  $("main").focus();
+  if (previous !== "settings" || page !== "settings") render();
+  closeSections(false);
+  if (!focusSettingsSection()) {
+    $("main").scrollTop = 0;
+    $("main").focus();
+  }
 }
 function stationLibrary(editor) {
   const stations = [...catalog.filter(s => s.id !== "my"), ...proposals.map(s => ({...s, proposed: true, tracks: []})), {
@@ -613,11 +632,9 @@ function stationLibrary(editor) {
   credits.append(sources);
   editor.append(table, credits);
 }
-function overviewLink(target, label, cls) {
+function pageLink(target, label, cls) {
   const link = el("a", label, cls);
-  const url = new URL(location.href);
-  url.searchParams.set("page", target);
-  url.searchParams.delete("album");
+  const url = pageLocation(target);
   link.href = url.pathname + url.search;
   link.addEventListener("click", event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -629,7 +646,7 @@ function overviewLink(target, label, cls) {
 
 function profileMiniature() {
   const id = current, seq = sequence;
-  const link = overviewLink("profile", undefined, "discord-profile overview-profile");
+  const link = pageLink("profile", undefined, "discord-profile overview-profile");
   link.setAttribute("aria-label", "Open Bot Profile");
   const header = el("div", undefined, "overview-profile-banner");
   const banner = el("img", undefined, "profile-banner");
@@ -721,7 +738,7 @@ function renderOverview(editor) {
   for (const [title, target, values] of sections) {
     const section = el("section", undefined, "overview-section");
     const header = el("div", undefined, "overview-section-heading");
-    const action = overviewLink(target, target === "stations" ? "Browse →" : "Edit →");
+    const action = pageLink(target, target === "stations" ? "Browse →" : "Edit →");
     action.setAttribute("aria-label", `${target === "stations" ? "Browse" : "Edit"} ${title}`);
     header.append(el("h3", title), action);
     const list = el("dl", undefined, "overview-values");
@@ -735,6 +752,129 @@ function renderOverview(editor) {
   }
   layout.append(choices, profileMiniature());
   editor.append(layout);
+}
+
+function renderSettings(editor) {
+  const nav = el("nav", undefined, "settings-jump");
+  nav.setAttribute("aria-label", "Settings sections");
+  const sections = {};
+  for (const [key, title] of Object.entries(settingsSections)) {
+    const heading = el("h2", title);
+    heading.id = "settings-" + key;
+    heading.tabIndex = -1;
+    const section = el("section", undefined, "settings-section");
+    section.setAttribute("aria-labelledby", heading.id);
+    section.append(heading);
+    nav.append(pageLink(key, title));
+    sections[key] = section;
+  }
+  const { playback, access, community } = sections;
+  editor.append(nav, playback, access, community);
+
+  playback.append(
+    group(
+      "Radio settings",
+      "Session leaves immediately when the last person leaves. Bots do not count.",
+      playbackFields(),
+    ),
+  );
+  const timer = card(
+    "Sleep timer",
+    "Use /sleep minutes:30 in your call. Use /sleep cancel:true to cancel.",
+  );
+  timer.append(
+    el(
+      "p",
+      model.session?.sleep_until
+        ? `Current deadline: ${new Date(model.session.sleep_until * 1000).toLocaleString()}`
+        : "No active sleep timer in this snapshot.",
+    ),
+  );
+  const duration = el("input");
+  duration.type = "number";
+  duration.min = 1;
+  duration.max = 720;
+  duration.value = 30;
+  duration.id = "timer-minutes";
+  const label = el("label", "Stop after (minutes)");
+  label.htmlFor = duration.id;
+  timer.append(label, duration);
+  const timerAction = async (cancel) => {
+    if (!duration.validity.valid && !cancel) {
+      duration.reportValidity();
+      return;
+    }
+    const id = current;
+    const result = await api(`/api/guilds/${id}/playback`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        minutes: cancel ? null : Number(duration.value),
+        cancel,
+      }),
+    });
+    if (id === current) {
+      if (model.session) model.session.sleep_until = result.sleep_until;
+      notice("Sleep timer updated.", "success");
+      render();
+    }
+  };
+  timer.append(
+    button("Set timer", () => timerAction(false)),
+    button("Cancel timer", () => timerAction(true)),
+  );
+  playback.append(timer);
+
+  access.append(
+    group(
+      "Playback & skip",
+      "DJ restrictions do not override skip voting thresholds.",
+      accessFields(),
+    ),
+  );
+  for (const [key, label, voice] of [
+    ["voice_rules", "Voice channels", true],
+    ["text_rules", "Text channels", false],
+  ])
+    access.append(
+      group(
+        label,
+        "An empty blocklist allows all channels; an empty allowlist allows none.",
+        [
+          field(`${key}.allow`, "List behaviour", "select", [
+            ["false", "Block selected channels"],
+            ["true", "Allow only selected channels"],
+          ]),
+          field(
+            `${key}.channels`,
+            "Channels",
+            "multi",
+            channelOptions(voice).filter(([id]) => id),
+          ),
+        ],
+      ),
+    );
+
+  community.append(
+    group(
+      "Server statistics",
+      "Individual collection requires each person to opt in with /privacy. No global leaderboard.",
+      [
+        field(
+          "statistics",
+          "Allow optional time-in-call statistics",
+          "checkbox",
+        ),
+      ],
+    ),
+  );
+  const personal = card(
+    "Your privacy & this server leaderboard",
+    "Time in call while Music is playing, excluding deafened time. This is not proof of listening.",
+  );
+  personal.id = "personal-panel";
+  community.append(personal);
+  loadPersonal(current, sequence, personal);
 }
 
 function render() {
@@ -753,118 +893,11 @@ function render() {
     el("p", descriptions[page] || descriptions.overview, "intro"),
   );
   if (page === "overview") renderOverview(editor);
-  if (page === "playback") {
-    editor.append(
-      group(
-        "Radio settings",
-        "Session leaves immediately when the last person leaves. Bots do not count.",
-        playbackFields(),
-      ),
-    );
-    const timer = card(
-      "Sleep timer",
-      "Use /sleep minutes:30 in your call. Use /sleep cancel:true to cancel.",
-    );
-    timer.append(
-      el(
-        "p",
-        model.session?.sleep_until
-          ? `Current deadline: ${new Date(model.session.sleep_until * 1000).toLocaleString()}`
-          : "No active sleep timer in this snapshot.",
-      ),
-    );
-    const duration = el("input");
-    duration.type = "number";
-    duration.min = 1;
-    duration.max = 720;
-    duration.value = 30;
-    duration.id = "timer-minutes";
-    const label = el("label", "Stop after (minutes)");
-    label.htmlFor = duration.id;
-    timer.append(label, duration);
-    const timerAction = async (cancel) => {
-      if (!duration.validity.valid && !cancel) {
-        duration.reportValidity();
-        return;
-      }
-      const id = current;
-      const result = await api(`/api/guilds/${id}/playback`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          minutes: cancel ? null : Number(duration.value),
-          cancel,
-        }),
-      });
-      if (id === current) {
-        if (model.session) model.session.sleep_until = result.sleep_until;
-        notice("Sleep timer updated.", "success");
-        render();
-      }
-    };
-    timer.append(
-      button("Set timer", () => timerAction(false)),
-      button("Cancel timer", () => timerAction(true)),
-    );
-    editor.append(timer);
-  }
-  if (page === "access") {
-    editor.append(
-      group(
-        "Playback & skip",
-        "DJ restrictions do not override skip voting thresholds.",
-        accessFields(),
-      ),
-    );
-    for (const [key, label, voice] of [
-      ["voice_rules", "Voice channels", true],
-      ["text_rules", "Text channels", false],
-    ])
-      editor.append(
-        group(
-          label,
-          "An empty blocklist allows all channels; an empty allowlist allows none.",
-          [
-            field(`${key}.allow`, "List behaviour", "select", [
-              ["false", "Block selected channels"],
-              ["true", "Allow only selected channels"],
-            ]),
-            field(
-              `${key}.channels`,
-              "Channels",
-              "multi",
-              channelOptions(voice).filter(([id]) => id),
-            ),
-          ],
-        ),
-      );
-  }
+  if (page === "settings") renderSettings(editor);
   if (page === "stations") {
     stationLibrary(editor);
     if (["night", "rain", "sleep"].some((id) => !catalog.some((s) => s.id === id)))
       editor.append(card("More stations", "Additional stations are being prepared."));
-  }
-  if (page === "community") {
-    editor.append(
-      group(
-        "Server statistics",
-        "Individual collection requires each person to opt in with /privacy. No global leaderboard.",
-        [
-          field(
-            "statistics",
-            "Allow optional time-in-call statistics",
-            "checkbox",
-          ),
-        ],
-      ),
-    );
-    const personal = card(
-      "Your privacy & this server leaderboard",
-      "Time in call while Music is playing, excluding deafened time. This is not proof of listening.",
-    );
-    personal.id = "personal-panel";
-    editor.append(personal);
-    loadPersonal(current, sequence);
   }
   if (page === "profile") {
     renderProfile(editor);
@@ -1013,14 +1046,14 @@ async function readProfileFile(file) {
     reader.onerror = () => reject(Error("The image could not be read.")); reader.readAsDataURL(file);
   });
 }
-async function loadPersonal(id, seq) {
+async function loadPersonal(id, seq, panel) {
   try {
     const [me, ranking] = await Promise.all([
       api(`/api/guilds/${id}/personal`),
       api(`/api/guilds/${id}/community`),
     ]);
-    if (seq !== sequence || current !== id || page !== "community") return;
-    const c = $("personal-panel");
+    if (seq !== sequence || current !== id || !panel.isConnected) return;
+    const c = panel;
     c.append(
       el(
         "p",
@@ -1057,8 +1090,12 @@ async function loadPersonal(id, seq) {
     for (const [user, seconds] of ranking.rows)
       list.append(el("li", `Member ${user} · ${Math.floor(seconds / 60)} min`));
     c.append(list);
+    for (const control of c.querySelectorAll("button")) control.disabled = saving;
   } catch (e) {
-    if (id === current) notice(e.message, "error");
+    if (seq !== sequence || current !== id || !panel.isConnected) return;
+    const error = el("p", e.message);
+    error.setAttribute("role", "status");
+    panel.append(error);
   }
 }
 async function loadProfile(id, seq) {
@@ -1159,6 +1196,7 @@ function showServerPicker() {
   const url = new URL(location.href);
   url.searchParams.delete("server");
   url.searchParams.delete("page");
+  url.searchParams.delete("section");
   url.searchParams.delete("album");
   history.replaceState(null, "", url);
   const choices = $("server-choices");
@@ -1223,13 +1261,17 @@ async function loadServer(id) {
     } catch {
       notice("This browser could not restore your draft.");
     }
-    if (!pages[page]) page = "overview";
+    const legacySection = Object.hasOwn(settingsSections, page) ? page : null;
+    if (legacySection) page = "settings";
+    if (!Object.hasOwn(pages, page)) page = "overview";
     $("editor").hidden = false;
     const url = new URL(location.href);
     url.searchParams.set("server", id);
     if (url.searchParams.has("page")) url.searchParams.set("page", page);
+    if (legacySection) url.searchParams.set("section", legacySection);
     history.replaceState(null, "", url);
     render();
+    if (page === "settings") focusSettingsSection();
   } catch (e) {
     if (seq === sequence) notice(e.message, "error", e.status === 401 ? null : () => loadServer(id));
   } finally {
@@ -1318,10 +1360,16 @@ window.addEventListener("pagehide", stopBrowserPreview);
 window.addEventListener("popstate", () => {
   if (!draft || new URLSearchParams(location.search).get("server") !== current) return;
   page = new URLSearchParams(location.search).get("page") || "overview";
-  if (!pages[page]) page = "overview";
+  if (Object.hasOwn(settingsSections, page)) {
+    history.replaceState(null, "", pageLocation(page));
+    page = "settings";
+  }
+  if (!Object.hasOwn(pages, page)) page = "overview";
   render();
-  $("main").scrollTop = 0;
-  $("main").focus();
+  if (!focusSettingsSection()) {
+    $("main").scrollTop = 0;
+    $("main").focus();
+  }
 });
 if (window.visualViewport) {
   const update = () =>

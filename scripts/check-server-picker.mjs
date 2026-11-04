@@ -34,7 +34,7 @@ try {
   assert.equal(await icon.locator("img").count(), 0);
   await page.getByRole("heading", { name: "Overview", exact: true }).waitFor();
   await page.locator("#sections-trigger").click();
-  await page.locator("#music-pages").getByRole("button", { name: "Playback", exact: true }).click();
+  await page.locator("#music-pages").getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByLabel("Default and current volume", { exact: true }).fill("42");
   assert.equal(await select.locator("option").last().textContent(), "Choose another server");
   assert.equal(await page.getByRole("button", { name: "Choose another server" }).count(), 0);
@@ -47,6 +47,8 @@ try {
   assert.match(await page.locator("#notice").innerText(), /draft was restored/);
   await page.goto(dashboard + "?server=1&page=playback");
   await page.getByLabel("Default and current volume", { exact: true }).waitFor();
+  assert.equal(new URL(page.url()).searchParams.get("page"), "settings");
+  assert.equal(new URL(page.url()).searchParams.get("section"), "playback");
   assert.equal(await page.locator("#server-picker").isVisible(), false);
   assert.equal(await page.getByLabel("Default and current volume", { exact: true }).inputValue(), "42");
   await page.evaluate(() => { Storage.prototype.setItem = () => { throw Error("unavailable"); }; });

@@ -28,11 +28,11 @@ try{
   assert.equal(await first.getAttribute('aria-pressed'),'false');assert.equal(await second.getAttribute('aria-pressed'),'true');
   if(width===1440){await page.locator('.station-tracks tbody tr').nth(2).hover();await page.screenshot({path:'output/browser-preview-desktop.png',fullPage:true});}
   if(width===390)await page.screenshot({path:'output/browser-preview-mobile.png',fullPage:true});
-  const playback = page.locator('#music-pages').getByRole('button',{name:'Playback',exact:true});
-  if(!await playback.isVisible())await page.locator('#sections-trigger').click();
-  await playback.click();
+  const settings = page.locator('#music-pages').getByRole('button',{name:'Settings',exact:true});
+  if(!await settings.isVisible())await page.locator('#sections-trigger').click();
+  await settings.click();
   assert.equal(await page.locator('#editor audio').count(),0,'Leaving Stations removes the audio player');
-  await page.getByRole('heading',{name:'Playback',exact:true}).waitFor();assert.deepEqual(mutations,[]);assert.deepEqual(errors,[]);await page.close();
+  await page.getByRole('heading',{name:'Settings',exact:true}).waitFor();assert.deepEqual(mutations,[]);assert.deepEqual(errors,[]);await page.close();
  }
  const page=await browser.newPage();
  for(const extension of ['ogg','mp3','wav','flac']){

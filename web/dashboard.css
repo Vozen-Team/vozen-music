@@ -166,6 +166,12 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
 }
 
 /* Music overview. */
+.settings-jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; }
+.settings-jump a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 1px solid #2a3e56; border-radius: 8px; background: #101d2e; font-size: 13px; text-decoration: none; }
+.settings-jump a:hover { border-color: #78c6c6; }
+.settings-section { margin-bottom: 28px; }
+.settings-section > h2 { margin: 0 0 12px; font-size: 21px; scroll-margin-top: 16px; }
+.settings-section .music-card h2 { font-size: 17px; }
 .overview-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .overview-choices { margin: 0; }
 .overview-session { display: grid; gap: 5px; padding: 15px 16px; margin-top: 16px; border: 1px solid #2e4860; border-radius: 10px; background: #102438; }

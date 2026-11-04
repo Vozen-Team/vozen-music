@@ -51,10 +51,8 @@ try {
       await b.click();
     };
     for (const name of [
-      "Playback",
-      "Access & Channels",
+      "Settings",
       "Stations",
-      "Community",
       "Bot Profile",
     ]) {
       await go(name);
@@ -70,7 +68,9 @@ try {
     const level = String(
       30 + [320, 360, 390, 430, 768, 900, 1440].indexOf(width),
     );
-    await go("Playback");
+    await go("Settings");
+    assert.deepEqual(await page.locator(".settings-section > h2").allTextContents(), ["Playback", "Access & Channels", "Community"]);
+    assert.equal(await page.locator("#music-pages button").count(), 4);
     await page
       .getByLabel("Default and current volume", { exact: true })
       .fill(level);
@@ -98,13 +98,15 @@ try {
         .inputValue(),
       level,
     );
-    await go("Access & Channels");
+    await page.getByRole("link", { name: "Access & Channels", exact: true }).click();
+    assert.equal(new URL(page.url()).searchParams.get("section"), "access");
     await page.locator("#server-select").selectOption("__choose_server__");
     await page.getByRole("heading", { name: "Your servers.", exact: true }).waitFor();
     assert.equal(new URL(page.url()).searchParams.has("server"), false);
     await page.locator(".server-choice").first().focus();
     await page.keyboard.press("Enter");
-    await go("Access & Channels");
+    await page.getByRole("link", { name: "Edit Access & Channels", exact: true }).click();
+    assert.equal(await page.locator("#settings-access").evaluate(e => e === document.activeElement), true);
     const rule = page.getByLabel("List behaviour").first();
     await rule.selectOption(
       (await rule.inputValue()) === "true" ? "false" : "true",
@@ -139,7 +141,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    "Music dashboard: six pages, seven widths, Overview profile navigation, save/reload, discard, menus and JavaScript checks passed.",
+    "Music dashboard: four pages, seven widths, Settings sections, save/reload, discard and menus passed.",
   );
 } finally {
   await browser.close();
