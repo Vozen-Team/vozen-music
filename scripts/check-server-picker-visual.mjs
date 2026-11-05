@@ -12,6 +12,8 @@ try{
     if(process.env.SITE_PUBLIC_ROOT)await page.route('**/assets/fonts/*.woff2',async route=>route.fulfill({contentType:'font/woff2',body:await readFile(process.env.SITE_PUBLIC_ROOT+'/assets/fonts/'+new URL(route.request().url()).pathname.split('/').pop())}));
     await page.goto(base+'/music/dashboard');
     const picker=page.locator('#server-picker');await picker.waitFor({state:'visible'});
+    assert.equal(await page.locator('#sidebar .install').count(),0);
+    assert.equal(new URL(await page.locator('#picker-invite').getAttribute('href')).hostname,'discord.com');
     await page.evaluate(()=>document.fonts.ready);
     await page.locator('.vp-server').evaluateAll(rows=>Promise.all(rows.flatMap(row=>row.getAnimations().map(animation=>animation.finished))));
     assert.equal(await picker.locator('.vp-server').count(),2);
