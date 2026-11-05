@@ -28,6 +28,10 @@ try{
     await label.waitFor();
     assert.equal(await label.textContent(),'W'.repeat(100));
     assert.equal(await select.getAttribute('title'),'W'.repeat(100));
+    const selectedButton=select.locator(':scope > button');
+    assert.equal(await selectedButton.evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
+    assert.equal(await selectedButton.evaluate(el=>getComputedStyle(el).backgroundColor),'rgba(0, 0, 0, 0)');
+    assert.equal(await selectedButton.evaluate(el=>getComputedStyle(el).paddingInlineStart),'0px');
     assert.equal(await label.evaluate(el=>getComputedStyle(el).textOverflow),'ellipsis');
     assert.ok(await label.evaluate(el=>el.scrollWidth>el.clientWidth));
     const labelBox=await label.boundingBox(), selectBox=await select.boundingBox();
