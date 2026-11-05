@@ -536,6 +536,7 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   .overview-side { grid-template-rows: 1fr auto; }
   .overview-stations { display: grid; grid-template-rows: minmax(clamp(144px, 17vw, 228px), 1fr) auto; }
   .overview-station-covers { height: auto; grid-template-rows: minmax(0, 1fr); }
+  .overview-station-covers.is-featured { height: clamp(220px, 26vw, 340px); }
 }
 @media (max-width: 900px) {
   .overview-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
