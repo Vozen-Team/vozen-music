@@ -1447,7 +1447,6 @@ function showServerPicker() {
     row.append(arrow);
     choices.append(row);
   }
-  $("picker-invite").href = $("sidebar").querySelector('a[href*="discord.com/oauth2"]').href;
   $("server-picker").hidden = false;
   $("main").scrollTop = 0;
   $("main").focus();
