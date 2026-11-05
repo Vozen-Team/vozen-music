@@ -258,7 +258,19 @@ main>.small:first-child{font-size:11px;line-height:1.4;margin:0 0 8px;white-spac
   option[value="__choose_server__"]::before { content: "+"; flex: 0 0 20px; text-align: center; }
 }
 
-#servers { position: relative; }
+#servers { position: relative; min-inline-size: 0; }
+@supports (appearance: base-select) {
+  #server-select > button,
+  #server-select selectedcontent { display: flex; align-items: center; min-inline-size: 0; }
+  #server-select > button { flex: 1; }
+  #server-select selectedcontent .server-option-icon { display: none; }
+  #server-select selectedcontent .server-option-name {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 .server-option-icon { display: grid; place-items: center; flex: 0 0 20px; inline-size: 20px; block-size: 20px; border-radius: 6px; overflow: hidden; background: #263c53; color: #e5f2ff; font: 600 10px/1 system-ui; }
 .server-option-icon::before { content: attr(data-initials); }
 .server-option-icon img { inline-size: 100%; block-size: 100%; object-fit: cover; }

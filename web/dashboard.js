@@ -1393,12 +1393,17 @@ function serverAvatar(server, className) {
 function renderServers() {
   const select = $("server-select");
   $("selected-server-icon")?.remove();
-  select.replaceChildren();
+  Array.from(select.options).forEach(option => option.remove());
+  select.removeAttribute("title");
   for (const s of serverList) {
-    const option = new Option(s.name, s.id, false, s.id === current);
-    option.prepend(serverAvatar(s, "server-option-icon"));
+    const option = new Option("", s.id, false, s.id === current);
+    const name = document.createElement("span");
+    name.className = "server-option-name";
+    name.textContent = s.name;
+    option.append(serverAvatar(s, "server-option-icon"), name);
     select.add(option);
     if (s.id === current) {
+      select.title = s.name;
       const icon = serverAvatar(s, "server-option-icon");
       icon.id = "selected-server-icon";
       select.before(icon);

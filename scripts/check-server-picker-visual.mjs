@@ -2,14 +2,15 @@ import assert from 'node:assert/strict';
 import {mkdir,readFile} from 'node:fs/promises';
 const {chromium}=await import(process.env.VOZEN_PLAYWRIGHT_MODULE||'playwright');
 const browser=await chromium.launch();
+const base=process.env.VOZEN_PREVIEW_URL||'http://localhost:4783';
 try{
   await mkdir('output',{recursive:true});
   for(const width of [320,768,1440,1910]){
     const page=await browser.newPage({viewport:{width,height:1000}});
     const errors=[];page.on('pageerror',error=>errors.push(error.message));
-    await page.route('**/music/api/guilds',route=>route.fulfill({json:{guilds:[{id:'1',name:'Community <safe>'},{id:'2',name:'A long server name that must wrap without overflowing'}]}}));
+    await page.route('**/music/api/guilds',route=>route.fulfill({json:{guilds:[{id:'1',name:'Community <safe>'},{id:'2',name:'W'.repeat(100)}]}}));
     if(process.env.SITE_PUBLIC_ROOT)await page.route('**/assets/fonts/*.woff2',async route=>route.fulfill({contentType:'font/woff2',body:await readFile(process.env.SITE_PUBLIC_ROOT+'/assets/fonts/'+new URL(route.request().url()).pathname.split('/').pop())}));
-    await page.goto('http://localhost:4783/music/dashboard');
+    await page.goto(base+'/music/dashboard');
     const picker=page.locator('#server-picker');await picker.waitFor({state:'visible'});
     await page.evaluate(()=>document.fonts.ready);
     await page.locator('.vp-server').evaluateAll(rows=>Promise.all(rows.flatMap(row=>row.getAnimations().map(animation=>animation.finished))));
@@ -21,6 +22,18 @@ try{
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await page.screenshot({path:`output/picker-music-${width}.png`,fullPage:true});
     await picker.locator('.vp-server').first().click();await picker.waitFor({state:'hidden'});
+    const select=page.locator('#server-select');
+    await select.selectOption('2');
+    const label=select.locator('selectedcontent .server-option-name');
+    await label.waitFor();
+    assert.equal(await label.textContent(),'W'.repeat(100));
+    assert.equal(await select.getAttribute('title'),'W'.repeat(100));
+    assert.equal(await label.evaluate(el=>getComputedStyle(el).textOverflow),'ellipsis');
+    assert.ok(await label.evaluate(el=>el.scrollWidth>el.clientWidth));
+    const labelBox=await label.boundingBox(), selectBox=await select.boundingBox();
+    assert.ok(labelBox.x>=selectBox.x && labelBox.x+labelBox.width<selectBox.x+selectBox.width);
+    await select.selectOption('1');
+    assert.equal(await select.getAttribute('title'),'Community <safe>');
     assert.deepEqual(errors,[]);await page.close();console.log(`Music ${width}px: shared scale, rows, safe names and real selection passed`);
   }
 }finally{await browser.close();}
