@@ -699,7 +699,7 @@ impl Bot {
 
         let simple = match name {
             "help" => Some(
-                "Start with /play. Playback: /station, /pause, /resume, /skip, /stop, /volume, /sleep and /panel. Preferences: /like, /dislike and /library. Managers: /settings, /radio-mode and /skip-settings. Privacy: /profile, /leaderboard and /privacy. All features are free.",
+                "Start with /play. Playback: /station, /pause, /resume, /skip, /stop, /volume, /sleep and /panel. Preferences: /like, /dislike and /library. Managers: /settings, /radio-mode and /skip-settings. Privacy: /profile, /leaderboard and /privacy. Listening to curated stations is free. Some features depend on your Vozen plan. Compare Free, Plus and Premium at https://vozen.org/premium.",
             ),
             "support" | "feedback" => Some(
                 "Vozen support and feedback: https://discord.gg/4kYw2WUbNN. No feedback was sent by this command.",
