@@ -822,6 +822,9 @@ impl Bot {
             }
             let mut store = self.settings.lock().await;
             let mut config = store.db.settings(g.get())?;
+            if command.data.options.is_empty() {
+                return Ok(Some(format!("Current radio mode: {:?}.", config.radio_mode)));
+            }
             if let Some(mode) = option("mode").and_then(|v| v.as_str()) {
                 config.radio_mode = match mode {
                     "session" => RadioMode::Session,
