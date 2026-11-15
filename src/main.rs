@@ -175,6 +175,7 @@ struct Bot {
     guild: Option<GuildId>,
     sessions: Arc<Mutex<HashMap<GuildId, Arc<Session>>>>,
     settings: Arc<Mutex<SettingsStore>>,
+    play_cooldowns: Arc<SyncMutex<runtime::PlayCooldowns>>,
 }
 
 #[derive(Clone)]
@@ -395,6 +396,13 @@ impl Bot {
                 ),
             )
             .await?;
+        if matches!(command.data.name.as_str(), "play" | "station") {
+            // Checked before the shared session map is locked for the voice join.
+            self.play_cooldowns
+                .lock()
+                .map_err(|_| "Music is busy. Please try again.")?
+                .begin(guild_id, command.user.id, std::time::Instant::now())?;
+        }
         let manager = songbird::get(ctx)
             .await
             .ok_or("The voice connection service is unavailable.")?;
@@ -897,6 +905,7 @@ async fn main() -> Result<(), Error> {
         settings: Arc::new(Mutex::new(SettingsStore::load(
             Path::new("data/skip-settings.json").to_path_buf(),
         )?)),
+        play_cooldowns: Arc::default(),
     });
     let commands = bot.commands();
     let intents = GatewayIntents::GUILDS | GatewayIntents::GUILD_VOICE_STATES;
@@ -984,6 +993,7 @@ mod tests {
                     )))
                 .unwrap(),
             )),
+            play_cooldowns: Arc::default(),
         };
         let commands = serde_json::to_value(bot.commands()).unwrap();
         let commands = commands.as_array().unwrap();

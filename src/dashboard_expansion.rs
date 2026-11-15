@@ -98,6 +98,34 @@ fn storage_error(_: Error) -> WebError {
     )
 }
 
+/// Voice and text channels the member can view, after role and member overwrites.
+fn visible_channels<'a>(
+    channels: impl IntoIterator<Item = &'a GuildChannel>,
+    member: &Member,
+    permissions_in: impl Fn(&GuildChannel, &Member) -> Permissions,
+) -> Vec<&'a GuildChannel> {
+    channels
+        .into_iter()
+        .filter(|c| matches!(c.kind, ChannelType::Voice | ChannelType::Text))
+        .filter(|c| permissions_in(c, member).contains(Permissions::VIEW_CHANNEL))
+        .collect()
+}
+
+/// New Auto-join and announcement choices must be visible to the saving manager;
+/// an unchanged channel chosen earlier by someone else stays valid.
+fn chosen_channels_visible(
+    new: &ServerSettings,
+    stored: &ServerSettings,
+    visible: &std::collections::BTreeSet<u64>,
+) -> bool {
+    [
+        (new.voice_channel, stored.voice_channel),
+        (new.announcement_channel, stored.announcement_channel),
+    ]
+    .into_iter()
+    .all(|(chosen, before)| chosen.is_none_or(|id| visible.contains(&id) || Some(id) == before))
+}
+
 async fn expanded_settings(
     State(state): State<Arc<Dashboard>>,
     headers: HeaderMap,
@@ -105,7 +133,7 @@ async fn expanded_settings(
 ) -> WebResult<Json<serde_json::Value>> {
     let login = state.login(&headers, false).await?;
     let guild = GuildId::new(parse_id(&value)?);
-    let server = state.manager(guild, &login).await?;
+    let (server, member) = state.manager_member(guild, &login).await?;
     let settings = state
         .bot
         .settings
@@ -120,7 +148,11 @@ async fn expanded_settings(
         .filter(|r| r.id.get() != guild.get())
         .map(|r| serde_json::json!({"id":r.id.to_string(),"name":r.name}))
         .collect();
-    let channels=guild.channels(&state.http).await.map_err(|_|unavailable())?.values().filter(|c|matches!(c.kind,ChannelType::Voice|ChannelType::Text)).map(|c|serde_json::json!({"id":c.id.to_string(),"name":c.name,"voice":c.kind==ChannelType::Voice})).collect::<Vec<_>>();
+    let all = guild.channels(&state.http).await.map_err(|_| unavailable())?;
+    let channels = visible_channels(all.values(), &member, |c, m| server.user_permissions_in(c, m))
+        .into_iter()
+        .map(|c| serde_json::json!({"id":c.id.to_string(),"name":c.name,"voice":c.kind==ChannelType::Voice}))
+        .collect::<Vec<_>>();
     let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
         serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session}),
@@ -135,7 +167,7 @@ async fn save_expanded(
 ) -> WebResult<Json<serde_json::Value>> {
     let login = state.login(&headers, true).await?;
     let guild = GuildId::new(parse_id(&value)?);
-    let server = state.manager(guild, &login).await?;
+    let (server, member) = state.manager_member(guild, &login).await?;
     settings.validate(guild.get()).map_err(|_| {
         WebError(
             StatusCode::BAD_REQUEST,
@@ -159,6 +191,26 @@ async fn save_expanded(
         .await
         .map_err(|_| unavailable())?;
     settings.validate_resources(guild.get(),&server.roles.keys().map(|r|r.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Voice).map(|c|c.id.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Text).map(|c|c.id.get()).collect(),&state.bot.catalog.stations.iter().map(|s|s.id.clone()).collect()).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
+    let visible = visible_channels(channels.values(), &member, |c, m| {
+        server.user_permissions_in(c, m)
+    })
+    .into_iter()
+    .map(|c| c.id.get())
+    .collect();
+    let stored = state
+        .bot
+        .settings
+        .lock()
+        .await
+        .db
+        .settings(guild.get())
+        .map_err(storage_error)?;
+    if !chosen_channels_visible(&settings, &stored, &visible) {
+        return Err(WebError(
+            StatusCode::BAD_REQUEST,
+            "Choose Auto-join and announcement channels you can view.",
+        ));
+    }
     // Match command lock order: session map, voice call, then settings storage.
     let sessions = state.bot.sessions.lock().await;
     let active = sessions.get(&guild).cloned();

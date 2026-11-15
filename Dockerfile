@@ -4,6 +4,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
+# Patched Songbird/Davey sources referenced by [patch.crates-io] in Cargo.toml.
+COPY vendor ./vendor
 COPY src ./src
 COPY web ./web
 COPY assets/fonts ./assets/fonts
@@ -12,7 +14,7 @@ RUN cargo build --release --locked
 
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates libopus0 \
+    && apt-get install -y --no-install-recommends ca-certificates libopus0 libssl3 \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 vozen \
     && useradd --uid 10001 --gid vozen --no-create-home --shell /usr/sbin/nologin vozen

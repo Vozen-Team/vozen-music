@@ -9,19 +9,29 @@ publish = false
 axum = "0.8"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rand = "0.9"
-rusqlite = { version = "0.38", features = ["bundled"] }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
 sha2 = "0.10"
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "model", "cache", "voice", "rustls_backend"] }
-songbird = "0.6.1"
+serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "model", "cache", "voice", "native_tls_backend"] }
+songbird = { version = "0.6.0", default-features = false, features = ["driver", "gateway", "native", "serenity", "tungstenite"] }
 symphonia = { version = "0.5.5", features = ["mp3"] }
 tokio = { version = "1", features = ["fs", "macros", "rt-multi-thread", "signal"] }
 tokio-util = { version = "0.7", features = ["io"] }
 fontdue = "=0.9.3"
+
+# Same reviewed voice stack as Vozen TTS (see vendor/README.md): Songbird with
+# ringbuf 0.5.3 (RUSTSEC-2026-0293) and Davey on OpenMLS 0.9.2 with the RustCrypto
+# provider pinned to an upstream OpenMLS commit (crypto-bigint/libcrux advisories).
+[patch.crates-io]
+songbird = { path = "vendor/songbird" }
+davey = { path = "vendor/davey" }
+openmls_basic_credential = { git = "https://github.com/openmls/openmls", rev = "be248d4b1306d87a641ce24ed0ffcab2b27967f6" }
+openmls_rust_crypto = { git = "https://github.com/openmls/openmls", rev = "be248d4b1306d87a641ce24ed0ffcab2b27967f6" }
+openmls_traits = { git = "https://github.com/openmls/openmls", rev = "be248d4b1306d87a641ce24ed0ffcab2b27967f6" }
 
 [lints.rust]
 unsafe_code = "forbid"
