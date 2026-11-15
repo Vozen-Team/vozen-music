@@ -8,7 +8,11 @@ use axum::{
     routing::{get, post},
 };
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use std::{collections::VecDeque, time::Instant};
+use std::{
+    collections::VecDeque,
+    net::{IpAddr, Ipv6Addr, SocketAddr},
+    time::Instant,
+};
 
 const API: &str = "https://discord.com/api/v10";
 const ACCOUNT_ORIGIN: &str = "https://vozen.org";
@@ -17,6 +21,18 @@ const SESSION_COOKIE: &str = "__Secure-vozen_music";
 const STATE_COOKIE: &str = "__Secure-vozen_music_oauth";
 const SESSION_TTL: Duration = Duration::from_secs(3600);
 const STATE_TTL: Duration = Duration::from_secs(600);
+const RATE_WINDOW: Duration = Duration::from_secs(60);
+/// Requests per client address and minute; static assets are not counted.
+const CLIENT_REQUESTS: u32 = 300;
+/// Generous ceiling across all clients; the OAuth callback is exempt from it.
+const GLOBAL_REQUESTS: usize = 6000;
+/// Bound on tracked client addresses; the oldest window is evicted when full.
+const MAX_TRACKED_CLIENTS: usize = 10_000;
+const MAX_PENDING: usize = 200;
+const MAX_PENDING_PER_CLIENT: usize = 5;
+const MAX_SESSIONS: usize = 1000;
+const MAX_SESSIONS_PER_USER: usize = 5;
+const PREVIEWS_PER_SESSION: usize = 2;
 
 type WebResult<T> = Result<T, WebError>;
 
@@ -42,6 +58,21 @@ struct Login {
     csrf: String,
     expires: Instant,
     revoke_token: bool,
+    /// Shared by every clone of this session; bounds concurrent audio previews.
+    previews: Arc<tokio::sync::Semaphore>,
+}
+
+impl Login {
+    fn new(user: UserInfo, token: String, expires: Instant, revoke_token: bool) -> Self {
+        Self {
+            user,
+            token,
+            csrf: nonce(),
+            expires,
+            revoke_token,
+            previews: Arc::new(tokio::sync::Semaphore::new(PREVIEWS_PER_SESSION)),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -58,24 +89,203 @@ struct AvatarDecoration {
     asset: String,
 }
 
+/// Rate-limit key for one client: the address, or its /64 for IPv6 so that a
+/// single host cannot rotate through its own prefix.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct ClientIp(IpAddr);
+
+impl ClientIp {
+    fn new(address: IpAddr) -> Self {
+        match address.to_canonical() {
+            IpAddr::V6(v6) => {
+                let mut segments = v6.segments();
+                segments[4..].fill(0);
+                Self(IpAddr::V6(Ipv6Addr::from(segments)))
+            }
+            v4 => Self(v4),
+        }
+    }
+}
+
+/// Resolve the client address. In production the container port is published
+/// only on the host loopback and Caddy forwards to it; per the Vozen Cloudflare
+/// runbook Caddy overwrites CF-Connecting-IP / X-Forwarded-For with the client
+/// address it validated. Those headers are trusted only from a loopback or
+/// private peer (Caddy via the Docker bridge); any other peer is used as is.
+fn client_ip(headers: &HeaderMap, peer: Option<IpAddr>) -> ClientIp {
+    let peer = peer.map(|ip| ip.to_canonical());
+    let trusted = peer.is_none_or(|ip| match ip {
+        IpAddr::V4(v4) => v4.is_loopback() || v4.is_private(),
+        IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local(),
+    });
+    let header = |name: &str| headers.get(name).and_then(|value| value.to_str().ok());
+    let forwarded = trusted
+        .then(|| {
+            header("cf-connecting-ip")
+                .and_then(|value| value.trim().parse::<IpAddr>().ok())
+                .or_else(|| {
+                    // The right-most entry is the one appended by the local proxy.
+                    header("x-forwarded-for")
+                        .and_then(|value| value.rsplit(',').next())
+                        .and_then(|value| value.trim().parse::<IpAddr>().ok())
+                })
+        })
+        .flatten();
+    ClientIp::new(forwarded.or(peer).unwrap_or(IpAddr::from([0, 0, 0, 0])))
+}
+
+/// Static, embedded or cached public files are cheap and not counted.
+fn rate_exempt(path: &str) -> bool {
+    [
+        "/music/assets/",
+        "/music/covers/",
+        "/music/albums/",
+        "/music/thumbnails/",
+        "/music/css/",
+    ]
+    .iter()
+    .any(|prefix| path.starts_with(prefix))
+        || matches!(
+            path,
+            "/music/health"
+                | "/music/dashboard.css"
+                | "/music/dashboard.js"
+                | "/music/dashboard-i18n.js"
+                | "/music/navigation.js"
+                | "/music/server-picker.css"
+                | "/music/avatar.png"
+                | "/music/vozen.svg"
+                | "/music/outfit.woff2"
+        )
+}
+
+#[derive(Default)]
+struct RequestLimits {
+    global: VecDeque<Instant>,
+    clients: HashMap<ClientIp, (Instant, u32)>,
+}
+
+impl RequestLimits {
+    /// Count one request. `global` is false for routes that must never be
+    /// blocked by other clients' traffic, such as the OAuth callback.
+    fn check(&mut self, client: ClientIp, global: bool, now: Instant) -> bool {
+        while self
+            .global
+            .front()
+            .is_some_and(|at| now.saturating_duration_since(*at) >= RATE_WINDOW)
+        {
+            self.global.pop_front();
+        }
+        if global && self.global.len() >= GLOBAL_REQUESTS {
+            return false;
+        }
+        if !self.clients.contains_key(&client) && self.clients.len() >= MAX_TRACKED_CLIENTS {
+            self.clients
+                .retain(|_, (start, _)| now.saturating_duration_since(*start) < RATE_WINDOW);
+            if self.clients.len() >= MAX_TRACKED_CLIENTS
+                && let Some(oldest) = self
+                    .clients
+                    .iter()
+                    .min_by_key(|(_, (start, _))| *start)
+                    .map(|(key, _)| *key)
+            {
+                self.clients.remove(&oldest);
+            }
+        }
+        let (start, count) = self.clients.entry(client).or_insert((now, 0));
+        if now.saturating_duration_since(*start) >= RATE_WINDOW {
+            *start = now;
+            *count = 0;
+        }
+        if *count >= CLIENT_REQUESTS {
+            return false;
+        }
+        *count += 1;
+        if global {
+            self.global.push_back(now);
+        }
+        true
+    }
+}
+
+struct Pending {
+    expires: Instant,
+    client: ClientIp,
+}
+
 #[derive(Default)]
 struct AuthStore {
-    pending: HashMap<String, Instant>,
+    pending: HashMap<String, Pending>,
     sessions: HashMap<String, Login>,
-    requests: VecDeque<Instant>,
+    limits: RequestLimits,
 }
 
 impl AuthStore {
     fn prune(&mut self, now: Instant) {
-        self.pending.retain(|_, expires| *expires > now);
+        self.pending.retain(|_, pending| pending.expires > now);
         self.sessions.retain(|_, login| login.expires > now);
-        while self
-            .requests
-            .front()
-            .is_some_and(|at| now.duration_since(*at) >= Duration::from_secs(60))
+    }
+
+    /// Store a pending sign-in, evicting the client's (then everyone's) oldest
+    /// state instead of refusing new sign-ins when a cap is reached.
+    fn insert_pending(&mut self, value: String, client: ClientIp, now: Instant) {
+        self.prune(now);
+        let oldest = |pending: &HashMap<String, Pending>, own: bool| {
+            pending
+                .iter()
+                .filter(|(_, p)| !own || p.client == client)
+                .min_by_key(|(_, p)| p.expires)
+                .map(|(key, _)| key.clone())
+        };
+        while self.pending.values().filter(|p| p.client == client).count() >= MAX_PENDING_PER_CLIENT
+            && let Some(key) = oldest(&self.pending, true)
         {
-            self.requests.pop_front();
+            self.pending.remove(&key);
         }
+        while self.pending.len() >= MAX_PENDING
+            && let Some(key) = oldest(&self.pending, false)
+        {
+            self.pending.remove(&key);
+        }
+        self.pending.insert(
+            value,
+            Pending {
+                expires: now + STATE_TTL,
+                client,
+            },
+        );
+    }
+
+    /// Store a session, keeping at most `MAX_SESSIONS_PER_USER` per Discord user
+    /// and evicting the soonest-expiring session when the store is full.
+    fn insert_session(&mut self, key: String, login: Login, replaced: Option<&str>, now: Instant) {
+        self.prune(now);
+        if let Some(old) = replaced {
+            self.sessions.remove(old);
+        }
+        let oldest = |sessions: &HashMap<String, Login>, user: Option<&str>| {
+            sessions
+                .iter()
+                .filter(|(_, l)| user.is_none_or(|id| l.user.id == id))
+                .min_by_key(|(_, l)| l.expires)
+                .map(|(key, _)| key.clone())
+        };
+        while self
+            .sessions
+            .values()
+            .filter(|l| l.user.id == login.user.id)
+            .count()
+            >= MAX_SESSIONS_PER_USER
+            && let Some(old) = oldest(&self.sessions, Some(&login.user.id))
+        {
+            self.sessions.remove(&old);
+        }
+        while self.sessions.len() >= MAX_SESSIONS
+            && let Some(old) = oldest(&self.sessions, None)
+        {
+            self.sessions.remove(&old);
+        }
+        self.sessions.insert(key, login);
     }
 
     fn consume_state(&mut self, value: &str, cookie: Option<&str>, now: Instant) -> bool {
@@ -85,7 +295,7 @@ impl AuthStore {
         }
         self.pending
             .remove(value)
-            .is_some_and(|expires| expires > now)
+            .is_some_and(|pending| pending.expires > now)
     }
 }
 
@@ -154,18 +364,24 @@ fn csrf_valid(headers: &HeaderMap, origin: &str, csrf: &str) -> bool {
 
 async fn guarded(
     State(state): State<Arc<Dashboard>>,
-    request: axum::extract::Request,
+    mut request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let allowed = {
-        let mut auth = state.auth.lock().await;
-        auth.prune(Instant::now());
-        if auth.requests.len() >= 600 {
-            false
-        } else {
-            auth.requests.push_back(Instant::now());
-            true
-        }
+    let peer = request
+        .extensions()
+        .get::<axum::extract::ConnectInfo<SocketAddr>>()
+        .map(|info| info.0.ip());
+    let client = client_ip(request.headers(), peer);
+    request.extensions_mut().insert(client);
+    let path = request.uri().path();
+    let allowed = rate_exempt(path) || {
+        let global = path != "/music/auth/callback";
+        state
+            .auth
+            .lock()
+            .await
+            .limits
+            .check(client, global, Instant::now())
     };
     let mut response = if allowed {
         next.run(request).await
@@ -247,6 +463,15 @@ impl Dashboard {
     }
 
     async fn manager(&self, guild: GuildId, login: &Login) -> WebResult<PartialGuild> {
+        Ok(self.manager_member(guild, login).await?.0)
+    }
+
+    /// Like `manager`, also returning the member for channel permission checks.
+    async fn manager_member(
+        &self,
+        guild: GuildId,
+        login: &Login,
+    ) -> WebResult<(PartialGuild, Member)> {
         if self.bot.guild.is_some_and(|allowed| allowed != guild)
             || self.cache.guild(guild).is_none()
         {
@@ -280,10 +505,10 @@ impl Dashboard {
             .get(&RoleId::new(guild.get()))
             .map(|role| role.permissions)
             .unwrap_or_default();
-        for role in member.roles {
+        for role in &member.roles {
             permissions |= server
                 .roles
-                .get(&role)
+                .get(role)
                 .map(|role| role.permissions)
                 .unwrap_or_default();
         }
@@ -295,24 +520,20 @@ impl Dashboard {
                 "You need Manage Server permission to use this dashboard.",
             ));
         }
-        Ok(server)
+        Ok((server, member))
     }
 }
 
-async fn authorize(State(state): State<Arc<Dashboard>>) -> WebResult<Response> {
+async fn authorize(
+    State(state): State<Arc<Dashboard>>,
+    axum::Extension(client): axum::Extension<ClientIp>,
+) -> WebResult<Response> {
     let value = nonce();
-    {
-        let mut auth = state.auth.lock().await;
-        auth.prune(Instant::now());
-        if auth.pending.len() >= 200 || auth.sessions.len() >= 1000 {
-            return Err(WebError(
-                StatusCode::TOO_MANY_REQUESTS,
-                "Sign-in is busy. Please try again later.",
-            ));
-        }
-        auth.pending
-            .insert(value.clone(), Instant::now() + STATE_TTL);
-    }
+    state
+        .auth
+        .lock()
+        .await
+        .insert_pending(value.clone(), client, Instant::now());
     let mut url =
         reqwest::Url::parse("https://discord.com/oauth2/authorize").expect("constant URL");
     url.query_pairs_mut().extend_pairs([
@@ -410,29 +631,12 @@ async fn callback(
     let user: UserInfo = state.fetch("/users/@me", &token.access_token).await?;
     let key = nonce();
     let ttl = SESSION_TTL.min(Duration::from_secs(token.expires_in));
-    {
-        let mut auth = state.auth.lock().await;
-        auth.prune(Instant::now());
-        if auth.sessions.len() >= 1000 {
-            return Err(WebError(
-                StatusCode::TOO_MANY_REQUESTS,
-                "Sign-in is busy. Try again later.",
-            ));
-        }
-        if let Some(old) = cookie(&headers, SESSION_COOKIE) {
-            auth.sessions.remove(old);
-        }
-        auth.sessions.insert(
-            key.clone(),
-            Login {
-                user,
-                token: token.access_token,
-                csrf: nonce(),
-                expires: Instant::now() + ttl,
-                revoke_token: true,
-            },
-        );
-    }
+    state.auth.lock().await.insert_session(
+        key.clone(),
+        Login::new(user, token.access_token, Instant::now() + ttl, true),
+        cookie(&headers, SESSION_COOKIE),
+        Instant::now(),
+    );
     let mut response = Redirect::to("/music").into_response();
     set_cookie(&mut response, STATE_COOKIE, "", 0);
     set_cookie(&mut response, SESSION_COOKIE, &key, ttl.as_secs());
@@ -545,29 +749,12 @@ async fn account_bridge(
         ));
     }
     let key = nonce();
-    {
-        let mut auth = state.auth.lock().await;
-        auth.prune(Instant::now());
-        if auth.sessions.len() >= 1000 {
-            return Err(WebError(
-                StatusCode::TOO_MANY_REQUESTS,
-                "Sign-in is busy. Try again later.",
-            ));
-        }
-        if let Some(old) = cookie(&headers, SESSION_COOKIE) {
-            auth.sessions.remove(old);
-        }
-        auth.sessions.insert(
-            key.clone(),
-            Login {
-                user,
-                token: body.token,
-                csrf: nonce(),
-                expires: Instant::now() + ttl,
-                revoke_token: false,
-            },
-        );
-    }
+    state.auth.lock().await.insert_session(
+        key.clone(),
+        Login::new(user, body.token, Instant::now() + ttl, false),
+        cookie(&headers, SESSION_COOKIE),
+        Instant::now(),
+    );
     let mut response = (cors, StatusCode::NO_CONTENT).into_response();
     set_cookie(&mut response, SESSION_COOKIE, &key, ttl.as_secs());
     Ok(response)
@@ -830,13 +1017,36 @@ fn preview_range(value: Option<&str>, length: u64) -> Option<(u64, u64)> {
     (start < length && start <= end).then_some((start, end))
 }
 
+/// Keeps a preview slot reserved for as long as the response body is alive.
+struct PermitReader<R> {
+    inner: R,
+    _permit: tokio::sync::OwnedSemaphorePermit,
+}
+
+impl<R: tokio::io::AsyncRead + Unpin> tokio::io::AsyncRead for PermitReader<R> {
+    fn poll_read(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut tokio::io::ReadBuf<'_>,
+    ) -> std::task::Poll<std::io::Result<()>> {
+        std::pin::Pin::new(&mut self.inner).poll_read(cx, buf)
+    }
+}
+
 async fn recording_preview(
     State(state): State<Arc<Dashboard>>,
     headers: HeaderMap,
     RoutePath(id): RoutePath<String>,
 ) -> WebResult<Response> {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
-    state.login(&headers, false).await?;
+    let login = state.login(&headers, false).await?;
+    // Held by the response body until the stream finishes or is dropped.
+    let permit = login.previews.clone().try_acquire_owned().map_err(|_| {
+        WebError(
+            StatusCode::TOO_MANY_REQUESTS,
+            "Too many previews are playing. Stop one and try again.",
+        )
+    })?;
     let track = state
         .bot
         .catalog
@@ -876,7 +1086,10 @@ async fn recording_preview(
         _ => "application/octet-stream",
     };
     let size = end - start + 1;
-    let stream = tokio_util::io::ReaderStream::new(file.take(size));
+    let stream = tokio_util::io::ReaderStream::new(PermitReader {
+        inner: file.take(size),
+        _permit: permit,
+    });
     let mut response = axum::body::Body::from_stream(stream).into_response();
     response
         .headers_mut()
@@ -1293,9 +1506,12 @@ pub async fn start(
     let listener = tokio::net::TcpListener::bind(&bind).await?;
     println!("Vozen Music dashboard HTTP listener ready.");
     Ok(Some(tokio::spawn(async move {
-        axum::serve(listener, router(state))
-            .await
-            .map_err(Into::into)
+        axum::serve(
+            listener,
+            router(state).into_make_service_with_connect_info::<SocketAddr>(),
+        )
+        .await
+        .map_err(Into::into)
     })))
 }
 
@@ -1395,24 +1611,27 @@ mod tests {
         );
     }
 
+    fn test_login(user: &str, expires: Instant) -> Login {
+        Login::new(
+            UserInfo {
+                id: user.into(),
+                username: "Test manager".into(),
+                global_name: None,
+                avatar: None,
+                avatar_decoration_data: None,
+            },
+            "synthetic-token".into(),
+            expires,
+            true,
+        )
+    }
+
     pub(super) fn fixture() -> Arc<Dashboard> {
         let mut auth = AuthStore::default();
-        auth.sessions.insert(
-            "test-session".into(),
-            Login {
-                user: UserInfo {
-                    id: "123".into(),
-                    username: "Test manager".into(),
-                    global_name: None,
-                    avatar: None,
-                    avatar_decoration_data: None,
-                },
-                token: "never-expose-this-token".into(),
-                csrf: "test-csrf".into(),
-                expires: Instant::now() + SESSION_TTL,
-                revoke_token: true,
-            },
-        );
+        let mut login = test_login("123", Instant::now() + SESSION_TTL);
+        login.token = "never-expose-this-token".into();
+        login.csrf = "test-csrf".into();
+        auth.sessions.insert("test-session".into(), login);
         Arc::new(Dashboard {
             bot: Arc::new(Bot {
                 catalog: Arc::new(Catalog { stations: vec![] }),
@@ -1425,6 +1644,7 @@ mod tests {
                     )
                     .unwrap(),
                 )),
+                play_cooldowns: Arc::default(),
             }),
             cache: Arc::new(Cache::default()),
             http: Arc::new(Http::new("synthetic-token")),
@@ -1953,12 +2173,310 @@ mod tests {
     fn oauth_state_is_browser_bound_single_use_and_expires() {
         let now = Instant::now();
         let mut auth = AuthStore::default();
-        auth.pending.insert("state".into(), now + STATE_TTL);
+        let client = ClientIp::new(IpAddr::from([192, 0, 2, 1]));
+        auth.insert_pending("state".into(), client, now);
         assert!(!auth.consume_state("state", Some("other"), now));
         assert!(auth.consume_state("state", Some("state"), now));
         assert!(!auth.consume_state("state", Some("state"), now));
-        auth.pending.insert("old".into(), now);
+        auth.pending.insert(
+            "old".into(),
+            Pending {
+                expires: now,
+                client,
+            },
+        );
         assert!(!auth.consume_state("old", Some("old"), now));
+    }
+
+    #[test]
+    fn client_address_comes_from_the_local_proxy_or_the_socket_peer() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            "198.51.100.9, 203.0.113.5".parse().unwrap(),
+        );
+        let loopback_ip = IpAddr::from([127, 0, 0, 1]);
+        let public_ip = IpAddr::from([198, 51, 100, 77]);
+        let loopback = Some(loopback_ip);
+        let bridge = Some(IpAddr::from([172, 17, 0, 1]));
+        let public = Some(public_ip);
+        // Right-most X-Forwarded-For entry is the one the local proxy appended.
+        assert_eq!(
+            client_ip(&headers, loopback),
+            ClientIp(IpAddr::from([203, 0, 113, 5]))
+        );
+        headers.insert("cf-connecting-ip", "192.0.2.44".parse().unwrap());
+        assert_eq!(
+            client_ip(&headers, bridge),
+            ClientIp(IpAddr::from([192, 0, 2, 44]))
+        );
+        // A directly connected public peer cannot choose its own bucket.
+        assert_eq!(client_ip(&headers, public), ClientIp(public_ip));
+        headers.insert("cf-connecting-ip", "not-an-ip".parse().unwrap());
+        headers.insert("x-forwarded-for", "garbage".parse().unwrap());
+        assert_eq!(client_ip(&headers, loopback), ClientIp(loopback_ip));
+        // IPv6 clients share one bucket per /64.
+        let mut v6 = HeaderMap::new();
+        v6.insert("cf-connecting-ip", "2001:db8:1:2:aaaa::1".parse().unwrap());
+        let mut other = HeaderMap::new();
+        other.insert("cf-connecting-ip", "2001:db8:1:2:bbbb::9".parse().unwrap());
+        assert_eq!(client_ip(&v6, loopback), client_ip(&other, loopback));
+    }
+
+    #[test]
+    fn one_client_cannot_exhaust_the_limit_for_everyone_or_the_oauth_callback() {
+        let now = Instant::now();
+        let mut limits = RequestLimits::default();
+        let noisy = ClientIp::new(IpAddr::from([203, 0, 113, 1]));
+        let quiet = ClientIp::new(IpAddr::from([203, 0, 113, 2]));
+        for _ in 0..CLIENT_REQUESTS {
+            assert!(limits.check(noisy, true, now));
+        }
+        assert!(!limits.check(noisy, true, now));
+        assert!(limits.check(quiet, true, now));
+        assert!(limits.check(noisy, true, now + RATE_WINDOW));
+        // When the global ceiling is reached, the OAuth callback still works.
+        let mut limits = RequestLimits::default();
+        for index in 0..GLOBAL_REQUESTS {
+            let client = ClientIp::new(IpAddr::from((index as u32 + 1).to_be_bytes()));
+            assert!(limits.check(client, true, now));
+        }
+        assert!(!limits.check(quiet, true, now));
+        assert!(limits.check(quiet, false, now));
+        // The tracked-client map stays bounded and evicts instead of refusing.
+        assert!(limits.clients.len() <= MAX_TRACKED_CLIENTS);
+        let mut limits = RequestLimits::default();
+        for index in 0..MAX_TRACKED_CLIENTS + 10 {
+            let client = ClientIp::new(IpAddr::from((index as u32 + 1).to_be_bytes()));
+            assert!(limits.check(client, false, now));
+        }
+        assert_eq!(limits.clients.len(), MAX_TRACKED_CLIENTS);
+        assert!(rate_exempt("/music/assets/fonts/outfit-400-latin.woff2"));
+        assert!(rate_exempt("/music/covers/a.png"));
+        assert!(!rate_exempt("/music/api/me"));
+        assert!(!rate_exempt("/music/auth/callback"));
+    }
+
+    #[tokio::test]
+    async fn rate_limit_applies_per_forwarded_client_through_the_router() {
+        use axum::{body::Body, http::Request};
+        let app = router(fixture());
+        let request = |ip: &str, path: &str| {
+            Request::builder()
+                .uri(path)
+                .header("cf-connecting-ip", ip)
+                .body(Body::empty())
+                .unwrap()
+        };
+        for _ in 0..CLIENT_REQUESTS {
+            let response = app
+                .clone()
+                .oneshot(request("203.0.113.7", "/music/api/me"))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        }
+        let blocked = app
+            .clone()
+            .oneshot(request("203.0.113.7", "/music/api/me"))
+            .await
+            .unwrap();
+        assert_eq!(blocked.status(), StatusCode::TOO_MANY_REQUESTS);
+        let asset = app
+            .clone()
+            .oneshot(request("203.0.113.7", "/music/dashboard.css"))
+            .await
+            .unwrap();
+        assert_eq!(asset.status(), StatusCode::OK);
+        let other = app
+            .oneshot(request("203.0.113.8", "/music/api/me"))
+            .await
+            .unwrap();
+        assert_eq!(other.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[test]
+    fn pending_logins_are_capped_per_client_and_evict_the_oldest() {
+        let now = Instant::now();
+        let mut auth = AuthStore::default();
+        let attacker = ClientIp::new(IpAddr::from([203, 0, 113, 1]));
+        for index in 0..MAX_PENDING_PER_CLIENT + 3 {
+            auth.insert_pending(
+                format!("a{index}"),
+                attacker,
+                now + Duration::from_millis(index as u64),
+            );
+        }
+        assert_eq!(auth.pending.len(), MAX_PENDING_PER_CLIENT);
+        assert!(!auth.pending.contains_key("a0"));
+        assert!(
+            auth.pending
+                .contains_key(&format!("a{}", MAX_PENDING_PER_CLIENT + 2))
+        );
+        // A full store evicts the oldest state rather than refusing new sign-ins.
+        let mut auth = AuthStore::default();
+        for index in 0..MAX_PENDING + 1 {
+            let client = ClientIp::new(IpAddr::from((index as u32 + 1).to_be_bytes()));
+            auth.insert_pending(
+                format!("s{index}"),
+                client,
+                now + Duration::from_millis(index as u64),
+            );
+        }
+        assert_eq!(auth.pending.len(), MAX_PENDING);
+        assert!(!auth.pending.contains_key("s0"));
+        assert!(auth.pending.contains_key(&format!("s{MAX_PENDING}")));
+    }
+
+    #[test]
+    fn sessions_are_capped_per_user_and_full_store_evicts_instead_of_refusing() {
+        let now = Instant::now();
+        let mut auth = AuthStore::default();
+        auth.insert_session(
+            "other".into(),
+            test_login("2", now + SESSION_TTL),
+            None,
+            now,
+        );
+        for index in 0..MAX_SESSIONS_PER_USER + 2 {
+            auth.insert_session(
+                format!("u{index}"),
+                test_login("1", now + SESSION_TTL + Duration::from_secs(index as u64)),
+                None,
+                now,
+            );
+        }
+        let own = auth.sessions.values().filter(|l| l.user.id == "1").count();
+        assert_eq!(own, MAX_SESSIONS_PER_USER);
+        assert!(!auth.sessions.contains_key("u0") && !auth.sessions.contains_key("u1"));
+        assert!(auth.sessions.contains_key("other"));
+        // Signing in again replaces the browser's previous session.
+        auth.insert_session(
+            "fresh".into(),
+            test_login("2", now + SESSION_TTL),
+            Some("other"),
+            now,
+        );
+        assert!(!auth.sessions.contains_key("other"));
+        let mut auth = AuthStore::default();
+        for index in 0..MAX_SESSIONS + 1 {
+            auth.insert_session(
+                format!("g{index}"),
+                test_login(
+                    &(index + 1).to_string(),
+                    now + SESSION_TTL + Duration::from_secs(index as u64),
+                ),
+                None,
+                now,
+            );
+        }
+        assert_eq!(auth.sessions.len(), MAX_SESSIONS);
+        assert!(!auth.sessions.contains_key("g0"));
+        assert!(auth.sessions.contains_key(&format!("g{MAX_SESSIONS}")));
+    }
+
+    #[test]
+    fn manager_channels_respect_view_permission_overwrites() {
+        let guild_id = GuildId::new(100);
+        let mut guild = Guild::default();
+        guild.id = guild_id;
+        guild.owner_id = UserId::new(1);
+        let mut everyone = Role::default();
+        everyone.id = RoleId::new(100);
+        everyone.permissions = Permissions::VIEW_CHANNEL | Permissions::MANAGE_GUILD;
+        let mut staff = Role::default();
+        staff.id = RoleId::new(200);
+        guild.roles = [(everyone.id, everyone), (staff.id, staff)].into();
+        let mut member = Member::default();
+        member.user.id = UserId::new(5);
+        member.guild_id = guild_id;
+        let overwrite = |allow, deny, role| PermissionOverwrite {
+            allow,
+            deny,
+            kind: PermissionOverwriteType::Role(RoleId::new(role)),
+        };
+        let hidden = overwrite(Permissions::empty(), Permissions::VIEW_CHANNEL, 100);
+        let staff_only = overwrite(Permissions::VIEW_CHANNEL, Permissions::empty(), 200);
+        let channel = |id, kind, overwrites: Vec<PermissionOverwrite>| {
+            let mut c = GuildChannel::default();
+            c.id = ChannelId::new(id);
+            c.guild_id = guild_id;
+            c.kind = kind;
+            c.permission_overwrites = overwrites;
+            c
+        };
+        let channels = [
+            channel(1, ChannelType::Text, vec![]),
+            channel(2, ChannelType::Voice, vec![hidden.clone()]),
+            channel(3, ChannelType::Text, vec![hidden, staff_only]),
+            channel(4, ChannelType::Category, vec![]),
+        ];
+        let ids = |member: &Member| {
+            visible_channels(&channels, member, |c, m| guild.user_permissions_in(c, m))
+                .iter()
+                .map(|c| c.id.get())
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        assert_eq!(ids(&member), [1].into());
+        member.roles = vec![RoleId::new(200)];
+        assert_eq!(ids(&member), [1, 3].into());
+        member.user.id = UserId::new(1);
+        assert_eq!(ids(&member), [1, 2, 3].into());
+        // Saving: new hidden choices are refused, unchanged earlier choices are kept.
+        let visible = [1, 3].into();
+        let stored = ServerSettings::default();
+        let mut chosen = ServerSettings {
+            announcement_channel: Some(3),
+            ..ServerSettings::default()
+        };
+        assert!(chosen_channels_visible(&chosen, &stored, &visible));
+        chosen.voice_channel = Some(2);
+        assert!(!chosen_channels_visible(&chosen, &stored, &visible));
+        let stored = ServerSettings {
+            voice_channel: Some(2),
+            ..ServerSettings::default()
+        };
+        assert!(chosen_channels_visible(&chosen, &stored, &visible));
+        chosen.announcement_channel = Some(9);
+        assert!(!chosen_channels_visible(&chosen, &stored, &visible));
+    }
+
+    #[tokio::test]
+    async fn audio_previews_are_limited_per_session() {
+        use axum::{body::Body, http::Request};
+        let mut state = fixture();
+        // A synthetic catalog over a tracked recording; covers are not needed.
+        let catalog: Catalog = serde_json::from_value(serde_json::json!({"stations":[{
+            "id":"lofi","name":"Lofi","tracks":[{
+                "id":"preview-test","title":"t","artist":"a",
+                "file":Path::new(env!("CARGO_MANIFEST_DIR")).join("media/lofi-again.ogg"),
+                "source_url":"","license":"","license_evidence":"",
+                "instrumental":true,"instrumental_evidence":"","approved":true}]}]}))
+        .unwrap();
+        let uri = "/music/api/recordings/preview-test/audio";
+        Arc::get_mut(&mut Arc::get_mut(&mut state).unwrap().bot)
+            .unwrap()
+            .catalog = Arc::new(catalog);
+        let app = router(state);
+        let request = || {
+            Request::builder()
+                .uri(uri)
+                .header("cookie", "__Secure-vozen_music=test-session")
+                .body(Body::empty())
+                .unwrap()
+        };
+        let mut open = Vec::new();
+        for _ in 0..PREVIEWS_PER_SESSION {
+            let response = app.clone().oneshot(request()).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            open.push(response);
+        }
+        let response = app.clone().oneshot(request()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::TOO_MANY_REQUESTS);
+        // Dropping an unfinished stream releases its slot.
+        drop(open.pop());
+        let response = app.clone().oneshot(request()).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
     }
 
     #[test]

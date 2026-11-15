@@ -12,6 +12,42 @@ pub struct Runtime {
     pub voice: Weak<songbird::Songbird>,
 }
 
+pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
+pub const GUILD_PLAY_COOLDOWN: Duration = Duration::from_secs(2);
+
+/// Throttles /play and /station: starting a session joins voice and posts the
+/// player while the shared session map is locked.
+#[derive(Default)]
+pub struct PlayCooldowns {
+    users: HashMap<UserId, std::time::Instant>,
+    guilds: HashMap<GuildId, std::time::Instant>,
+}
+
+impl PlayCooldowns {
+    pub fn begin(
+        &mut self,
+        guild: GuildId,
+        user: UserId,
+        now: std::time::Instant,
+    ) -> Result<(), Error> {
+        self.users
+            .retain(|_, at| now.saturating_duration_since(*at) < USER_PLAY_COOLDOWN);
+        self.guilds
+            .retain(|_, at| now.saturating_duration_since(*at) < GUILD_PLAY_COOLDOWN);
+        if self.users.contains_key(&user) {
+            return Err("Please wait a few seconds before changing stations again.".into());
+        }
+        if self.guilds.contains_key(&guild) {
+            return Err(
+                "Music is already changing stations in this server. Try again shortly.".into(),
+            );
+        }
+        self.users.insert(user, now);
+        self.guilds.insert(guild, now);
+        Ok(())
+    }
+}
+
 pub async fn set_timer(
     session: &Session,
     minutes: Option<i64>,
@@ -823,7 +859,10 @@ impl Bot {
             let mut store = self.settings.lock().await;
             let mut config = store.db.settings(g.get())?;
             if command.data.options.is_empty() {
-                return Ok(Some(format!("Current radio mode: {:?}.", config.radio_mode)));
+                return Ok(Some(format!(
+                    "Current radio mode: {:?}.",
+                    config.radio_mode
+                )));
             }
             if let Some(mode) = option("mode").and_then(|v| v.as_str()) {
                 config.radio_mode = match mode {
@@ -875,6 +914,34 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn play_and_station_are_throttled_per_user_and_per_guild() {
+        let now = std::time::Instant::now();
+        let (a, b) = (GuildId::new(1), GuildId::new(2));
+        let (alice, bob) = (UserId::new(10), UserId::new(11));
+        let mut cooldowns = PlayCooldowns::default();
+        cooldowns.begin(a, alice, now).unwrap();
+        // Same user anywhere, or anyone in the same guild, must wait.
+        assert!(cooldowns.begin(b, alice, now).is_err());
+        assert!(cooldowns.begin(a, bob, now).is_err());
+        cooldowns.begin(b, bob, now).unwrap();
+        let later = now + GUILD_PLAY_COOLDOWN;
+        assert!(cooldowns.begin(a, alice, later).is_err());
+        cooldowns.begin(a, UserId::new(12), later).unwrap();
+        cooldowns
+            .begin(GuildId::new(3), alice, now + USER_PLAY_COOLDOWN)
+            .unwrap();
+        // Expired entries are pruned so the maps stay small.
+        cooldowns
+            .begin(
+                GuildId::new(4),
+                UserId::new(13),
+                now + Duration::from_secs(60),
+            )
+            .unwrap();
+        assert_eq!((cooldowns.users.len(), cooldowns.guilds.len()), (1, 1));
+    }
+
     #[tokio::test]
     async fn replay_eligibility_uses_only_the_present_listeners_ratings() {
         let mut guild = Guild::default();
