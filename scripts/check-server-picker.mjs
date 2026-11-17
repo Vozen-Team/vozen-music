@@ -168,7 +168,15 @@ try {
   guilds = [];
   await page.goto(dashboard);
   await page.getByRole("heading", { name: "No servers to manage yet" }).waitFor();
-  assert.match(await page.locator("#empty .install").getAttribute("href"), /discord.com\/oauth2\/authorize/);
+  const emptyInvite = page.locator("#empty .install");
+  assert.equal(await emptyInvite.getAttribute("href"), await page.locator("#picker-invite").getAttribute("href"));
+  await page.getByRole("button", { name: "Refresh servers" }).click();
+  await page.getByRole("heading", { name: "No servers to manage yet" }).waitFor();
+  assert.equal(await emptyInvite.count(), 1, "Refreshing an empty list keeps one install link");
+  await page.getByRole("button", { name: "Site language" }).click();
+  await page.locator('#langPanel [data-lang="pt"]').click();
+  await page.getByRole("button", { name: "Atualizar servidores" }).waitFor();
+  assert.equal(await emptyInvite.textContent(), "Adicionar um servidor");
   assert.equal(await page.locator("#sidebar").isVisible(), false);
   assert.equal(await page.locator("#server-picker").isVisible(), false);
   assert.deepEqual(errors, []);

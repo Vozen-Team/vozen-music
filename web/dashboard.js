@@ -1524,8 +1524,12 @@ async function refreshServers() {
     renderServers();
     if (!serverList.length) {
       showLoading(null);
-      if (!$("empty").querySelector(".install"))
-        $("empty").append($("sidebar").querySelector('a[href*="discord.com/oauth2"]').cloneNode(true));
+      if (!$("empty").querySelector(".install")) {
+        const invite = $("picker-invite").cloneNode(true);
+        invite.removeAttribute("id");
+        invite.classList.add("install");
+        $("empty").append(invite);
+      }
       $("empty").hidden = false;
       return;
     }
