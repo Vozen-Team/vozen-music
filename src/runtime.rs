@@ -15,6 +15,18 @@ pub struct Runtime {
 pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
 pub const GUILD_PLAY_COOLDOWN: Duration = Duration::from_secs(2);
 
+async fn announce_auto_join(http: &Http, channel: ChannelId, message: String) -> Result<(), Error> {
+    channel
+        .send_message(
+            http,
+            CreateMessage::new()
+                .content(message)
+                .allowed_mentions(CreateAllowedMentions::new()),
+        )
+        .await?;
+    Ok(())
+}
+
 /// Throttles /play and /station: starting a session joins voice and posts the
 /// player while the shared session map is locked.
 #[derive(Default)]
@@ -517,17 +529,19 @@ impl Bot {
                     .iter()
                     .position(|s| s.id == cfg.default_station)
                     .ok_or("Default station unavailable.")?;
-                self.start_session(
-                    ctx,
-                    guild,
-                    channel,
-                    ChannelId::new(text),
-                    station,
-                    rand::random::<u64>().max(1),
-                    None,
-                    None,
-                )
-                .await?;
+                let message = self
+                    .start_session(
+                        ctx,
+                        guild,
+                        channel,
+                        ChannelId::new(text),
+                        station,
+                        rand::random::<u64>().max(1),
+                        None,
+                        None,
+                    )
+                    .await?;
+                announce_auto_join(&ctx.http, ChannelId::new(text), message).await?;
             }
         }
         Ok(())
@@ -914,6 +928,68 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn auto_join_notice_reaches_selected_text_channel_without_pings_and_reports_denial() {
+        use axum::{Json, Router, http::StatusCode, routing::post};
+        let received = Arc::new(Mutex::new(Vec::new()));
+        let requests = received.clone();
+        let app = Router::new().route(
+            "/api/v10/channels/{channel}/messages",
+            post(move |axum::extract::Path(channel): axum::extract::Path<u64>, Json(body): Json<serde_json::Value>| {
+                let requests = requests.clone();
+                async move {
+                    requests.lock().await.push((channel, body.clone()));
+                    if channel == 43 {
+                        return (StatusCode::FORBIDDEN, Json(serde_json::json!({"code":50013,"message":"Missing Permissions"})));
+                    }
+                    let mut message = Message::default();
+                    message.id = MessageId::new(1);
+                    message.channel_id = ChannelId::new(channel);
+                    message.content = body["content"].as_str().unwrap().to_owned();
+                    (StatusCode::OK, Json(serde_json::to_value(message).unwrap()))
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let http = serenity::http::HttpBuilder::new("synthetic-token")
+            .proxy(format!("http://{address}"))
+            .ratelimiter_disabled(true)
+            .build();
+        let message = "Station selected: @everyone <@123>. Player controls are in <#99>.";
+        tokio::time::timeout(
+            Duration::from_secs(5),
+            announce_auto_join(&http, ChannelId::new(42), message.to_owned()),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(
+            tokio::time::timeout(
+                Duration::from_secs(5),
+                announce_auto_join(&http, ChannelId::new(43), message.to_owned()),
+            )
+            .await
+            .unwrap()
+            .is_err()
+        );
+        let received = received.lock().await;
+        assert_eq!(
+            received
+                .iter()
+                .map(|(channel, _)| *channel)
+                .collect::<Vec<_>>(),
+            vec![42, 43]
+        );
+        for (_, body) in received.iter() {
+            assert_eq!(body["content"], message);
+            assert_eq!(body["allowed_mentions"]["parse"], serde_json::json!([]));
+        }
+        server.abort();
+    }
+
     #[test]
     fn play_and_station_are_throttled_per_user_and_per_guild() {
         let now = std::time::Instant::now();
