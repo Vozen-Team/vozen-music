@@ -1019,6 +1019,31 @@ async fn main() -> Result<(), Error> {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn without_entitlement_config_every_plan_gate_stays_open() {
+        let bot = Bot {
+            catalog: Arc::new(Catalog { stations: vec![] }),
+            background: Arc::new(AtomicBool::new(false)),
+            guild: None,
+            entitlements: None,
+            playback_queue: Arc::default(),
+            sessions: Arc::new(Mutex::new(HashMap::new())),
+            settings: Arc::new(Mutex::new(
+                SettingsStore::load(std::env::temp_dir().join(format!(
+                    "vozen-unrestricted-{}.json",
+                    rand::random::<u64>()
+                )))
+                .unwrap(),
+            )),
+            play_cooldowns: Arc::default(),
+        };
+        let access = bot.music_access(17, 23).await.unwrap();
+        assert_eq!(access, access::Access::Unrestricted);
+        assert!(access.personal() && access.shared());
+        assert!(bot.radio_vote_allowed(17, access).await.unwrap());
+        assert!(bot.radio_vote_allowed(17, access::Access::Free).await.unwrap());
+    }
+
     #[test]
     fn default_commands_expose_english_names_descriptions_and_station_option() {
         let catalog = serde_json::from_str(include_str!("../catalog.json")).unwrap();
