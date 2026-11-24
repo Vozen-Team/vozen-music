@@ -282,7 +282,10 @@ async fn save_expanded(
                 );
             }
         }
-        s.volume.store(saved.volume as usize, Ordering::SeqCst);
+        // Without Premium the session keeps the fixed volume it started with.
+        if access.shared() {
+            s.volume.store(saved.volume as usize, Ordering::SeqCst);
+        }
         s.tips.store(saved.tips, Ordering::SeqCst);
     }
     drop(store);

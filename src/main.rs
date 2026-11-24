@@ -401,15 +401,16 @@ impl Bot {
             .await?;
         let action = command.data.name.as_str();
         let station_access = if matches!(action, "play" | "station") {
+            // A failed plan lookup must not spend the user's cooldown.
+            let access = self
+                .music_access(command.user.id.get(), guild_id.get())
+                .await?;
             // Checked before the shared session map is locked for the voice join.
             self.play_cooldowns
                 .lock()
                 .map_err(|_| "Music is busy. Please try again.")?
                 .begin(guild_id, command.user.id, std::time::Instant::now())?;
-            Some(
-                self.music_access(command.user.id.get(), guild_id.get())
-                    .await?,
-            )
+            Some(access)
         } else {
             None
         };
@@ -1016,27 +1017,32 @@ async fn main() -> Result<(), Error> {
 }
 
 #[cfg(test)]
+fn test_bot(entitlements: Option<access::Entitlements>) -> Bot {
+    Bot {
+        catalog: Arc::new(Catalog { stations: vec![] }),
+        background: Arc::new(AtomicBool::new(false)),
+        guild: None,
+        entitlements,
+        playback_queue: Arc::default(),
+        sessions: Arc::new(Mutex::new(HashMap::new())),
+        settings: Arc::new(Mutex::new(
+            SettingsStore::load(
+                std::env::temp_dir()
+                    .join(format!("vozen-test-bot-{}.json", rand::random::<u64>())),
+            )
+            .unwrap(),
+        )),
+        play_cooldowns: Arc::default(),
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn without_entitlement_config_every_plan_gate_stays_open() {
-        let bot = Bot {
-            catalog: Arc::new(Catalog { stations: vec![] }),
-            background: Arc::new(AtomicBool::new(false)),
-            guild: None,
-            entitlements: None,
-            playback_queue: Arc::default(),
-            sessions: Arc::new(Mutex::new(HashMap::new())),
-            settings: Arc::new(Mutex::new(
-                SettingsStore::load(std::env::temp_dir().join(format!(
-                    "vozen-unrestricted-{}.json",
-                    rand::random::<u64>()
-                )))
-                .unwrap(),
-            )),
-            play_cooldowns: Arc::default(),
-        };
+        let bot = test_bot(None);
         let access = bot.music_access(17, 23).await.unwrap();
         assert_eq!(access, access::Access::Unrestricted);
         assert!(access.personal() && access.shared());

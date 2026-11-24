@@ -241,6 +241,18 @@ impl crate::Bot {
             .is_current(chrono::Utc::now())?)
     }
 
+    /// Access for starts nobody requested (restore, recovery, Auto-join).
+    /// `None` means the resolver is unreachable: the radio must still start,
+    /// so callers keep the server's saved settings without paid audio.
+    pub async fn automatic_access(&self, subject: u64, guild: u64) -> Option<Access> {
+        self.music_access(subject, guild)
+            .await
+            .inspect_err(|error| {
+                eprintln!("Music plan lookup failed for an automatic start: {error}");
+            })
+            .ok()
+    }
+
     pub async fn music_access(&self, subject: u64, guild: u64) -> Result<Access, Error> {
         match &self.entitlements {
             None => Ok(Access::Unrestricted),
@@ -250,6 +262,34 @@ impl crate::Bot {
                 .map_err(|_| "Music plan access could not be checked. Try again.".into()),
         }
     }
+}
+
+#[cfg(test)]
+impl Entitlements {
+    /// A configured resolver that refuses every connection.
+    pub fn unreachable() -> Self {
+        Self {
+            http: reqwest::Client::new(),
+            endpoint: "http://127.0.0.1:9/internal/v1/entitlements/resolve"
+                .parse()
+                .unwrap(),
+            secret: "test-only-music-central-signing-key".into(),
+            votes: None,
+        }
+    }
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn automatic_starts_report_an_unknown_plan_when_the_resolver_is_down() {
+    let bot = crate::test_bot(Some(Entitlements::unreachable()));
+    assert!(bot.music_access(17, 23).await.is_err());
+    assert_eq!(bot.automatic_access(17, 23).await, None);
+    let unconfigured = crate::test_bot(None);
+    assert_eq!(
+        unconfigured.automatic_access(17, 23).await,
+        Some(Access::Unrestricted)
+    );
 }
 
 #[derive(Default)]

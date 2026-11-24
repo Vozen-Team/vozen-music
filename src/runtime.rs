@@ -42,6 +42,25 @@ fn plus_voice_depends_on_presence_and_respects_the_channel_cap() {
     assert_eq!(voice_bitrate(false, None), 64_000);
 }
 
+#[cfg(test)]
+#[tokio::test]
+async fn failed_plan_lookups_do_not_count_as_free_voice() {
+    let members = BTreeSet::from([5]);
+    let guild = GuildId::new(23);
+    let down = crate::test_bot(Some(crate::access::Entitlements::unreachable()));
+    assert_eq!(down.voice_boost(guild, 1, &members, None).await, None);
+    assert_eq!(
+        down.voice_boost(guild, 1, &members, Some((5, Access::Premium)))
+            .await,
+        Some(true)
+    );
+    let unconfigured = crate::test_bot(None);
+    assert_eq!(
+        unconfigured.voice_boost(guild, 1, &members, None).await,
+        Some(false)
+    );
+}
+
 pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
 pub const GUILD_PLAY_COOLDOWN: Duration = Duration::from_secs(2);
 
@@ -331,18 +350,20 @@ impl Runtime {
 }
 
 impl Bot {
+    /// `None` means a plan lookup failed and no paid member was confirmed, so
+    /// callers keep the current voice quality instead of treating it as Free.
     async fn voice_boost(
         &self,
         guild: GuildId,
         bot_id: u64,
         members: &BTreeSet<u64>,
         known: Option<(u64, Access)>,
-    ) -> bool {
+    ) -> Option<bool> {
         if known.is_some_and(|(subject, access)| paid_voice(access, subject, members)) {
-            return true;
+            return Some(true);
         }
         let Some(client) = &self.entitlements else {
-            return false;
+            return Some(false);
         };
         tokio::time::timeout(Duration::from_secs(4), async {
             let subjects = members
@@ -351,27 +372,34 @@ impl Bot {
                 .chain(members.is_empty().then_some(bot_id))
                 .filter(|subject| known.is_none_or(|(id, _)| id != *subject));
             let mut pending = tokio::task::JoinSet::new();
+            let mut complete = true;
+            let mut paid = |result| match result {
+                Ok((id, Ok(access))) => paid_voice(access, id, members),
+                _ => {
+                    complete = false;
+                    false
+                }
+            };
             for subject in subjects {
                 let client = client.clone();
                 pending.spawn(async move { (subject, client.resolve(subject, guild.get()).await) });
                 if pending.len() == 8
-                    && let Some(Ok((id, Ok(access)))) = pending.join_next().await
-                    && paid_voice(access, id, members)
+                    && let Some(result) = pending.join_next().await
+                    && paid(result)
                 {
-                    return true;
+                    return Some(true);
                 }
             }
             while let Some(result) = pending.join_next().await {
-                if let Ok((id, Ok(access))) = result
-                    && paid_voice(access, id, members)
-                {
-                    return true;
+                if paid(result) {
+                    return Some(true);
                 }
             }
-            false
+            complete.then_some(false)
         })
         .await
-        .unwrap_or(false)
+        .ok()
+        .flatten()
     }
 
     fn refresh_voice_quality(&self, runtime: &Arc<Runtime>, members: BTreeSet<u64>) {
@@ -387,7 +415,11 @@ impl Bot {
         let runtime = runtime.clone();
         tokio::spawn(async move {
             let bot_id = runtime.cache.current_user().id.get();
-            let boosted = bot.voice_boost(runtime.guild, bot_id, &members, None).await;
+            let Some(boosted) = bot.voice_boost(runtime.guild, bot_id, &members, None).await
+            else {
+                // Retry on the next voice update; a failed lookup must not downgrade paid audio.
+                return;
+            };
             let cap = runtime.cache.guild(runtime.guild).and_then(|g| {
                 g.channels
                     .get(&runtime.channel)
@@ -438,23 +470,25 @@ impl Bot {
         if self.guild.is_some_and(|g| g != guild) {
             return Err("This version is limited to the development server.".into());
         }
-        let access = match actor {
-            Some((_, access)) => access,
-            None => {
-                let bot_id = ctx.cache.current_user().id.get();
-                self.music_access(bot_id, guild.get()).await?
-            }
-        };
         let bot_id = ctx.cache.current_user().id.get();
-        let (members, boosted) = if self.entitlements.is_some() {
+        let known = match actor {
+            Some((_, access)) => Some(access),
+            None => self.automatic_access(bot_id, guild.get()).await,
+        };
+        // An automatic start with an unknown plan keeps the server's saved
+        // station and volume, but gets no paid audio until a lookup succeeds.
+        let keep_saved = known.is_none();
+        let access = known.unwrap_or(crate::access::Access::Free);
+        let (members, boost) = if self.entitlements.is_some() {
             let members = humans(&ctx.cache, &ctx.http, guild, channel, false).await?;
-            let boosted = self
+            let boost = self
                 .voice_boost(guild, bot_id, &members, actor.or(Some((bot_id, access))))
                 .await;
-            (members, boosted)
+            (members, boost)
         } else {
-            (BTreeSet::new(), false)
+            (BTreeSet::new(), Some(false))
         };
+        let boosted = boost.unwrap_or(false);
         let queued_at = std::time::Instant::now();
         let _slot = if self.entitlements.is_some() {
             Some(self.playback_queue.acquire(boosted).await?)
@@ -462,15 +496,16 @@ impl Bot {
             None
         };
         if queued_at.elapsed() >= Duration::from_secs(1) {
-            let subject = actor
-                .map(|(user, _)| user)
-                .unwrap_or_else(|| ctx.cache.current_user().id.get());
-            if self.music_access(subject, guild.get()).await? != access {
+            let current = match actor {
+                Some((user, _)) => Some(self.music_access(user, guild.get()).await?),
+                None => self.automatic_access(bot_id, guild.get()).await,
+            };
+            if known.is_some() && current.is_some() && current != known {
                 return Err("Music plan access changed while waiting. Try again.".into());
             }
         }
         let station_id = &self.catalog.stations[station].id;
-        if station_id == "my" && !access.shared() {
+        if station_id == "my" && !access.shared() && !keep_saved {
             return Err("My Station requires Vozen Premium on this server.".into());
         }
         let cfg = self.settings.lock().await.db.settings(guild.get())?;
@@ -559,7 +594,7 @@ impl Bot {
             .map_err(|_| "Voice connection timed out.")??;
         let mut s = Session::new(station, 0, control, cfg.skip, None);
         s.volume.store(
-            if access.shared() {
+            if access.shared() || keep_saved {
                 cfg.volume as usize
             } else {
                 100
@@ -578,7 +613,7 @@ impl Bot {
             settings: self.settings.clone(),
             voice: Arc::downgrade(&manager),
             quality: Arc::new(Mutex::new(
-                (queued_at.elapsed() < Duration::from_secs(1)).then_some(VoiceQuality {
+                (boost.is_some() && queued_at.elapsed() < Duration::from_secs(1)).then_some(VoiceQuality {
                     members,
                     checked: queued_at,
                     bitrate,
