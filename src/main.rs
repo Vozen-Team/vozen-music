@@ -1048,6 +1048,7 @@ mod tests {
         assert!(access.personal() && access.shared());
         assert!(bot.radio_vote_allowed(17, access).await.unwrap());
         assert!(bot.radio_vote_allowed(17, access::Access::Free).await.unwrap());
+        assert!(!bot.radio_vote_applies(access::Access::Free));
     }
 
     #[test]

@@ -217,6 +217,11 @@ impl Entitlements {
 }
 
 impl crate::Bot {
+    /// Whether this plan must hold a current Top.gg vote to switch to 24/7 or Auto-join.
+    pub fn radio_vote_applies(&self, access: Access) -> bool {
+        !access.personal() && self.entitlements.as_ref().is_some_and(|e| e.votes.is_some())
+    }
+
     pub async fn radio_vote_allowed(&self, subject: u64, access: Access) -> Result<bool, Error> {
         if access.personal() {
             return Ok(true);

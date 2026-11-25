@@ -3,6 +3,25 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
+// VOZEN_PREVIEW_PLAN or --plan=unrestricted|free|plus|premium simulates the
+// viewer's Music plan, as the server reports it. "unrestricted" (the default)
+// is what Music sends while plan checks are not configured. --vote=1 marks the
+// Top.gg vote as required for plans without Plus or Premium.
+const arg = (name) =>
+  process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
+const previewPlan = process.env.VOZEN_PREVIEW_PLAN || arg("plan") || "unrestricted";
+const previewVote = (process.env.VOZEN_PREVIEW_VOTE || arg("vote")) === "1";
+const previewAccess = () => {
+  const personal = previewPlan !== "free";
+  return {
+    music_access: {
+      plan: previewPlan,
+      personal,
+      shared: previewPlan === "premium" || previewPlan === "unrestricted",
+      radio_vote: previewVote && !personal,
+    },
+  };
+};
 const libraryRoot = process.env.VOZEN_PREVIEW_LIBRARY_ROOT || root;
 let settings = {
   revision: 0,
@@ -122,6 +141,7 @@ const server = http.createServer(async (req, res) => {
           { id: "5", name: "music", voice: false },
         ],
         session: null,
+        ...previewAccess(),
       });
     }
     if (action === "personal") {
@@ -215,7 +235,7 @@ const server = http.createServer(async (req, res) => {
   }
   res.end(bytes);
 });
-const port = Number(process.env.VOZEN_PREVIEW_PORT || 4783);
+const port = Number(process.env.VOZEN_PREVIEW_PORT || arg("port") || 4783);
 server.listen(port, "127.0.0.1", () =>
   console.log(`Music UI fixture: http://localhost:${port}/music`),
 );

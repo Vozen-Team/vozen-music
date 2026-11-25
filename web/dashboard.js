@@ -187,24 +187,66 @@ function card(title, description, heading = "h2") {
   if (description) c.append(el("p", description, "help"));
   return c;
 }
-function sharedMusicControlsLocked() {
-  return model?.music_access?.shared === false;
+// Server settings the API refuses to change without Vozen Premium on the server.
+const premiumFields = ["volume", "default_station", "voice_channel", "dj_roles", "djs_only",
+  "player_locked", "announcements", "announcement_channel"];
+const premiumPlansUrl = "https://vozen.org/premium#plans";
+// "unrestricted" means plan checks are off: every feature is available and no plan is shown.
+function musicPlan() {
+  return model?.music_access?.plan || "unrestricted";
 }
+function plansApply() {
+  return musicPlan() !== "unrestricted";
+}
+function sharedMusicControlsLocked() {
+  return plansApply() && model.music_access.shared === false;
+}
+function premiumField(path) {
+  return premiumFields.includes(path) || /^(voice_rules|text_rules)\./.test(path);
+}
+function planPill(tier, text, locked = false) {
+  const pill = el("span", text, "music-plan-pill");
+  pill.dataset.tier = tier;
+  if (locked) pill.dataset.locked = "";
+  return pill;
+}
+function premiumLink(text) {
+  const link = el("a", text, "music-plan-link");
+  link.href = premiumPlansUrl;
+  link.target = "_blank";
+  link.rel = "noopener";
+  return link;
+}
+// What Music actually does with these settings while they are locked.
+const lockedBehaviour = {
+  volume: t("Without Premium, Music plays at 100%."),
+  default_station: t("Without Premium, /play continues the last station."),
+};
 function field(path, label, type = "text", options = [], help = "") {
   const wrap = el("div", undefined, "music-field"),
     id = `field-${path.replaceAll(".", "-")}`;
   const l = el("label", label);
   l.htmlFor = id;
   const copy = el("div", undefined, "settings-field-copy");
-  copy.append(l);
-  if (sharedMusicControlsLocked() && (
-    ["volume", "default_station", "voice_channel", "dj_roles", "djs_only", "player_locked",
-      "announcements", "announcement_channel"].includes(path)
-    || /^(voice_rules|text_rules)\./.test(path)
-  )) {
-    wrap.dataset.musicPremiumLocked = "";
-    l.append(" · ", el("span", t("Premium")));
-  }
+  const described = [];
+  if (plansApply() && premiumField(path)) {
+    const locked = sharedMusicControlsLocked();
+    const head = el("div", undefined, "settings-field-head");
+    const pill = planPill("premium", locked ? t("Premium required") : t("Premium"), locked);
+    pill.id = `${id}-plan`;
+    described.push(pill.id);
+    head.append(l, pill);
+    copy.append(head);
+    if (locked) {
+      wrap.dataset.musicPremiumLocked = "";
+      if (lockedBehaviour[path]) {
+        const note = el("small", lockedBehaviour[path], "music-plan-note");
+        note.id = `${id}-locked`;
+        described.push(note.id);
+        copy.append(note);
+      }
+    }
+  } else copy.append(l);
   let input;
   if (type === "select") {
     input = el("select");
@@ -301,9 +343,11 @@ function field(path, label, type = "text", options = [], help = "") {
   if (help) {
     const hint = el("small", help);
     hint.id = `${id}-help`;
-    input.setAttribute("aria-describedby", hint.id);
-    copy.append(hint);
+    described.unshift(hint.id);
+    // Keep the field's own description above any plan note.
+    copy.insertBefore(hint, copy.querySelector(".music-plan-note"));
   }
+  if (described.length) input.setAttribute("aria-describedby", described.join(" "));
   wrap.append(copy, input);
   return wrap;
 }
@@ -353,7 +397,9 @@ function playbackFields() {
       ["session", t("Session · Leave when empty")],
       ["always", t("24/7 · Stay connected")],
       ["auto_join", t("Auto-join · Start on entry")],
-    ]),
+    ], model.music_access?.radio_vote
+      ? t("Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.")
+      : ""),
     field(
       "voice_channel",
       t("Fixed voice channel"),
@@ -579,7 +625,12 @@ function stationLibrary(editor) {
     const cover = art(personal);
     cover.loading = "eager";
     const intro = el("div", undefined, "station-featured-copy");
-    intro.append(el("span", t(sharedMusicControlsLocked() ? "Premium" : "Personalized radio"), "station-featured-label"), el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
+    const label = el("span", t("Personalized radio"), "station-featured-label");
+    if (plansApply()) {
+      const locked = sharedMusicControlsLocked();
+      label.append(" ", planPill("premium", locked ? t("Premium required") : t("Premium"), locked));
+    }
+    intro.append(label, el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
     const arrow = el("span", "→", "station-featured-arrow");
     arrow.setAttribute("aria-hidden", "true");
     featured.append(cover, intro, arrow);
@@ -778,6 +829,34 @@ function profileMiniature() {
   return link;
 }
 
+// The plan is resolved for this viewer on this server: "plus" is the viewer's own
+// plan, "premium" is the server's, and "free" means neither applies here.
+function planSummary() {
+  const plan = musicPlan();
+  const copy = {
+    premium: [t("Premium server"), t("Vozen Premium is active here"),
+      t("Everyone in this server gets My Station, call volume and the settings marked Premium.")],
+    plus: [t("Vozen Plus"), t("You have Vozen Plus"),
+      t("Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.")],
+    free: [t("Free"), t("Vozen Premium isn’t active here"),
+      t("All stations and the shared player are free. Vozen Plus adds skipping and better audio for you; Vozen Premium unlocks the settings marked Premium for everyone here.")],
+  }[plan] || [];
+  const [badge, title, text] = copy;
+  const c = el("section", undefined, "music-card overview-plan");
+  c.dataset.plan = plan;
+  const head = el("div", undefined, "overview-plan-head");
+  head.append(el("h2", title), planPill(plan === "premium" ? "premium" : plan === "plus" ? "plus" : "free", badge));
+  c.append(head, el("p", text, "help"));
+  if (plan !== "premium") c.append(premiumLink(plan === "plus" ? t("View Premium") : t("Compare plans")));
+  return c;
+}
+// One line above locked settings, so each locked field only needs its badge.
+function premiumCallout(text) {
+  const c = el("div", undefined, "music-plan-callout");
+  c.append(el("p", text), premiumLink(t("View Premium")));
+  return c;
+}
+
 function renderOverview(editor) {
   const layout = el("div", undefined, "overview-layout");
   const choices = card(t("Your choices"));
@@ -802,7 +881,8 @@ function renderOverview(editor) {
   const skipAccess = draft.skip.access === "moderators" ? t("Moderators only") : t("Call members");
   const skipMode = draft.skip.mode === "majority" ? t("Majority vote") : t("One click");
   const summaries = {
-    playback: t("{station} · {volume}% · {mode}", { station: station(draft.default_station), volume: draft.volume, mode }),
+    // Locked volume is not applied: Music plays at 100% without Premium.
+    playback: t("{station} · {volume}% · {mode}", { station: station(draft.default_station), volume: sharedMusicControlsLocked() ? 100 : draft.volume, mode }),
     access: t("Skip · {access} · {mode}", { access: skipAccess, mode: skipMode }),
     community: draft.statistics ? t("Tracking allowed") : t("Tracking off"),
   };
@@ -816,6 +896,7 @@ function renderOverview(editor) {
     choices.append(section);
   }
   const side = el("div", undefined, "overview-side");
+  if (plansApply()) side.append(planSummary());
   side.append(choices, profileMiniature());
   layout.append(stationShortcut(), side);
   editor.append(live, layout);
@@ -901,6 +982,13 @@ function renderSettings(editor) {
   const { playback, access, community } = sections;
   editor.append(nav, playback, access, community);
   showSettingsSection();
+  if (sharedMusicControlsLocked()) {
+    const text = musicPlan() === "plus"
+      ? t("Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.")
+      : t("Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.");
+    playback.append(premiumCallout(text));
+    access.append(premiumCallout(text));
+  }
 
   playback.append(
     group(
@@ -1109,6 +1197,8 @@ function profileTextError(text, policy) {
 function renderProfile(editor) {
   const c = card(t("Server profile"), t("Edit your profile below. Nothing changes in Discord until you apply."));
   c.classList.add("profile-editor-card");
+  if (sharedMusicControlsLocked())
+    c.append(premiumCallout(t("A custom avatar and banner need Vozen Premium on this server. The display name is free.")));
   const form = el("form"), surface = el("div", undefined, "discord-profile");
   const view = { form, saved: {}, uploads: {}, pending: 0, loading: true, fields: {}, clear: {} };
   profileView = view;

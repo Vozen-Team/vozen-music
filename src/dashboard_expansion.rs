@@ -157,7 +157,8 @@ async fn expanded_settings(
     let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
         serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session,
-            "music_access":{"plan":access.name(),"personal":access.personal(),"shared":access.shared()}}),
+            "music_access":{"plan":access.name(),"personal":access.personal(),"shared":access.shared(),
+                "radio_vote":state.bot.radio_vote_applies(access)}}),
     ))
 }
 
