@@ -41,7 +41,16 @@ async function settingsState(page, plan) {
   return state;
 }
 
-await new Promise((r) => setTimeout(r, 1200));
+// Wait until every preview server answers instead of guessing a start-up delay.
+for (let i = 0; i < plans.length; i++) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      if ((await fetch(`http://localhost:${base + i}/music/api/me`)).ok) break;
+    } catch {}
+    if (attempt > 100) throw new Error(`preview server for ${plans[i]} did not start`);
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
 const browser = await chromium.launch();
 const errors = [];
 try {
