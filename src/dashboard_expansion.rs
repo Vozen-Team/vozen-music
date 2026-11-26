@@ -1,28 +1,18 @@
 use vozen_music::expansion::{Privacy, RadioMode, ServerSettings};
 static PROFILE_UPLOADS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
-async fn profile_upload_guard(
+/// Checks the session and CSRF token of a write before its JSON body is parsed,
+/// so signed-out callers get 401 rather than a body-parsing error.
+async fn login_before_body(
     State(state): State<Arc<Dashboard>>,
     request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let _permit = if request.method() == axum::http::Method::PUT {
-        if let Err(error) = state.login(request.headers(), true).await {
-            return error.into_response();
-        }
-        match PROFILE_UPLOADS.try_acquire() {
-            Ok(permit) => Some(permit),
-            Err(_) => {
-                return WebError(
-                    StatusCode::TOO_MANY_REQUESTS,
-                    "Profile uploads are busy. Try again shortly.",
-                )
-                .into_response();
-            }
-        }
-    } else {
-        None
-    };
+    if request.method() == axum::http::Method::PUT
+        && let Err(error) = state.login(request.headers(), true).await
+    {
+        return error.into_response();
+    }
     next.run(request).await
 }
 
@@ -655,7 +645,7 @@ fn animated_image(bytes: &[u8]) -> bool {
     false
 }
 
-fn profile_image(data: &str) -> Result<String, Error> {
+fn profile_image(data: &str, max_side: u32) -> Result<String, Error> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     if data.len() > 2_800_000 {
         return Err("Image exceeds 2 MB.".into());
@@ -681,14 +671,31 @@ fn profile_image(data: &str) -> Result<String, Error> {
     limits.max_alloc = Some(64 * 1024 * 1024);
     reader.limits(limits);
     let decoded = reader.decode()?;
+    // Discord shows avatars and banners well below 4096 px: fit large uploads
+    // instead of rejecting photos whose lossless PNG would exceed 2 MB.
+    let decoded = if decoded.width() > max_side || decoded.height() > max_side {
+        decoded.resize(max_side, max_side, image::imageops::FilterType::Lanczos3)
+    } else {
+        decoded
+    };
     let mut png = std::io::Cursor::new(Vec::new());
     decoded.write_to(&mut png, image::ImageFormat::Png)?;
-    if png.get_ref().len() > 2 * 1024 * 1024 {
+    if png.get_ref().len() <= 2 * 1024 * 1024 {
+        return Ok(format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(png.into_inner())
+        ));
+    }
+    // Photos without transparency still fit as a high-quality JPEG.
+    let mut jpeg = std::io::Cursor::new(Vec::new());
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 90)
+        .encode_image(&decoded.to_rgb8())?;
+    if jpeg.get_ref().len() > 2 * 1024 * 1024 {
         return Err("The processed image exceeds 2 MB. Use a smaller image.".into());
     }
     Ok(format!(
-        "data:image/png;base64,{}",
-        STANDARD.encode(png.into_inner())
+        "data:image/jpeg;base64,{}",
+        STANDARD.encode(jpeg.into_inner())
     ))
 }
 async fn bot_profile(
@@ -747,12 +754,25 @@ async fn save_bot_profile(
                 },
             );
         }
-        for (field, data) in [("avatar", edit.avatar), ("banner", edit.banner)] {
+        // The shared upload slot only covers decoding, after the manager and plan
+        // checks, and is released before the Discord request.
+        let permit = if edit.avatar.is_some() || edit.banner.is_some() {
+            Some(PROFILE_UPLOADS.try_acquire().map_err(|_| {
+                WebError(
+                    StatusCode::TOO_MANY_REQUESTS,
+                    "Profile uploads are busy. Try again shortly.",
+                )
+            })?)
+        } else {
+            None
+        };
+        for (field, data, max_side) in [("avatar", edit.avatar, 1024), ("banner", edit.banner, 2048)] {
             if let Some(data) = data {
-                let image=tokio::task::spawn_blocking(move||profile_image(&data)).await.map_err(|_|unavailable())?.map_err(|_|WebError(StatusCode::BAD_REQUEST,"Choose a valid static PNG, JPEG or WebP image up to 2 MB and 4096 pixels."))?;
+                let image=tokio::task::spawn_blocking(move||profile_image(&data, max_side)).await.map_err(|_|unavailable())?.map_err(|_|WebError(StatusCode::BAD_REQUEST,"Choose a valid static PNG, JPEG or WebP image up to 2 MB and 4096 pixels."))?;
                 body.insert(field.into(), image.into());
             }
         }
+        drop(permit);
     }
     let response = state
         .client
@@ -963,6 +983,54 @@ mod expansion_web_tests {
         assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
     }
     #[tokio::test]
+    async fn write_routes_check_the_session_before_parsing_json() {
+        use axum::{body::Body, http::Request};
+        for route in ["settings", "playback", "server-settings", "personal"] {
+            let response = router(super::tests::fixture())
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/music/api/guilds/1524199248248176751/{route}"))
+                        .method("PUT")
+                        .header("content-type", "application/json")
+                        .body(Body::from("not JSON"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{route}");
+        }
+    }
+    #[test]
+    fn large_photos_within_the_upload_limit_are_fitted_not_rejected() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        // Smooth gradients with light sensor-like noise, like a photo: small as a
+        // JPEG, several MB as a lossless PNG.
+        let photo = image::RgbImage::from_fn(2000, 2000, |x, y| {
+            let noise = (x.wrapping_mul(7919) ^ y.wrapping_mul(104729)).wrapping_mul(2654435761) >> 28;
+            let channel = |v: u32| (v.min(243) + noise) as u8;
+            image::Rgb([channel(x * 255 / 2000), channel(y * 255 / 2000), channel((x + y) * 255 / 4000)])
+        });
+        let mut jpeg = std::io::Cursor::new(Vec::new());
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 70)
+            .encode_image(&photo)
+            .unwrap();
+        let bytes = jpeg.into_inner();
+        assert!(bytes.len() <= 2 * 1024 * 1024, "fixture must be within the upload limit");
+        let mut lossless = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(photo)
+            .write_to(&mut lossless, image::ImageFormat::Png)
+            .unwrap();
+        assert!(
+            lossless.get_ref().len() > 2 * 1024 * 1024,
+            "fixture must reproduce the old rejection"
+        );
+        let input = format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes));
+        let output = profile_image(&input, 1024).unwrap();
+        let encoded = output.split_once(",").unwrap().1;
+        let decoded = image::load_from_memory(&STANDARD.decode(encoded).unwrap()).unwrap();
+        assert!(decoded.width() <= 1024 && decoded.height() <= 1024);
+    }
+    #[tokio::test]
     async fn profile_authentication_precedes_json_parsing() {
         use axum::{body::Body, http::Request};
         let app = router(super::tests::fixture());
@@ -992,13 +1060,13 @@ mod expansion_web_tests {
         commented.extend_from_slice(b"\xff\xfe\x00\x06ANIM");
         commented.extend_from_slice(&bytes[2..]);
         let input = format!("data:image/jpeg;base64,{}", STANDARD.encode(commented));
-        assert!(profile_image(&input).is_ok());
+        assert!(profile_image(&input, 1024).is_ok());
     }
     #[test]
     fn image_processing_rejects_urls_corrupt_and_oversized_data() {
-        assert!(profile_image("https://example.com/image.png").is_err());
-        assert!(profile_image("data:image/png;base64,YmFk").is_err());
-        assert!(profile_image(&"a".repeat(2_800_001)).is_err());
+        assert!(profile_image("https://example.com/image.png", 1024).is_err());
+        assert!(profile_image("data:image/png;base64,YmFk", 1024).is_err());
+        assert!(profile_image(&"a".repeat(2_800_001), 1024).is_err());
         use base64::{Engine, engine::general_purpose::STANDARD};
         let image = image::DynamicImage::new_rgb8(2, 2);
         let mut png = std::io::Cursor::new(Vec::new());
@@ -1008,7 +1076,7 @@ mod expansion_web_tests {
             STANDARD.encode(png.into_inner())
         );
         assert!(
-            profile_image(&data)
+            profile_image(&data, 1024)
                 .unwrap()
                 .starts_with("data:image/png;base64,")
         );
