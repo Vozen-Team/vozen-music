@@ -255,10 +255,13 @@ impl Bot {
         }
         let config = self.authorize(ctx, guild, member, text, true).await?;
         let access = self.music_access(member.user.id.get(), guild.get()).await?;
-        if !access.personal() {
+        let policy = self.settings.lock().await.get(guild.get());
+        // Starting a skip is a Plus or Premium perk. Without it, a member may only
+        // add a vote to a skip that a Plus or Premium listener already started.
+        let joins_only = !access.personal();
+        if joins_only && policy.mode != SkipMode::Majority {
             return Err("Skipping requires Vozen Plus or an active Vozen Premium server.".into());
         }
-        let policy = self.settings.lock().await.get(guild.get());
         let roles = member.roles.iter().map(|id| id.get()).collect::<Vec<_>>();
         let (manager_permission, moderator) = self.member_flags(ctx, guild, member)?;
         if member.user.bot || !policy.allows(manager_permission, moderator, &roles) {
@@ -310,15 +313,18 @@ impl Bot {
                 return Err("There is no previous recording in this session.".into());
             }
             if policy.mode == SkipMode::Majority {
-                session
+                let mut votes = session
                     .votes_for(previous)
                     .lock()
-                    .map_err(|_| "Skip votes are unavailable.")?
-                    .begin_request(
-                        member.user.id.get(),
-                        std::time::Instant::now(),
-                        &self.voice_ids(ctx, guild, channel)?,
-                    )?;
+                    .map_err(|_| "Skip votes are unavailable.")?;
+                if joins_only && !votes.open(session.generation.load(Ordering::SeqCst)) {
+                    return Err("Only Vozen Plus members can start a skip vote. You can add your vote once one starts.".into());
+                }
+                votes.begin_request(
+                    member.user.id.get(),
+                    std::time::Instant::now(),
+                    &self.voice_ids(ctx, guild, channel)?,
+                )?;
             }
             (
                 session.control_id,
@@ -355,34 +361,6 @@ impl Bot {
             {
                 eligible.insert(listener.user.id.get());
             }
-        }
-        if access == crate::access::Access::Plus && policy.mode == SkipMode::Majority {
-            let actor = member.user.id.get();
-            let users = eligible
-                .iter()
-                .copied()
-                .filter(|&user| user != actor)
-                .collect::<Vec<_>>();
-            tokio::time::timeout(Duration::from_secs(12), async {
-                for chunk in users.chunks(8) {
-                    let mut checks = tokio::task::JoinSet::new();
-                    for &user in chunk {
-                        let bot = self.clone();
-                        checks.spawn(
-                            async move { (user, bot.music_access(user, guild.get()).await) },
-                        );
-                    }
-                    while let Some(result) = checks.join_next().await {
-                        let (user, access) = result?;
-                        if !access?.personal() {
-                            eligible.remove(&user);
-                        }
-                    }
-                }
-                Ok::<_, Error>(())
-            })
-            .await
-            .map_err(|_| "Music access verification timed out. Try again.")??;
         }
         let mut sessions = self.sessions.lock().await;
         if self

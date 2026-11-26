@@ -156,6 +156,11 @@ impl SkipVotes {
         self.requests.clear();
     }
 
+    /// Whether someone already voted to skip this recording.
+    pub fn open(&self, generation: usize) -> bool {
+        self.generation == generation && !self.voters.is_empty()
+    }
+
     pub fn begin_request(
         &mut self,
         voter: u64,
@@ -200,6 +205,17 @@ impl SkipVotes {
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn a_vote_is_open_only_for_its_own_recording() {
+        let mut votes = SkipVotes::default();
+        assert!(!votes.open(0));
+        votes.cast(3, 7, &BTreeSet::from([7, 8]), 2).unwrap();
+        assert!(votes.open(3));
+        assert!(!votes.open(4));
+        votes.reset(4);
+        assert!(!votes.open(4));
+    }
 
     #[test]
     fn defaults_and_both_majority_scopes() {
