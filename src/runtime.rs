@@ -24,6 +24,24 @@ fn paid_voice(access: Access, subject: u64, members: &BTreeSet<u64>) -> bool {
     access == Access::Premium || access == Access::Plus && members.contains(&subject)
 }
 
+/// Restarting the station that is already playing in the same channel picks a
+/// new recording, which is a skip. Only Plus or Premium members may do that.
+fn restart_is_free_skip(access: Access, active: bool, same_station: bool, same_channel: bool) -> bool {
+    !access.personal() && active && same_station && same_channel
+}
+
+#[cfg(test)]
+#[test]
+fn only_members_without_plus_are_stopped_from_restarting_the_current_station() {
+    assert!(restart_is_free_skip(Access::Free, true, true, true));
+    assert!(!restart_is_free_skip(Access::Plus, true, true, true));
+    assert!(!restart_is_free_skip(Access::Premium, true, true, true));
+    assert!(!restart_is_free_skip(Access::Unrestricted, true, true, true));
+    assert!(!restart_is_free_skip(Access::Free, false, true, true));
+    assert!(!restart_is_free_skip(Access::Free, true, false, true));
+    assert!(!restart_is_free_skip(Access::Free, true, true, false));
+}
+
 fn voice_bitrate(boosted: bool, cap: Option<u32>) -> u32 {
     let target = if boosted { 128_000 } else { 64_000 };
     target.min(cap.unwrap_or(target))
@@ -562,6 +580,31 @@ impl Bot {
                 return Err(
                     "Join the same voice channel as Vozen Music to control the station.".into(),
                 );
+            }
+        }
+        if let Some((_, access)) = actor
+            && let Some(current) = sessions.get(&guild)
+        {
+            let same_channel = match manager.get(guild) {
+                Some(call) => call
+                    .lock()
+                    .await
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() == channel.get()),
+                None => false,
+            };
+            if restart_is_free_skip(
+                access,
+                current.active.load(Ordering::SeqCst),
+                current.station == station,
+                same_channel,
+            ) {
+                let name = &self.catalog.stations[station].name;
+                return Ok(if current.paused.load(Ordering::SeqCst) {
+                    format!("{name} is paused here. Use /resume to continue.")
+                } else {
+                    format!("{name} is already playing here. Skipping needs Vozen Plus or an active Vozen Premium server.")
+                });
             }
         }
         if restore.is_some()
