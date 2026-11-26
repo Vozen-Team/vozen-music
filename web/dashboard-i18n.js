@@ -329,7 +329,6 @@ const musicTranslations = {
     "Premium server": "خادم Premium",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "الإعدادات المميزة بـ «يتطلب Premium» تحتاج إلى Vozen Premium على هذا الخادم. تظل الخيارات المحفوظة سارية.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "تخطي المقاطع وصوت أفضل أثناء وجودك في المكالمة وتغيير المحطات بلا حدود ترافقك أينما كنت. الإعدادات المميزة بـ Premium تحتاج إلى Vozen Premium على هذا الخادم.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "يتطلب التبديل إلى 24/7 أو الانضمام التلقائي تصويتًا حاليًا لـ Vozen Music على Top.gg. لا يحتاج Vozen Plus وPremium إلى ذلك.",
     "View Premium": "عرض Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium مفعّل هنا",
@@ -343,7 +342,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "تعذّر على Music التحقق من الخطة",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "تبقى إعدادات Premium مقفلة حتى يتمكن Music من التحقق من خطة هذا الخادم مجددًا. يمكن حفظ الإعدادات الأخرى، وتظل الخيارات المحفوظة سارية.",
     "Your unsaved draft was restored without its changes to Premium settings.": "تمت استعادة المسودة غير المحفوظة بدون تغييراتها على إعدادات Premium.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "تم إيقاف الانضمام التلقائي لأن القناة الصوتية أو النصية لم تعد موجودة."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "تم إيقاف الانضمام التلقائي لأن القناة الصوتية أو النصية لم تعد موجودة.",
+    "Auto-join needs Vozen Premium on this server.": "يتطلب الانضمام التلقائي Vozen Premium على هذا الخادم.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "يتطلب الانضمام التلقائي Vozen Premium على هذا الخادم. يتطلب التبديل إلى 24/7 تصويتًا حاليًا لـ Vozen Music على Top.gg، ولا يحتاج Vozen Plus إلى ذلك."
   },
   "de": {
     "24/7 · Stay connected": "24/7 · Bleiben Sie in Verbindung",
@@ -674,7 +675,6 @@ const musicTranslations = {
     "Premium server": "Premium-Server",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "Einstellungen mit „Premium erforderlich“ brauchen Vozen Premium auf diesem Server. Die gespeicherten Werte gelten weiterhin.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Überspringen, besserer Klang, solange du im Anruf bist, und unbegrenzte Senderwechsel begleiten dich überall. Mit Premium markierte Einstellungen brauchen Vozen Premium auf diesem Server.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "Für 24/7 oder den automatischen Beitritt brauchst du eine aktuelle Stimme für Vozen Music auf Top.gg. Mit Vozen Plus oder Premium ist keine nötig.",
     "View Premium": "Premium ansehen",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium ist hier aktiv",
@@ -688,7 +688,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music konnte den Plan nicht prüfen",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Premium-Einstellungen bleiben gesperrt, bis Music den Plan dieses Servers wieder prüfen kann. Andere Einstellungen lassen sich weiterhin speichern, und gespeicherte Werte gelten weiterhin.",
     "Your unsaved draft was restored without its changes to Premium settings.": "Dein ungespeicherter Entwurf wurde ohne die Änderungen an Premium-Einstellungen wiederhergestellt.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "Der automatische Beitritt wurde ausgeschaltet, weil sein Sprach- oder Textkanal nicht mehr existiert."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Der automatische Beitritt wurde ausgeschaltet, weil sein Sprach- oder Textkanal nicht mehr existiert.",
+    "Auto-join needs Vozen Premium on this server.": "Für den automatischen Beitritt braucht dieser Server Vozen Premium.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "Für den automatischen Beitritt braucht dieser Server Vozen Premium. Für 24/7 brauchst du eine aktuelle Stimme für Vozen Music auf Top.gg; mit Vozen Plus ist keine nötig."
   },
   "es": {
     "24/7 · Stay connected": "24 horas al día, 7 días a la semana · Manténgase conectado",
@@ -1019,7 +1021,6 @@ const musicTranslations = {
     "Premium server": "Servidor Premium",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "Los ajustes marcados con «Requiere Premium» necesitan Vozen Premium en este servidor. Las opciones guardadas siguen aplicándose.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Saltar pistas, mejor audio mientras estás en la llamada y cambios de estación ilimitados van contigo. Los ajustes marcados como Premium necesitan Vozen Premium en este servidor.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "Cambiar a 24/7 o a Unirse automáticamente requiere un voto vigente por Vozen Music en Top.gg. Con Vozen Plus o Premium no hace falta.",
     "View Premium": "Ver Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium está activo aquí",
@@ -1033,7 +1034,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music no pudo comprobar el plan",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Los ajustes Premium siguen bloqueados hasta que Music pueda volver a comprobar el plan de este servidor. Los demás ajustes se siguen guardando y las opciones guardadas siguen aplicándose.",
     "Your unsaved draft was restored without its changes to Premium settings.": "Se restauró tu borrador sin guardar, sin sus cambios en los ajustes Premium.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "Unirse automáticamente se desactivó porque su canal de voz o de texto ya no existe."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Unirse automáticamente se desactivó porque su canal de voz o de texto ya no existe.",
+    "Auto-join needs Vozen Premium on this server.": "Unirse automáticamente requiere Vozen Premium en este servidor.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "Unirse automáticamente requiere Vozen Premium en este servidor. Cambiar a 24/7 requiere un voto vigente por Vozen Music en Top.gg; con Vozen Plus no hace falta."
   },
   "fr": {
     "24/7 · Stay connected": "24h/24 et 7j/7 · Restez connecté",
@@ -1364,7 +1367,6 @@ const musicTranslations = {
     "Premium server": "Serveur Premium",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "Les réglages marqués « Premium requis » nécessitent Vozen Premium sur ce serveur. Les choix enregistrés restent appliqués.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Passer des titres, un meilleur son quand tu es dans l’appel et des changements de station illimités te suivent partout. Les réglages marqués Premium nécessitent Vozen Premium sur ce serveur.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "Passer en 24/7 ou en Rejoindre automatiquement nécessite un vote en cours pour Vozen Music sur Top.gg. Avec Vozen Plus ou Premium, ce n’est pas nécessaire.",
     "View Premium": "Voir Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium est actif ici",
@@ -1378,7 +1380,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music n’a pas pu vérifier l’offre",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Les réglages Premium restent verrouillés jusqu’à ce que Music puisse à nouveau vérifier l’offre de ce serveur. Les autres réglages s’enregistrent toujours et les choix enregistrés restent appliqués.",
     "Your unsaved draft was restored without its changes to Premium settings.": "Ton brouillon non enregistré a été restauré sans ses modifications des réglages Premium.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "Rejoindre automatiquement a été désactivé, car son salon vocal ou textuel n’existe plus."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Rejoindre automatiquement a été désactivé, car son salon vocal ou textuel n’existe plus.",
+    "Auto-join needs Vozen Premium on this server.": "Rejoindre automatiquement nécessite Vozen Premium sur ce serveur.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "Rejoindre automatiquement nécessite Vozen Premium sur ce serveur. Passer en 24/7 nécessite un vote en cours pour Vozen Music sur Top.gg ; avec Vozen Plus, ce n’est pas nécessaire."
   },
   "ko": {
     "24/7 · Stay connected": "연중무휴 · 연결 유지",
@@ -1709,7 +1713,6 @@ const musicTranslations = {
     "Premium server": "Premium 서버",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "'Premium 필요' 표시가 있는 설정은 이 서버에 Vozen Premium이 있어야 바꿀 수 있습니다. 저장된 선택은 계속 적용됩니다.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "건너뛰기, 통화 중 더 좋은 음질, 무제한 스테이션 변경은 어디서나 함께합니다. Premium 표시가 있는 설정은 이 서버에 Vozen Premium이 필요합니다.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "24/7 또는 자동 가입으로 바꾸려면 Top.gg에서 Vozen Music에 한 유효한 투표가 필요합니다. Vozen Plus와 Premium은 투표가 필요 없습니다.",
     "View Premium": "Premium 보기",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "이 서버에서 Vozen Premium이 활성화되어 있습니다",
@@ -1723,7 +1726,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music이 요금제를 확인하지 못했습니다",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Music이 이 서버의 요금제를 다시 확인할 수 있을 때까지 Premium 설정은 잠겨 있습니다. 다른 설정은 계속 저장할 수 있으며, 저장된 선택은 계속 적용됩니다.",
     "Your unsaved draft was restored without its changes to Premium settings.": "저장하지 않은 초안을 Premium 설정 변경 내용 없이 복원했습니다.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "음성 또는 텍스트 채널이 더 이상 없어 자동 가입을 껐습니다."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "음성 또는 텍스트 채널이 더 이상 없어 자동 가입을 껐습니다.",
+    "Auto-join needs Vozen Premium on this server.": "자동 가입을 사용하려면 이 서버에 Vozen Premium이 필요합니다.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "자동 가입을 사용하려면 이 서버에 Vozen Premium이 필요합니다. 24/7로 바꾸려면 Top.gg에서 Vozen Music에 한 유효한 투표가 필요하며, Vozen Plus는 투표가 필요 없습니다."
   },
   "pt": {
     "24/7 · Stay connected": "24 horas por dia, 7 dias por semana · Mantenha-se ligado",
@@ -2054,7 +2059,6 @@ const musicTranslations = {
     "Premium server": "Servidor Premium",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "As definições marcadas «Requer Premium» precisam do Vozen Premium neste servidor. As escolhas guardadas continuam a aplicar-se.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Saltar faixas, melhor áudio enquanto estás na chamada e mudanças de estação ilimitadas vão contigo. As definições marcadas Premium precisam do Vozen Premium neste servidor.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "Mudar para 24/7 ou Auto-join requer um voto atual no Vozen Music no Top.gg. Com Vozen Plus ou Premium não é preciso.",
     "View Premium": "Ver Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "O Vozen Premium está ativo aqui",
@@ -2068,7 +2072,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "O Music não conseguiu verificar o plano",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "As definições Premium ficam bloqueadas até o Music voltar a conseguir verificar o plano deste servidor. As outras definições continuam a gravar e as escolhas guardadas continuam a aplicar-se.",
     "Your unsaved draft was restored without its changes to Premium settings.": "O rascunho por gravar foi restaurado sem as alterações às definições Premium.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "O Auto-join foi desligado porque o canal de voz ou de texto já não existe."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "O Auto-join foi desligado porque o canal de voz ou de texto já não existe.",
+    "Auto-join needs Vozen Premium on this server.": "O Auto-join precisa do Vozen Premium neste servidor.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "O Auto-join precisa do Vozen Premium neste servidor. Mudar para 24/7 requer um voto atual no Vozen Music no Top.gg; com Vozen Plus não é preciso."
   },
   "ru": {
     "24/7 · Stay connected": "24/7 · Оставайтесь на связи",
@@ -2399,7 +2405,6 @@ const musicTranslations = {
     "Premium server": "Сервер Premium",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "Для настроек с пометкой «Нужен Premium» на этом сервере требуется Vozen Premium. Сохранённые значения продолжают действовать.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Пропуск треков, лучший звук, пока вы в звонке, и неограниченная смена станций доступны вам везде. Для настроек с пометкой Premium на этом сервере нужен Vozen Premium.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "Чтобы включить режим 24/7 или автоматическое присоединение, нужен действующий голос за Vozen Music на Top.gg. С Vozen Plus или Premium голос не нужен.",
     "View Premium": "Посмотреть Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium активен на этом сервере",
@@ -2413,7 +2418,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music не удалось проверить тариф",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Настройки Premium заблокированы, пока Music снова не сможет проверить тариф этого сервера. Остальные настройки по-прежнему сохраняются, а сохранённые значения продолжают действовать.",
     "Your unsaved draft was restored without its changes to Premium settings.": "Несохранённый черновик восстановлен без изменений настроек Premium.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "Автоматическое присоединение отключено, потому что его голосовой или текстовый канал больше не существует."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Автоматическое присоединение отключено, потому что его голосовой или текстовый канал больше не существует.",
+    "Auto-join needs Vozen Premium on this server.": "Для автоматического присоединения на этом сервере нужен Vozen Premium.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "Для автоматического присоединения на этом сервере нужен Vozen Premium. Чтобы включить режим 24/7, нужен действующий голос за Vozen Music на Top.gg; с Vozen Plus голос не нужен."
   },
   "tr": {
     "24/7 · Stay connected": "7/24 · Bağlantıda kalın",
@@ -2744,7 +2751,6 @@ const musicTranslations = {
     "Premium server": "Premium sunucu",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "\"Premium gerekli\" işaretli ayarlar için bu sunucuda Vozen Premium gerekir. Kayıtlı seçimler geçerli olmaya devam eder.",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "Parça atlama, aramadayken daha iyi ses ve sınırsız istasyon değişikliği her yerde seninle. Premium işaretli ayarlar için bu sunucuda Vozen Premium gerekir.",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "24/7 veya Otomatik katılmaya geçmek için Top.gg'de Vozen Music'e güncel bir oy gerekir. Vozen Plus ve Premium için oy gerekmez.",
     "View Premium": "Premium'u gör",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "Vozen Premium burada etkin",
@@ -2758,7 +2764,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music planı kontrol edemedi",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Music bu sunucunun planını yeniden kontrol edebilene kadar Premium ayarlar kilitli kalır. Diğer ayarlar kaydedilmeye devam eder ve kayıtlı seçimler geçerli olmaya devam eder.",
     "Your unsaved draft was restored without its changes to Premium settings.": "Kaydedilmemiş taslağın, Premium ayar değişiklikleri olmadan geri yüklendi.",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "Ses veya metin kanalı artık mevcut olmadığı için Otomatik katılma kapatıldı."
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Ses veya metin kanalı artık mevcut olmadığı için Otomatik katılma kapatıldı.",
+    "Auto-join needs Vozen Premium on this server.": "Otomatik katılma için bu sunucuda Vozen Premium gerekir.",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "Otomatik katılma için bu sunucuda Vozen Premium gerekir. 24/7'ye geçmek için Top.gg'de Vozen Music'e güncel bir oy gerekir; Vozen Plus için gerekmez."
   },
   "zh": {
     "24/7 · Stay connected": "24/7 · 保持聯繫",
@@ -3089,7 +3097,6 @@ const musicTranslations = {
     "Premium server": "Premium 伺服器",
     "Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.": "標示「需要 Premium」的設定須在此伺服器擁有 Vozen Premium 才能變更。已儲存的選擇仍會生效。",
     "Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.": "跳過曲目、你在通話中時的更佳音質，以及無限次切換電台都會跟著你。標示 Premium 的設定需要此伺服器擁有 Vozen Premium。",
-    "Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.": "切換為 24/7 或自動加入需要在 Top.gg 為 Vozen Music 投下有效的一票。Vozen Plus 與 Premium 不需要投票。",
     "View Premium": "查看 Premium",
     "Vozen Plus": "Vozen Plus",
     "Vozen Premium is active here": "此伺服器已啟用 Vozen Premium",
@@ -3103,7 +3110,9 @@ const musicTranslations = {
     "Music couldn’t check the plan": "Music 無法確認方案",
     "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "在 Music 能再次確認此伺服器的方案之前，Premium 設定會保持鎖定。其他設定仍可儲存，已儲存的選擇仍會生效。",
     "Your unsaved draft was restored without its changes to Premium settings.": "已還原未儲存的草稿，但不含對 Premium 設定的變更。",
-    "Auto-join was turned off because its voice or text channel no longer exists.": "由於語音或文字頻道已不存在，自動加入已關閉。"
+    "Auto-join was turned off because its voice or text channel no longer exists.": "由於語音或文字頻道已不存在，自動加入已關閉。",
+    "Auto-join needs Vozen Premium on this server.": "自動加入需要此伺服器擁有 Vozen Premium。",
+    "Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.": "自動加入需要此伺服器擁有 Vozen Premium。切換為 24/7 需要在 Top.gg 為 Vozen Music 投下有效的一票；Vozen Plus 不需要投票。"
   }
 };
 

@@ -255,9 +255,10 @@ function field(path, label, type = "text", options = [], help = "") {
   let input;
   if (type === "select") {
     input = el("select");
-    for (const [value, text] of options) {
+    for (const [value, text, disabled] of options) {
       const option = new Option("", value);
       bindMusicText(option, text);
+      option.disabled = !!disabled;
       input.add(option);
     }
     input.value = get(path) ?? "";
@@ -401,10 +402,9 @@ function playbackFields() {
     field("radio_mode", t("Radio mode"), "select", [
       ["session", t("Session · Leave when empty")],
       ["always", t("24/7 · Stay connected")],
-      ["auto_join", t("Auto-join · Start on entry")],
-    ], model.music_access?.radio_vote
-      ? t("Switching to 24/7 or Auto-join needs a current Top.gg vote for Vozen Music. Vozen Plus and Premium don’t need one.")
-      : ""),
+      ["auto_join", t("Auto-join · Start on entry"),
+        sharedMusicControlsLocked() && get("radio_mode") !== "auto_join"],
+    ], radioModeHelp()),
     field(
       "voice_channel",
       t("Fixed voice channel"),
@@ -856,6 +856,13 @@ function planSummary() {
   if (plan !== "premium" && plan !== "unknown")
     c.append(premiumLink(plan === "plus" ? t("View Premium") : t("Compare plans")));
   return c;
+}
+// Auto-join is a Premium setting; the Top.gg vote only gates 24/7.
+function radioModeHelp() {
+  if (!sharedMusicControlsLocked()) return "";
+  return model.music_access?.radio_vote
+    ? t("Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.")
+    : t("Auto-join needs Vozen Premium on this server.");
 }
 // Shown while the plan resolver does not answer: Premium settings stay locked.
 const planUnknownText = t("Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.");

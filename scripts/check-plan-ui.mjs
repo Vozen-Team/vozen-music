@@ -66,6 +66,8 @@ try {
   await open(page, "free", "?page=settings");
   assert.equal(await page.locator(".music-plan-callout a").first().getAttribute("href"), "https://vozen.org/premium#plans");
   assert.match(await page.locator("#field-radio_mode-help").textContent(), /Top\.gg vote/);
+  assert.equal(await page.locator('#field-radio_mode option[value="auto_join"]').isDisabled(), true,
+    "Auto-join cannot be enabled without Premium");
   assert.equal(await page.locator("#field-tips").isDisabled(), false, "free settings stay editable");
   await page.locator("#field-tips").click();
   await page.locator("#music-save").click();
@@ -77,12 +79,18 @@ try {
     assert.equal(value.pill, "Premium", `${id} is marked as Premium`);
   }
   assert.equal(await page.locator(".music-plan-callout").count(), 0);
+  await open(page, "premium", "?page=settings");
+  assert.equal(await page.locator('#field-radio_mode option[value="auto_join"]').isDisabled(), false);
+  assert.equal(await page.locator("#field-radio_mode-help").count(), 0);
 
   const plus = await settingsState(page, "plus");
   assert.ok(Object.values(plus).every((v) => v.locked), "Plus does not unlock server settings");
   await open(page, "plus", "?page=settings");
   assert.match(await page.locator(".music-plan-callout p").first().textContent(), /Vozen Plus perks are personal/);
-  assert.equal(await page.locator("#field-radio_mode-help").count(), 0, "no vote note without a vote requirement");
+  assert.equal(await page.locator("#field-radio_mode-help").textContent(), "Auto-join needs Vozen Premium on this server.");
+  assert.equal(await page.locator('#field-radio_mode option[value="auto_join"]').isDisabled(), true);
+  await open(page, "unrestricted", "?page=settings");
+  assert.equal(await page.locator('#field-radio_mode option[value="auto_join"]').isDisabled(), false);
 
   for (const query of ["", "?page=settings", "?page=settings&section=access", "?page=stations", "?page=profile"]) {
     await open(page, "unrestricted", query);

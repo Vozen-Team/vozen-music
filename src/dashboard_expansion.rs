@@ -259,7 +259,24 @@ async fn save_expanded(
             )
         });
     }
-    if settings.radio_mode != stored.radio_mode && settings.radio_mode != RadioMode::Session {
+    if settings.radio_mode == RadioMode::AutoJoin
+        && stored.radio_mode != RadioMode::AutoJoin
+        && !shared
+    {
+        return Err(if access.is_none() {
+            WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Music plan access could not be checked. Try again.",
+            )
+        } else {
+            WebError(
+                StatusCode::FORBIDDEN,
+                "Auto-join needs Vozen Premium on this server.",
+            )
+        });
+    }
+    // The Top.gg vote only gates switching to 24/7; Auto-join is a Premium setting.
+    if settings.radio_mode == RadioMode::Always && stored.radio_mode != RadioMode::Always {
         let Some(access) = access else {
             return Err(WebError(
                 StatusCode::SERVICE_UNAVAILABLE,

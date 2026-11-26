@@ -79,6 +79,9 @@ async fn failed_plan_lookups_do_not_count_as_free_voice() {
     );
 }
 
+/// Reply from `start_session` when an automatic start finds the radio already connected.
+pub const ALREADY_CONNECTED: &str = "Music is already connected.";
+
 pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
 pub const GUILD_PLAY_COOLDOWN: Duration = Duration::from_secs(2);
 
@@ -522,6 +525,29 @@ impl Bot {
                 return Err("Music plan access changed while waiting. Try again.".into());
             }
         }
+        // Automatic starts on a server without Premium continue the last ordinary
+        // station instead of My Station, as /play does.
+        let station = if actor.is_none()
+            && !keep_saved
+            && !access.shared()
+            && self.catalog.stations[station].id == "my"
+        {
+            let last = self
+                .settings
+                .lock()
+                .await
+                .db
+                .last_playback_station(guild.get())?
+                .filter(|id| id != "my");
+            let id = last.as_deref().unwrap_or("lofi");
+            self.catalog
+                .stations
+                .iter()
+                .position(|s| s.id == id)
+                .unwrap_or(station)
+        } else {
+            station
+        };
         let station_id = &self.catalog.stations[station].id;
         if station_id == "my" && !access.shared() && !keep_saved {
             return Err("My Station requires Vozen Premium on this server.".into());
@@ -607,14 +633,14 @@ impl Bot {
                 });
             }
         }
-        if restore.is_some()
+        if actor.is_none()
             && sessions
                 .get(&guild)
                 .is_some_and(|s| s.active.load(Ordering::SeqCst))
             && let Some(call) = manager.get(guild)
             && call.lock().await.current_channel().is_some()
         {
-            return Ok("Music is already connected.".into());
+            return Ok(ALREADY_CONNECTED.into());
         }
         let selection = if let Some((user, _)) = actor
             && access != crate::access::Access::Unrestricted
@@ -869,7 +895,9 @@ impl Bot {
                         None,
                     )
                     .await?;
-                announce_auto_join(&ctx.http, ChannelId::new(text), message).await?;
+                if message != ALREADY_CONNECTED {
+                    announce_auto_join(&ctx.http, ChannelId::new(text), message).await?;
+                }
             }
         }
         Ok(())
@@ -1216,14 +1244,18 @@ impl Bot {
                     _ => return Err("Invalid radio mode.".into()),
                 };
             }
-            let needs_vote =
-                config.radio_mode != previous_mode && config.radio_mode != RadioMode::Session;
-            if needs_vote || option("channel").is_some() {
+            let switching = config.radio_mode != previous_mode;
+            let enabling_auto_join = switching && config.radio_mode == RadioMode::AutoJoin;
+            let needs_vote = switching && config.radio_mode == RadioMode::Always;
+            if needs_vote || enabling_auto_join || option("channel").is_some() {
                 let access = self.music_access(u, g.get()).await?;
                 if option("channel").is_some() && !access.shared() {
                     return Err(
                         "A fixed voice channel requires Vozen Premium on this server.".into(),
                     );
+                }
+                if enabling_auto_join && !access.shared() {
+                    return Err("Auto-join needs Vozen Premium on this server.".into());
                 }
                 if needs_vote
                     && !self
