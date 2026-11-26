@@ -338,7 +338,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "بدون Premium، يعمل Music بمستوى صوت 100%.",
     "You have Vozen Plus": "لديك Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "مزايا Vozen Plus شخصية لك. الإعدادات المميزة بـ «يتطلب Premium» تحتاج إلى Vozen Premium على هذا الخادم، وتظل خياراتها المحفوظة سارية.",
-    "A station that follows your listeners": "محطة تتبع مستمعيك"
+    "A station that follows your listeners": "محطة تتبع مستمعيك",
+    "Plan unavailable": "الخطة غير متاحة",
+    "Music couldn’t check the plan": "تعذّر على Music التحقق من الخطة",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "تبقى إعدادات Premium مقفلة حتى يتمكن Music من التحقق من خطة هذا الخادم مجددًا. يمكن حفظ الإعدادات الأخرى، وتظل الخيارات المحفوظة سارية.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "تمت استعادة المسودة غير المحفوظة بدون تغييراتها على إعدادات Premium.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "تم إيقاف الانضمام التلقائي لأن القناة الصوتية أو النصية لم تعد موجودة."
   },
   "de": {
     "24/7 · Stay connected": "24/7 · Bleiben Sie in Verbindung",
@@ -678,7 +683,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Ohne Premium spielt Music mit 100 %.",
     "You have Vozen Plus": "Du hast Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Deine Vorteile von Vozen Plus gelten persönlich. Einstellungen mit „Premium erforderlich“ brauchen Vozen Premium auf diesem Server; die gespeicherten Werte gelten weiterhin.",
-    "A station that follows your listeners": "Ein Sender, der sich nach deinen Zuhörern richtet"
+    "A station that follows your listeners": "Ein Sender, der sich nach deinen Zuhörern richtet",
+    "Plan unavailable": "Plan nicht verfügbar",
+    "Music couldn’t check the plan": "Music konnte den Plan nicht prüfen",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Premium-Einstellungen bleiben gesperrt, bis Music den Plan dieses Servers wieder prüfen kann. Andere Einstellungen lassen sich weiterhin speichern, und gespeicherte Werte gelten weiterhin.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "Dein ungespeicherter Entwurf wurde ohne die Änderungen an Premium-Einstellungen wiederhergestellt.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Der automatische Beitritt wurde ausgeschaltet, weil sein Sprach- oder Textkanal nicht mehr existiert."
   },
   "es": {
     "24/7 · Stay connected": "24 horas al día, 7 días a la semana · Manténgase conectado",
@@ -1018,7 +1028,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Sin Premium, Music suena al 100 %.",
     "You have Vozen Plus": "Tienes Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Las ventajas de Vozen Plus son personales. Los ajustes marcados con «Requiere Premium» necesitan Vozen Premium en este servidor; las opciones guardadas siguen aplicándose.",
-    "A station that follows your listeners": "Una estación que se adapta a quienes escuchan"
+    "A station that follows your listeners": "Una estación que se adapta a quienes escuchan",
+    "Plan unavailable": "Plan no disponible",
+    "Music couldn’t check the plan": "Music no pudo comprobar el plan",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Los ajustes Premium siguen bloqueados hasta que Music pueda volver a comprobar el plan de este servidor. Los demás ajustes se siguen guardando y las opciones guardadas siguen aplicándose.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "Se restauró tu borrador sin guardar, sin sus cambios en los ajustes Premium.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Unirse automáticamente se desactivó porque su canal de voz o de texto ya no existe."
   },
   "fr": {
     "24/7 · Stay connected": "24h/24 et 7j/7 · Restez connecté",
@@ -1358,7 +1373,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Sans Premium, Music joue à 100 %.",
     "You have Vozen Plus": "Tu as Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Tes avantages Vozen Plus sont personnels. Les réglages marqués « Premium requis » nécessitent Vozen Premium sur ce serveur ; les choix enregistrés restent appliqués.",
-    "A station that follows your listeners": "Une station qui suit tes auditeurs"
+    "A station that follows your listeners": "Une station qui suit tes auditeurs",
+    "Plan unavailable": "Offre indisponible",
+    "Music couldn’t check the plan": "Music n’a pas pu vérifier l’offre",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Les réglages Premium restent verrouillés jusqu’à ce que Music puisse à nouveau vérifier l’offre de ce serveur. Les autres réglages s’enregistrent toujours et les choix enregistrés restent appliqués.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "Ton brouillon non enregistré a été restauré sans ses modifications des réglages Premium.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Rejoindre automatiquement a été désactivé, car son salon vocal ou textuel n’existe plus."
   },
   "ko": {
     "24/7 · Stay connected": "연중무휴 · 연결 유지",
@@ -1698,7 +1718,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Premium이 없으면 Music은 100% 볼륨으로 재생됩니다.",
     "You have Vozen Plus": "Vozen Plus를 이용 중입니다",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Vozen Plus 혜택은 개인에게 적용됩니다. 'Premium 필요' 표시가 있는 설정은 이 서버에 Vozen Premium이 있어야 하며, 저장된 선택은 계속 적용됩니다.",
-    "A station that follows your listeners": "청취자에 맞춰 바뀌는 스테이션"
+    "A station that follows your listeners": "청취자에 맞춰 바뀌는 스테이션",
+    "Plan unavailable": "요금제 확인 불가",
+    "Music couldn’t check the plan": "Music이 요금제를 확인하지 못했습니다",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Music이 이 서버의 요금제를 다시 확인할 수 있을 때까지 Premium 설정은 잠겨 있습니다. 다른 설정은 계속 저장할 수 있으며, 저장된 선택은 계속 적용됩니다.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "저장하지 않은 초안을 Premium 설정 변경 내용 없이 복원했습니다.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "음성 또는 텍스트 채널이 더 이상 없어 자동 가입을 껐습니다."
   },
   "pt": {
     "24/7 · Stay connected": "24 horas por dia, 7 dias por semana · Mantenha-se ligado",
@@ -2038,7 +2063,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Sem Premium, o Music toca a 100%.",
     "You have Vozen Plus": "Tens Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "As vantagens do Vozen Plus são tuas. As definições marcadas «Requer Premium» precisam do Vozen Premium neste servidor; as escolhas guardadas continuam a aplicar-se.",
-    "A station that follows your listeners": "Uma estação que acompanha quem está a ouvir"
+    "A station that follows your listeners": "Uma estação que acompanha quem está a ouvir",
+    "Plan unavailable": "Plano indisponível",
+    "Music couldn’t check the plan": "O Music não conseguiu verificar o plano",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "As definições Premium ficam bloqueadas até o Music voltar a conseguir verificar o plano deste servidor. As outras definições continuam a gravar e as escolhas guardadas continuam a aplicar-se.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "O rascunho por gravar foi restaurado sem as alterações às definições Premium.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "O Auto-join foi desligado porque o canal de voz ou de texto já não existe."
   },
   "ru": {
     "24/7 · Stay connected": "24/7 · Оставайтесь на связи",
@@ -2378,7 +2408,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Без Premium Music играет на 100 % громкости.",
     "You have Vozen Plus": "У вас Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Преимущества Vozen Plus действуют лично для вас. Для настроек с пометкой «Нужен Premium» на этом сервере требуется Vozen Premium; сохранённые значения продолжают действовать.",
-    "A station that follows your listeners": "Станция, которая подстраивается под слушателей"
+    "A station that follows your listeners": "Станция, которая подстраивается под слушателей",
+    "Plan unavailable": "Тариф недоступен",
+    "Music couldn’t check the plan": "Music не удалось проверить тариф",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Настройки Premium заблокированы, пока Music снова не сможет проверить тариф этого сервера. Остальные настройки по-прежнему сохраняются, а сохранённые значения продолжают действовать.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "Несохранённый черновик восстановлен без изменений настроек Premium.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Автоматическое присоединение отключено, потому что его голосовой или текстовый канал больше не существует."
   },
   "tr": {
     "24/7 · Stay connected": "7/24 · Bağlantıda kalın",
@@ -2718,7 +2753,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "Premium olmadan Music %100 seste çalar.",
     "You have Vozen Plus": "Vozen Plus'ın var",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Vozen Plus avantajların kişiseldir. \"Premium gerekli\" işaretli ayarlar için bu sunucuda Vozen Premium gerekir; kayıtlı seçimler geçerli olmaya devam eder.",
-    "A station that follows your listeners": "Dinleyicilerine göre şekillenen bir istasyon"
+    "A station that follows your listeners": "Dinleyicilerine göre şekillenen bir istasyon",
+    "Plan unavailable": "Plan kullanılamıyor",
+    "Music couldn’t check the plan": "Music planı kontrol edemedi",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "Music bu sunucunun planını yeniden kontrol edebilene kadar Premium ayarlar kilitli kalır. Diğer ayarlar kaydedilmeye devam eder ve kayıtlı seçimler geçerli olmaya devam eder.",
+    "Your unsaved draft was restored without its changes to Premium settings.": "Kaydedilmemiş taslağın, Premium ayar değişiklikleri olmadan geri yüklendi.",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "Ses veya metin kanalı artık mevcut olmadığı için Otomatik katılma kapatıldı."
   },
   "zh": {
     "24/7 · Stay connected": "24/7 · 保持聯繫",
@@ -3058,7 +3098,12 @@ const musicTranslations = {
     "Without Premium, Music plays at 100%.": "沒有 Premium 時，Music 以 100% 音量播放。",
     "You have Vozen Plus": "你擁有 Vozen Plus",
     "Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.": "Vozen Plus 的福利屬於你個人。標示「需要 Premium」的設定須在此伺服器擁有 Vozen Premium；已儲存的選擇仍會生效。",
-    "A station that follows your listeners": "隨聽眾而變的電台"
+    "A station that follows your listeners": "隨聽眾而變的電台",
+    "Plan unavailable": "無法取得方案",
+    "Music couldn’t check the plan": "Music 無法確認方案",
+    "Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.": "在 Music 能再次確認此伺服器的方案之前，Premium 設定會保持鎖定。其他設定仍可儲存，已儲存的選擇仍會生效。",
+    "Your unsaved draft was restored without its changes to Premium settings.": "已還原未儲存的草稿，但不含對 Premium 設定的變更。",
+    "Auto-join was turned off because its voice or text channel no longer exists.": "由於語音或文字頻道已不存在，自動加入已關閉。"
   }
 };
 

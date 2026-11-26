@@ -845,6 +845,7 @@ function planSummary() {
       t("Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.")],
     free: [t("Free"), t("Vozen Premium isn’t active here"),
       t("All stations and the shared player are free. Vozen Plus adds skipping and better audio for you; Vozen Premium unlocks the settings marked Premium for everyone here.")],
+    unknown: [t("Plan unavailable"), t("Music couldn’t check the plan"), planUnknownText],
   }[plan] || [];
   const [badge, title, text] = copy;
   const c = el("section", undefined, "music-card overview-plan");
@@ -852,9 +853,12 @@ function planSummary() {
   const head = el("div", undefined, "overview-plan-head");
   head.append(el("h2", title), planPill(plan === "premium" ? "premium" : plan === "plus" ? "plus" : "free", badge));
   c.append(head, el("p", text, "help"));
-  if (plan !== "premium") c.append(premiumLink(plan === "plus" ? t("View Premium") : t("Compare plans")));
+  if (plan !== "premium" && plan !== "unknown")
+    c.append(premiumLink(plan === "plus" ? t("View Premium") : t("Compare plans")));
   return c;
 }
+// Shown while the plan resolver does not answer: Premium settings stay locked.
+const planUnknownText = t("Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.");
 // One line above locked settings, so each locked field only needs its badge.
 function premiumCallout(text) {
   const c = el("div", undefined, "music-plan-callout");
@@ -988,9 +992,12 @@ function renderSettings(editor) {
   editor.append(nav, playback, access, community);
   showSettingsSection();
   if (sharedMusicControlsLocked()) {
-    const text = musicPlan() === "plus"
-      ? t("Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.")
-      : t("Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.");
+    const plan = musicPlan();
+    const text = plan === "unknown"
+      ? planUnknownText
+      : plan === "plus"
+        ? t("Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.")
+        : t("Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.");
     playback.append(premiumCallout(text));
     access.append(premiumCallout(text));
   }
@@ -1600,7 +1607,19 @@ async function loadServer(id) {
         validDraft(saved, data.settings)
       ) {
         draft = saved;
-        notice(t("Your unsaved draft was restored."));
+        let dropped = false;
+        if (sharedMusicControlsLocked()) {
+          // Locked Premium settings cannot be saved here: keep their saved values.
+          for (const key of [...premiumFields, "voice_rules", "text_rules"]) {
+            if (JSON.stringify(draft[key]) !== JSON.stringify(data.settings[key])) {
+              draft[key] = structuredClone(data.settings[key]);
+              dropped = true;
+            }
+          }
+        }
+        notice(dropped
+          ? t("Your unsaved draft was restored without its changes to Premium settings.")
+          : t("Your unsaved draft was restored."));
       } else if (saved)
         notice(
           t("An older browser draft exists. Server settings changed; it was not applied."),

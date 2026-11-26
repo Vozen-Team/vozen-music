@@ -1206,6 +1206,7 @@ impl Bot {
                     .map(|c| c.id.get())
                     .collect();
                 let stations = self.catalog.stations.iter().map(|s| s.id.clone()).collect();
+                config = config.without_missing_resources(&roles, &voice, &text, &stations).0;
                 config.validate_resources(g.get(), &roles, &voice, &text, &stations)?;
             }
             let mode = config.radio_mode;

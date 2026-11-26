@@ -83,6 +83,35 @@ impl ServerSettings {
             || self.announcement_channel != saved.announcement_channel
     }
 
+    /// Drops roles and channels that no longer exist in Discord, and replaces a
+    /// default station that left the catalog. Auto-join falls back to Session
+    /// when one of its channels was removed; the flag reports that fallback.
+    pub fn without_missing_resources(
+        &self,
+        roles: &BTreeSet<u64>,
+        voice: &BTreeSet<u64>,
+        text: &BTreeSet<u64>,
+        stations: &BTreeSet<String>,
+    ) -> (Self, bool) {
+        let mut next = self.clone();
+        next.dj_roles.retain(|id| roles.contains(id));
+        next.skip.moderator_roles.retain(|id| roles.contains(id));
+        next.voice_rules.channels.retain(|id| voice.contains(id));
+        next.text_rules.channels.retain(|id| text.contains(id));
+        next.voice_channel = next.voice_channel.filter(|id| voice.contains(id));
+        next.announcement_channel = next.announcement_channel.filter(|id| text.contains(id));
+        if !stations.contains(&next.default_station) {
+            next.default_station = "lofi".into();
+        }
+        let channel_removed = next.voice_channel != self.voice_channel
+            || next.announcement_channel != self.announcement_channel;
+        let auto_join_off = next.radio_mode == RadioMode::AutoJoin && channel_removed;
+        if auto_join_off {
+            next.radio_mode = RadioMode::Session;
+        }
+        (next, auto_join_off)
+    }
+
     pub fn permits_message_channel(&self, channel: u64, voice: bool) -> bool {
         if voice {
             self.voice_rules.permits(channel)
@@ -572,6 +601,60 @@ mod tests {
         settings.voice_channel = Some(30);
         assert!(!settings.permits_message_channel(20, true));
         assert!(settings.permits_message_channel(10, false));
+    }
+
+    fn with_resources() -> ServerSettings {
+        ServerSettings {
+            skip: SkipSettings {
+                moderator_roles: BTreeSet::from([7]),
+                ..Default::default()
+            },
+            voice_rules: ChannelRule {
+                channels: BTreeSet::from([20, 21]),
+                ..Default::default()
+            },
+            text_rules: ChannelRule {
+                channels: BTreeSet::from([30]),
+                ..Default::default()
+            },
+            dj_roles: BTreeSet::from([7, 8]),
+            voice_channel: Some(20),
+            announcement_channel: Some(30),
+            radio_mode: RadioMode::AutoJoin,
+            default_station: "gone".into(),
+            ..ServerSettings::default()
+        }
+    }
+
+    #[test]
+    fn missing_resources_are_dropped_and_auto_join_falls_back() {
+        let (next, auto_join_off) = with_resources().without_missing_resources(
+            &BTreeSet::from([8]),
+            &BTreeSet::from([21]),
+            &BTreeSet::from([30]),
+            &BTreeSet::from(["lofi".to_string()]),
+        );
+        assert_eq!(next.dj_roles, BTreeSet::from([8]));
+        assert!(next.skip.moderator_roles.is_empty());
+        assert_eq!(next.voice_rules.channels, BTreeSet::from([21]));
+        assert_eq!(next.voice_channel, None);
+        assert_eq!(next.announcement_channel, Some(30));
+        assert_eq!(next.radio_mode, RadioMode::Session);
+        assert_eq!(next.default_station, "lofi");
+        assert!(auto_join_off);
+    }
+
+    #[test]
+    fn existing_resources_are_kept() {
+        let settings = with_resources();
+        let (next, auto_join_off) = settings.without_missing_resources(
+            &BTreeSet::from([7, 8]),
+            &BTreeSet::from([20, 21]),
+            &BTreeSet::from([30]),
+            &BTreeSet::from(["gone".to_string()]),
+        );
+        assert_eq!(next, settings);
+        assert!(!auto_join_off);
     }
 
     fn store() -> Store {

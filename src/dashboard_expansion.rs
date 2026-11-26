@@ -134,7 +134,13 @@ async fn expanded_settings(
     let login = state.login(&headers, false).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
-    let access = state.music_access(guild, &login).await?;
+    let access = state.music_access(guild, &login).await.ok();
+    let music_access = match access {
+        Some(access) => serde_json::json!({"plan":access.name(),"personal":access.personal(),
+            "shared":access.shared(),"radio_vote":state.bot.radio_vote_applies(access)}),
+        // The resolver did not answer: show the page, keep Premium controls locked.
+        None => serde_json::json!({"plan":"unknown","personal":false,"shared":false,"radio_vote":false}),
+    };
     let settings = state
         .bot
         .settings
@@ -157,8 +163,7 @@ async fn expanded_settings(
     let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
         serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session,
-            "music_access":{"plan":access.name(),"personal":access.personal(),"shared":access.shared(),
-                "radio_vote":state.bot.radio_vote_applies(access)}}),
+            "music_access":music_access}),
     ))
 }
 
@@ -171,7 +176,30 @@ async fn save_expanded(
     let login = state.login(&headers, true).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
-    let access = state.music_access(guild, &login).await?;
+    // A failed plan lookup only blocks the changes that need a known plan.
+    let access = state.music_access(guild, &login).await.ok();
+    let shared = access.is_some_and(|a| a.shared());
+    let channels = guild
+        .channels(&state.http)
+        .await
+        .map_err(|_| unavailable())?;
+    let roles: std::collections::BTreeSet<u64> = server.roles.keys().map(|r| r.get()).collect();
+    let voice: std::collections::BTreeSet<u64> = channels
+        .values()
+        .filter(|c| c.kind == ChannelType::Voice)
+        .map(|c| c.id.get())
+        .collect();
+    let text: std::collections::BTreeSet<u64> = channels
+        .values()
+        .filter(|c| c.kind == ChannelType::Text)
+        .map(|c| c.id.get())
+        .collect();
+    let stations: std::collections::BTreeSet<String> =
+        state.bot.catalog.stations.iter().map(|s| s.id.clone()).collect();
+    // Roles and channels deleted in Discord are dropped, so a stale id in a
+    // locked Premium field cannot block every other save.
+    let (settings, auto_join_off) =
+        settings.without_missing_resources(&roles, &voice, &text, &stations);
     settings.validate(guild.get()).map_err(|_| {
         WebError(
             StatusCode::BAD_REQUEST,
@@ -190,11 +218,7 @@ async fn save_expanded(
             "Choose an available station.",
         ));
     }
-    let channels = guild
-        .channels(&state.http)
-        .await
-        .map_err(|_| unavailable())?;
-    settings.validate_resources(guild.get(),&server.roles.keys().map(|r|r.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Voice).map(|c|c.id.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Text).map(|c|c.id.get()).collect(),&state.bot.catalog.stations.iter().map(|s|s.id.clone()).collect()).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
+    settings.validate_resources(guild.get(),&roles,&voice,&text,&stations).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
     let visible = visible_channels(channels.values(), &member, |c, m| {
         server.user_permissions_in(c, m)
     })
@@ -221,15 +245,28 @@ async fn save_expanded(
             "Settings changed. Reload before saving.",
         ));
     }
-    if !access.shared() && settings.changes_shared_music_controls(&stored) {
-        return Err(WebError(
-            StatusCode::FORBIDDEN,
-            "These server controls require Vozen Premium.",
-        ));
+    let (stored_live, _) = stored.without_missing_resources(&roles, &voice, &text, &stations);
+    if !shared && settings.changes_shared_music_controls(&stored_live) {
+        return Err(if access.is_none() {
+            WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Music plan access could not be checked. Try again.",
+            )
+        } else {
+            WebError(
+                StatusCode::FORBIDDEN,
+                "These server controls require Vozen Premium.",
+            )
+        });
     }
-    if settings.radio_mode != stored.radio_mode
-        && settings.radio_mode != RadioMode::Session
-        && !state
+    if settings.radio_mode != stored.radio_mode && settings.radio_mode != RadioMode::Session {
+        let Some(access) = access else {
+            return Err(WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                crate::access::VOTE_UNAVAILABLE,
+            ));
+        };
+        if !state
             .bot
             .radio_vote_allowed(parse_id(&login.user.id)?, access)
             .await
@@ -239,11 +276,12 @@ async fn save_expanded(
                     crate::access::VOTE_UNAVAILABLE,
                 )
             })?
-    {
-        return Err(WebError(
-            StatusCode::FORBIDDEN,
-            crate::access::VOTE_REQUIRED,
-        ));
+        {
+            return Err(WebError(
+                StatusCode::FORBIDDEN,
+                crate::access::VOTE_REQUIRED,
+            ));
+        }
     }
     // Match command lock order: session map, voice call, then settings storage.
     let sessions = state.bot.sessions.lock().await;
@@ -271,7 +309,7 @@ async fn save_expanded(
     if let Some(s) = &active {
         *s.policy.lock().map_err(|_| unavailable())? = saved.skip.clone();
         s.reset_votes(s.generation.load(Ordering::SeqCst)).map_err(|_| unavailable())?;
-        if access.shared() && voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
+        if shared && voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
             let track =
                 &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];
             if let Some(h) = s.handle.lock().map_err(|_| unavailable())?.as_ref()
@@ -284,10 +322,13 @@ async fn save_expanded(
             }
         }
         // Without Premium the session keeps the fixed volume it started with.
-        if access.shared() {
+        if shared {
             s.volume.store(saved.volume as usize, Ordering::SeqCst);
         }
         s.tips.store(saved.tips, Ordering::SeqCst);
+    }
+    if auto_join_off {
+        warning = Some("Auto-join was turned off because its voice or text channel no longer exists.");
     }
     drop(store);
     drop(voice_guard);

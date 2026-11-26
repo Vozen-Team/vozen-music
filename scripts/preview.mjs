@@ -3,16 +3,17 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
-// VOZEN_PREVIEW_PLAN or --plan=unrestricted|free|plus|premium simulates the
-// viewer's Music plan, as the server reports it. "unrestricted" (the default)
-// is what Music sends while plan checks are not configured. --vote=1 marks the
+// VOZEN_PREVIEW_PLAN or --plan=unrestricted|free|plus|premium|unknown simulates
+// the viewer's Music plan, as the server reports it. "unrestricted" (the
+// default) is what Music sends while plan checks are not configured, and
+// "unknown" what it sends when the plan resolver does not answer. --vote=1 marks the
 // Top.gg vote as required for plans without Plus or Premium.
 const arg = (name) =>
   process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const previewPlan = process.env.VOZEN_PREVIEW_PLAN || arg("plan") || "unrestricted";
 const previewVote = (process.env.VOZEN_PREVIEW_VOTE || arg("vote")) === "1";
 const previewAccess = () => {
-  const personal = previewPlan !== "free";
+  const personal = ["plus", "premium", "unrestricted"].includes(previewPlan);
   return {
     music_access: {
       plan: previewPlan,

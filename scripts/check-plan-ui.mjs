@@ -7,7 +7,7 @@ import path from "node:path";
 const { chromium } = await import(process.env.VOZEN_PLAYWRIGHT_MODULE || "playwright");
 const script = path.join(import.meta.dirname, "preview.mjs");
 const base = Number(process.env.VOZEN_PLAN_CHECK_PORT || 4821);
-const plans = ["free", "plus", "premium", "unrestricted"];
+const plans = ["free", "plus", "premium", "unrestricted", "unknown"];
 const servers = plans.map((plan, i) =>
   spawn(process.execPath, [script, `--plan=${plan}`, `--port=${base + i}`, ...(plan === "free" ? ["--vote=1"] : [])], { stdio: "ignore" }));
 const premiumIds = ["field-default_station", "field-volume", "field-voice_channel", "field-announcements",
@@ -95,8 +95,35 @@ try {
   }
   await open(page, "free", "?page=profile");
   assert.match(await page.locator(".profile-editor-card .music-plan-callout").textContent(), /avatar and banner/);
+
+  // The plan resolver did not answer: the page opens, Premium settings stay locked.
+  await open(page, "unknown", "");
+  assert.equal(await page.locator(".overview-plan h2").textContent(), "Music couldn’t check the plan");
+  assert.equal(await page.locator(".overview-plan .music-plan-link").count(), 0);
+  const unknown = await settingsState(page, "unknown");
+  assert.ok(Object.values(unknown).every((v) => v.locked), "Premium settings stay locked with an unknown plan");
+  await open(page, "unknown", "?page=settings");
+  assert.match(await page.locator(".music-plan-callout p").first().textContent(), /until Music can check/);
+  assert.equal(await page.locator("#field-tips").isDisabled(), false);
+  await page.locator("#field-tips").click();
+  await page.locator("#music-save").click();
+  await page.locator("#music-savebar").waitFor({ state: "hidden" });
+
+  // A browser draft that changed now-locked fields keeps only its free edits.
+  await open(page, "free", "?page=settings");
+  const saved = await page.evaluate(() =>
+    fetch("/music/api/guilds/1/server-settings").then((r) => r.json()).then((d) => d.settings));
+  await page.evaluate((s) => localStorage.setItem("music-draft:1:1",
+    JSON.stringify({ ...s, volume: s.volume === 40 ? 41 : 40, tips: !s.tips })), saved);
+  await page.reload();
+  await page.locator("#editor").waitFor({ state: "visible" });
+  assert.match(await page.locator("#notice").textContent(), /restored without its changes to Premium settings/);
+  assert.equal(await page.locator("#field-volume").inputValue(), String(saved.volume));
+  assert.equal(await page.locator("#field-tips").isChecked(), !saved.tips);
+  await page.locator("#music-discard").click();
+
   assert.deepEqual(errors, []);
-  console.log("Plan UI: Free/Plus locks match the server list, free fields still save, Premium editable, no plan markup when plans are off, overview and profile copy passed.");
+  console.log("Plan UI: Free/Plus locks match the server list, free fields still save, Premium editable, no plan markup when plans are off, overview and profile copy, unknown plan and locked drafts passed.");
 } finally {
   await browser.close();
   servers.forEach((s) => s.kill());
