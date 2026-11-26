@@ -12,6 +12,32 @@ pub struct Runtime {
     pub settings: Arc<Mutex<SettingsStore>>,
     pub voice: Weak<songbird::Songbird>,
     pub quality: Arc<Mutex<Option<VoiceQuality>>>,
+    pub quality_retry: Arc<std::sync::Mutex<QualityRetry>>,
+}
+
+/// When a failed plan lookup may be retried for this session's voice quality.
+#[derive(Default)]
+pub struct QualityRetry {
+    after: Option<std::time::Instant>,
+    failures: u32,
+}
+
+/// 5 s, 10 s, 20 s, 40 s, then 60 s, each with up to 1 s of jitter.
+fn quality_retry_delay(failures: u32) -> Duration {
+    let seconds = 5u64 << failures.saturating_sub(1).min(4);
+    Duration::from_secs(seconds.min(60)) + Duration::from_millis(rand::random::<u64>() % 1000)
+}
+
+#[cfg(test)]
+#[test]
+fn failed_quality_lookups_wait_longer_up_to_a_minute() {
+    for (failures, low) in [(1, 5), (2, 10), (3, 20), (4, 40), (5, 60), (30, 60)] {
+        let delay = quality_retry_delay(failures);
+        assert!(
+            delay >= Duration::from_secs(low) && delay < Duration::from_secs(low + 1),
+            "{failures}"
+        );
+    }
 }
 
 pub struct VoiceQuality {
@@ -396,6 +422,11 @@ impl Bot {
             let mut complete = true;
             let mut paid = |result| match result {
                 Ok((id, Ok(access))) => paid_voice(access, id, members),
+                Ok((_, Err(error))) => {
+                    crate::access::log_lookup_failure("plan", &error);
+                    complete = false;
+                    false
+                }
                 _ => {
                     complete = false;
                     false
@@ -424,6 +455,13 @@ impl Bot {
     }
 
     fn refresh_voice_quality(&self, runtime: &Arc<Runtime>, members: BTreeSet<u64>) {
+        if runtime
+            .quality_retry
+            .lock()
+            .is_ok_and(|retry| retry.after.is_some_and(|at| at > std::time::Instant::now()))
+        {
+            return;
+        }
         let Ok(mut quality) = runtime.quality.clone().try_lock_owned() else {
             return;
         };
@@ -438,9 +476,17 @@ impl Bot {
             let bot_id = runtime.cache.current_user().id.get();
             let Some(boosted) = bot.voice_boost(runtime.guild, bot_id, &members, None).await
             else {
-                // Retry on the next voice update; a failed lookup must not downgrade paid audio.
+                // A failed lookup must not downgrade paid audio; retry after a growing pause.
+                if let Ok(mut retry) = runtime.quality_retry.lock() {
+                    retry.failures = retry.failures.saturating_add(1);
+                    retry.after =
+                        Some(std::time::Instant::now() + quality_retry_delay(retry.failures));
+                }
                 return;
             };
+            if let Ok(mut retry) = runtime.quality_retry.lock() {
+                *retry = QualityRetry::default();
+            }
             let cap = runtime.cache.guild(runtime.guild).and_then(|g| {
                 g.channels
                     .get(&runtime.channel)
@@ -516,6 +562,8 @@ impl Bot {
         } else {
             None
         };
+        // Measured before joining voice, which can take up to 15 s.
+        let fresh = queued_at.elapsed() < Duration::from_secs(1);
         if queued_at.elapsed() >= Duration::from_secs(1) {
             let current = match actor {
                 Some((user, _)) => Some(self.music_access(user, guild.get()).await?),
@@ -682,12 +730,13 @@ impl Bot {
             settings: self.settings.clone(),
             voice: Arc::downgrade(&manager),
             quality: Arc::new(Mutex::new(
-                (boost.is_some() && queued_at.elapsed() < Duration::from_secs(1)).then_some(VoiceQuality {
+                (boost.is_some() && fresh).then_some(VoiceQuality {
                     members,
                     checked: queued_at,
                     bitrate,
                 }),
             )),
+            quality_retry: Arc::default(),
         }));
         let restored = restore.and_then(|id| {
             self.catalog.stations[station]
@@ -1438,6 +1487,7 @@ mod tests {
             settings,
             voice: Weak::new(),
             quality: Arc::default(),
+            quality_retry: Arc::default(),
         };
         assert!(!runtime.allows_recording("recording").await.unwrap());
         assert!(runtime.allows_recording("another").await.unwrap());

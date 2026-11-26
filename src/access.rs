@@ -229,44 +229,63 @@ impl crate::Bot {
         let Some((http, token)) = self.entitlements.as_ref().and_then(|e| e.votes.as_ref()) else {
             return Ok(true);
         };
-        let response = http
-            .get(format!(
-                "https://top.gg/api/v1/projects/@me/votes/{subject}?source=discord"
-            ))
-            .bearer_auth(token)
-            .send()
-            .await?;
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(false);
-        }
-        Ok(response
-            .error_for_status()?
-            .json::<Vote>()
-            .await?
-            .is_current(chrono::Utc::now())?)
+        current_vote(http, token, subject)
+            .await
+            .inspect_err(|error| log_lookup_failure("vote", error))
     }
 
     /// Access for starts nobody requested (restore, recovery, Auto-join).
     /// `None` means the resolver is unreachable: the radio must still start,
     /// so callers keep the server's saved settings without paid audio.
     pub async fn automatic_access(&self, subject: u64, guild: u64) -> Option<Access> {
-        self.music_access(subject, guild)
-            .await
-            .inspect_err(|error| {
-                eprintln!("Music plan lookup failed for an automatic start: {error}");
-            })
-            .ok()
+        // `music_access` already logs the failure, at most once a minute.
+        self.music_access(subject, guild).await.ok()
     }
 
     pub async fn music_access(&self, subject: u64, guild: u64) -> Result<Access, Error> {
         match &self.entitlements {
             None => Ok(Access::Unrestricted),
-            Some(client) => client
-                .resolve(subject, guild)
-                .await
-                .map_err(|_| "Music plan access could not be checked. Try again.".into()),
+            Some(client) => client.resolve(subject, guild).await.map_err(|error| {
+                log_lookup_failure("plan", &error);
+                "Music plan access could not be checked. Try again.".into()
+            }),
         }
     }
+}
+
+/// The member's Top.gg vote. Errors carry no URL, which would hold their Discord id.
+async fn current_vote(http: &reqwest::Client, token: &str, subject: u64) -> Result<bool, Error> {
+    let response = http
+        .get(format!(
+            "https://top.gg/api/v1/projects/@me/votes/{subject}?source=discord"
+        ))
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| e.without_url())?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(false);
+    }
+    Ok(response
+        .error_for_status()
+        .map_err(|e| e.without_url())?
+        .json::<Vote>()
+        .await
+        .map_err(|e| e.without_url())?
+        .is_current(chrono::Utc::now())?)
+}
+
+/// Logs a failed plan or vote lookup at most once a minute per kind. Callers
+/// pass errors without URLs; headers and request bodies are never logged.
+pub(crate) fn log_lookup_failure(kind: &'static str, error: &Error) {
+    static LAST: Mutex<std::collections::BTreeMap<&'static str, Instant>> =
+        Mutex::new(std::collections::BTreeMap::new());
+    let Ok(mut last) = LAST.lock() else { return };
+    if last.get(kind).is_some_and(|at| at.elapsed() < Duration::from_secs(60)) {
+        return;
+    }
+    last.insert(kind, Instant::now());
+    eprintln!("Music {kind} lookup failed: {error}");
 }
 
 #[cfg(test)]

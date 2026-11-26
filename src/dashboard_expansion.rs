@@ -801,6 +801,7 @@ mod expansion_web_tests {
             settings: settings.clone(),
             voice: Weak::new(),
             quality: Arc::default(),
+            quality_retry: Arc::default(),
         }));
         let session = Arc::new(session);
         let mut intent = vozen_music::expansion::PlaybackIntent {
