@@ -176,7 +176,10 @@ const server = http.createServer(async (req, res) => {
             400,
           );
   }
-  if (p === "/music/auth/logout") return json({ saved: true });
+  if (p === "/music/auth/logout") {
+    res.writeHead(204, { "Cache-Control": "no-store" });
+    return res.end();
+  }
   const serverPath = /^\/music\/([1-9][0-9]*)$/.exec(p)?.[1];
   const mapping = {
     "/music": "web/dashboard.html",

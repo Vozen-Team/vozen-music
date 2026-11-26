@@ -81,6 +81,8 @@ async function api(path, options = {}) {
       signedOut();
       throw Object.assign(Error("Your session expired. Sign in again."), { status: 401 });
     }
+    // Logout and other bodiless successes answer 204 No Content.
+    if (r.status === 204) return null;
     let data;
     try {
       data = await r.json();
@@ -140,6 +142,9 @@ function validDraft(value, base) {
   return Object.entries(base).every(([k, v]) => {
     const item = value[k];
     if (v === null)
+      return item === null || (typeof item === "string" && /^\d+$/.test(item));
+    // Channel ids saved as digit strings may be cleared to null in a draft.
+    if (typeof v === "string" && /^\d+$/.test(v))
       return item === null || (typeof item === "string" && /^\d+$/.test(item));
     if (Array.isArray(v))
       return (
@@ -509,7 +514,7 @@ async function save() {
     if (seq !== sequence) return;
     draft = structuredClone(result.settings);
     baseline = JSON.stringify(draft);
-    model.settings = draft;
+    model.settings = structuredClone(draft);
     persistDraft();
     notice(
       result.warning
@@ -1029,7 +1034,7 @@ function renderSettings(editor) {
       duration.reportValidity();
       return;
     }
-    const id = current;
+    const id = current, seq = sequence;
     const result = await api(`/api/guilds/${id}/playback`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1038,7 +1043,7 @@ function renderSettings(editor) {
         cancel,
       }),
     });
-    if (id === current) {
+    if (seq === sequence && id === current && draft) {
       if (model.session) model.session.sleep_until = result.sleep_until;
       notice(t("Sleep timer updated."), "success");
       render();
@@ -1435,7 +1440,7 @@ async function loadProfile(id, seq) {
     updateProfilePreview(view);
     return true;
   } catch (e) {
-    if (id === current && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
+    if (seq === sequence && page === "profile" && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
     return false;
   } finally {
     if (placeholder) {
