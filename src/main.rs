@@ -233,30 +233,40 @@ impl AudioEventHandler for Advance {
         }
         let errored = matches!(ctx, EventContext::Track(tracks)
             if tracks.iter().any(|(state, _)| matches!(state.playing, PlayMode::Errored(_))));
-        let preferred = if self.session.looping.load(Ordering::SeqCst) && !errored {
-            let index = self.session.current.load(Ordering::SeqCst);
-            match &self.session.runtime {
-                Some(r) => r
-                    .allows_recording(&self.catalog.stations[self.session.station].tracks[index].id)
-                    .await
-                    .ok()
-                    .filter(|allowed| *allowed)
-                    .map(|_| index),
-                None => Some(index),
-            }
+        let current = self.session.current.load(Ordering::SeqCst);
+        let count = self
+            .catalog
+            .stations
+            .get(self.session.station)
+            .map(|s| s.tracks.len())
+            .unwrap_or(1)
+            .max(1);
+        // A looped recording that a present listener now dislikes stops repeating.
+        let repeat = self.session.looping.load(Ordering::SeqCst)
+            && !errored
+            && match &self.session.runtime {
+                Some(r) => matches!(
+                    r.allows_recording(
+                        &self.catalog.stations[self.session.station].tracks[current].id
+                    )
+                    .await,
+                    Ok(true)
+                ),
+                None => true,
+            };
+        let preferred = if repeat {
+            Some(current)
         } else if let Some(r) = &self.session.runtime {
-            r.next(&self.catalog, &self.session).await.unwrap_or(None)
+            match r.next(&self.catalog, &self.session).await {
+                Ok(choice) => choice,
+                // A transient Discord or storage error must not silence the radio.
+                Err(e) => {
+                    eprintln!("Could not choose the next recording by preference: {e}");
+                    Some((current + 1) % count)
+                }
+            }
         } else {
-            Some(
-                (self.session.current.load(Ordering::SeqCst) + 1)
-                    % self
-                        .catalog
-                        .stations
-                        .get(self.session.station)
-                        .map(|s| s.tracks.len())
-                        .unwrap_or(1)
-                        .max(1),
-            )
+            Some((current + 1) % count)
         };
         let failed = {
             let mut call = call.lock().await;

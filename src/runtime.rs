@@ -663,13 +663,16 @@ impl Bot {
                 }),
             )),
         }));
-        let index = if let Some(id) = restore {
+        let restored = restore.and_then(|id| {
             self.catalog.stations[station]
                 .tracks
                 .iter()
                 .position(|t| t.id == id)
-        } else {
-            s.runtime.as_ref().unwrap().next(&self.catalog, &s).await?
+        });
+        let index = match restored {
+            Some(index) => Some(index),
+            // New starts, and restores whose recording left the station, pick fresh.
+            None => s.runtime.as_ref().unwrap().next(&self.catalog, &s).await?,
         };
         let Some(index) = index else {
             let _ = manager.remove(guild).await;
@@ -954,7 +957,8 @@ impl Bot {
                 if elapsed == 0 {
                     continue;
                 }
-                last = std::time::Instant::now();
+                // Carry the fraction over so slow passes do not lose listening time.
+                last += Duration::from_secs(elapsed);
                 let active: Vec<_> = bot
                     .sessions
                     .lock()

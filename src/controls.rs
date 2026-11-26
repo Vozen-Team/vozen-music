@@ -485,10 +485,12 @@ impl Bot {
             generation: 0,
         };
         play_track(&mut locked, advance, next)?;
-        if let Some(r) = &replacement.runtime {
-            r.persist(&self.catalog, &replacement, true).await?;
-        }
         sessions.insert(guild, replacement.clone());
+        if let Some(r) = &replacement.runtime
+            && let Err(e) = r.persist(&self.catalog, &replacement, true).await
+        {
+            eprintln!("Could not persist playback: {e}");
+        }
         drop(locked);
         drop(sessions);
         player::refresh(&ctx.http, &self.catalog, &replacement, false).await;
