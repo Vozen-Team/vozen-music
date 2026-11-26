@@ -55,6 +55,36 @@ try {
   assert.match(await page.locator(".overview-stations").textContent(), /Enable time tracking in Community/);
   await page.locator("#music-discard").click();
 
+  // Another manager saves first: this user's edit is kept on top of theirs.
+  await open(page, "?page=settings");
+  await page.locator("#field-tips").click();
+  const mineTips = await page.locator("#field-tips").isChecked();
+  const theirStatistics = await page.evaluate(async () => {
+    const { settings } = await fetch("/music/api/guilds/1/server-settings").then((r) => r.json());
+    await fetch("/music/api/guilds/1/server-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-CSRF-Token": "local-fixture" },
+      body: JSON.stringify({ ...settings, statistics: !settings.statistics }),
+    });
+    return !settings.statistics;
+  });
+  await page.locator("#music-save").click();
+  await page.locator("#notice", { hasText: "Someone else saved these settings" }).waitFor();
+  await saveDraft(page);
+  const merged = await page.evaluate(() =>
+    fetch("/music/api/guilds/1/server-settings").then((r) => r.json()).then((d) => d.settings));
+  assert.equal(merged.tips, mineTips, "this user's change survives the conflict");
+  assert.equal(merged.statistics, theirStatistics, "the other manager's change survives too");
+
+  // Saving settings from the Bot Profile page keeps the unapplied profile edits.
+  await open(page, "?page=settings");
+  await page.locator("#field-tips").click();
+  await page.locator('#music-pages button[data-page="profile"]').click();
+  await page.locator("#profile-nick:enabled").waitFor();
+  await page.locator("#profile-nick").fill("Night shift");
+  await saveDraft(page);
+  assert.equal(await page.locator("#profile-nick").inputValue(), "Night shift");
+
   // Sign-out leaves the editor even though the server answers 204 without a body.
   await open(page, "");
   await page.locator("#logout").click();
@@ -66,7 +96,7 @@ try {
   );
 
   assert.deepEqual(errors, []);
-  console.log("Client state: sign-out, cleared-channel drafts and saved-settings separation passed.");
+  console.log("Client state: sign-out, cleared-channel drafts and saved-settings separation, settings conflicts and profile edits passed.");
 } finally {
   await browser.close();
   server.kill();

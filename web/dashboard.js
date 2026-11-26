@@ -522,13 +522,42 @@ async function save() {
         : t("Settings saved for this server."),
       result.warning ? "info" : "success",
     );
-    render();
+    // Rebuilding the Bot Profile page would drop its unapplied name and images.
+    if (page === "profile") updateSave();
+    else render();
   } catch (e) {
-    notice(e.message, "error");
+    if (e.status === 409 && seq === sequence) await rebaseDraft(id, seq);
+    else notice(e.message, "error");
   } finally {
     saving = false;
     updateSave();
   }
+}
+// Another manager saved first: carry this user's edited fields onto the latest
+// settings, so nothing they or the other manager saved is silently lost.
+async function rebaseDraft(id, seq) {
+  const before = JSON.parse(baseline);
+  const mine = draft;
+  let latest;
+  try {
+    latest = await api(`/api/guilds/${id}/server-settings`);
+  } catch (e) {
+    notice(e.message, "error");
+    return;
+  }
+  if (seq !== sequence) return;
+  const next = structuredClone(latest.settings);
+  for (const key of Object.keys(next)) {
+    if (key !== "revision" && JSON.stringify(mine[key]) !== JSON.stringify(before[key]))
+      next[key] = structuredClone(mine[key]);
+  }
+  model = latest;
+  model.settings = structuredClone(latest.settings);
+  baseline = JSON.stringify(latest.settings);
+  draft = next;
+  persistDraft();
+  render();
+  notice(t("Someone else saved these settings. Your changes were applied to the latest version; review them and save again."), "info");
 }
 function requestedServer() {
   return /^\/music\/([1-9][0-9]*)$/.exec(location.pathname)?.[1]
@@ -1627,10 +1656,13 @@ async function loadServer(id) {
         notice(dropped
           ? t("Your unsaved draft was restored without its changes to Premium settings.")
           : t("Your unsaved draft was restored."));
-      } else if (saved)
+      } else if (saved) {
         notice(
           t("An older browser draft exists. Server settings changed; it was not applied."),
         );
+        // Tell the user once; a refused draft would otherwise warn on every visit.
+        localStorage.removeItem(draftKey(id));
+      }
     } catch {
       notice(t("This browser could not restore your draft."));
     }
