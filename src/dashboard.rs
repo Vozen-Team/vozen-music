@@ -414,6 +414,23 @@ async fn guarded(
 }
 
 impl Dashboard {
+    async fn music_access(
+        &self,
+        guild: GuildId,
+        login: &Login,
+    ) -> WebResult<crate::access::Access> {
+        let subject = parse_id(&login.user.id)?;
+        self.bot
+            .music_access(subject, guild.get())
+            .await
+            .map_err(|_| {
+                WebError(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Music plan access could not be checked. Try again.",
+                )
+            })
+    }
+
     async fn login(&self, headers: &HeaderMap, write: bool) -> WebResult<Login> {
         let key = cookie(headers, SESSION_COOKIE).ok_or(WebError(
             StatusCode::UNAUTHORIZED,
@@ -1292,15 +1309,28 @@ fn router(state: Arc<Dashboard>) -> Router {
         .route("/music/api/recordings/{id}/audio", get(recording_preview))
         .route(
             "/music/api/guilds/{guild}/playback",
-            axum::routing::put(playback_timer),
+            axum::routing::put(playback_timer).route_layer(middleware::from_fn_with_state(
+                state.clone(),
+                login_before_body,
+            )),
         )
         .route(
             "/music/api/guilds/{guild}/server-settings",
-            get(expanded_settings).put(save_expanded),
+            get(expanded_settings)
+                .put(save_expanded)
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    login_before_body,
+                )),
         )
         .route(
             "/music/api/guilds/{guild}/personal",
-            get(personal).put(save_personal),
+            get(personal)
+                .put(save_personal)
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    login_before_body,
+                )),
         )
         .route("/music/api/guilds/{guild}/community", get(community))
         .route(
@@ -1309,7 +1339,7 @@ fn router(state: Arc<Dashboard>) -> Router {
                 .put(save_bot_profile)
                 .route_layer(middleware::from_fn_with_state(
                     state.clone(),
-                    profile_upload_guard,
+                    login_before_body,
                 ))
                 .layer(DefaultBodyLimit::max(6 * 1024 * 1024)),
         )
@@ -1456,7 +1486,12 @@ fn router(state: Arc<Dashboard>) -> Router {
         .route("/music/api/guilds", get(guilds))
         .route(
             "/music/api/guilds/{guild}/settings",
-            get(settings).put(save),
+            get(settings)
+                .put(save)
+                .route_layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    login_before_body,
+                )),
         )
         .route(
             "/music/health",
@@ -1636,6 +1671,8 @@ mod tests {
             bot: Arc::new(Bot {
                 catalog: Arc::new(Catalog { stations: vec![] }),
                 guild: None,
+                entitlements: None,
+                playback_queue: Arc::default(),
                 background: Arc::new(AtomicBool::new(false)),
                 sessions: Arc::new(Mutex::new(HashMap::new())),
                 settings: Arc::new(Mutex::new(

@@ -81,6 +81,8 @@ async function api(path, options = {}) {
       signedOut();
       throw Object.assign(Error("Your session expired. Sign in again."), { status: 401 });
     }
+    // Logout and other bodiless successes answer 204 No Content.
+    if (r.status === 204) return null;
     let data;
     try {
       data = await r.json();
@@ -141,6 +143,9 @@ function validDraft(value, base) {
     const item = value[k];
     if (v === null)
       return item === null || (typeof item === "string" && /^\d+$/.test(item));
+    // Channel ids saved as digit strings may be cleared to null in a draft.
+    if (typeof v === "string" && /^\d+$/.test(v))
+      return item === null || (typeof item === "string" && /^\d+$/.test(item));
     if (Array.isArray(v))
       return (
         Array.isArray(item) &&
@@ -187,19 +192,73 @@ function card(title, description, heading = "h2") {
   if (description) c.append(el("p", description, "help"));
   return c;
 }
+// Server settings the API refuses to change without Vozen Premium on the server.
+const premiumFields = ["volume", "default_station", "voice_channel", "dj_roles", "djs_only",
+  "player_locked", "announcements", "announcement_channel"];
+const premiumPlansUrl = "https://vozen.org/premium#plans";
+// "unrestricted" means plan checks are off: every feature is available and no plan is shown.
+function musicPlan() {
+  return model?.music_access?.plan || "unrestricted";
+}
+function plansApply() {
+  return musicPlan() !== "unrestricted";
+}
+function sharedMusicControlsLocked() {
+  return plansApply() && model.music_access.shared === false;
+}
+function premiumField(path) {
+  return premiumFields.includes(path) || /^(voice_rules|text_rules)\./.test(path);
+}
+function planPill(tier, text, locked = false) {
+  const pill = el("span", text, "music-plan-pill");
+  pill.dataset.tier = tier;
+  if (locked) pill.dataset.locked = "";
+  return pill;
+}
+function premiumLink(text) {
+  const link = el("a", text, "music-plan-link");
+  link.href = premiumPlansUrl;
+  link.target = "_blank";
+  link.rel = "noopener";
+  return link;
+}
+// What Music actually does with these settings while they are locked.
+const lockedBehaviour = {
+  volume: t("Without Premium, Music plays at 100%."),
+  default_station: t("Without Premium, /play continues the last station."),
+};
 function field(path, label, type = "text", options = [], help = "") {
   const wrap = el("div", undefined, "music-field"),
     id = `field-${path.replaceAll(".", "-")}`;
   const l = el("label", label);
   l.htmlFor = id;
   const copy = el("div", undefined, "settings-field-copy");
-  copy.append(l);
+  const described = [];
+  if (plansApply() && premiumField(path)) {
+    const locked = sharedMusicControlsLocked();
+    const head = el("div", undefined, "settings-field-head");
+    const pill = planPill("premium", locked ? t("Premium required") : t("Premium"), locked);
+    pill.id = `${id}-plan`;
+    described.push(pill.id);
+    head.append(l, pill);
+    copy.append(head);
+    if (locked) {
+      wrap.dataset.musicPremiumLocked = "";
+      if (lockedBehaviour[path]) {
+        const note = el("small", lockedBehaviour[path], "music-plan-note");
+        note.id = `${id}-locked`;
+        described.push(note.id);
+        copy.append(note);
+      }
+    }
+  } else copy.append(l);
   let input;
   if (type === "select") {
     input = el("select");
-    for (const [value, text] of options) {
+    for (const [value, text, disabled] of options) {
       const option = new Option("", value);
       bindMusicText(option, text);
+      option.disabled = !!disabled;
       input.add(option);
     }
     input.value = get(path) ?? "";
@@ -290,9 +349,11 @@ function field(path, label, type = "text", options = [], help = "") {
   if (help) {
     const hint = el("small", help);
     hint.id = `${id}-help`;
-    input.setAttribute("aria-describedby", hint.id);
-    copy.append(hint);
+    described.unshift(hint.id);
+    // Keep the field's own description above any plan note.
+    copy.insertBefore(hint, copy.querySelector(".music-plan-note"));
   }
+  if (described.length) input.setAttribute("aria-describedby", described.join(" "));
   wrap.append(copy, input);
   return wrap;
 }
@@ -341,8 +402,9 @@ function playbackFields() {
     field("radio_mode", t("Radio mode"), "select", [
       ["session", t("Session · Leave when empty")],
       ["always", t("24/7 · Stay connected")],
-      ["auto_join", t("Auto-join · Start on entry")],
-    ]),
+      ["auto_join", t("Auto-join · Start on entry"),
+        sharedMusicControlsLocked() && get("radio_mode") !== "auto_join"],
+    ], radioModeHelp()),
     field(
       "voice_channel",
       t("Fixed voice channel"),
@@ -420,7 +482,7 @@ function updateSave() {
   for (const c of document.querySelectorAll(
     "#editor input,#editor select,#editor button",
   ))
-    c.disabled = saving;
+    c.disabled = saving || !!c.closest("[data-music-premium-locked]");
   for (const control of $("music-pages").querySelectorAll("button"))
     control.disabled = saving || !draft;
   const bar = $("music-savebar");
@@ -452,7 +514,7 @@ async function save() {
     if (seq !== sequence) return;
     draft = structuredClone(result.settings);
     baseline = JSON.stringify(draft);
-    model.settings = draft;
+    model.settings = structuredClone(draft);
     persistDraft();
     notice(
       result.warning
@@ -460,13 +522,42 @@ async function save() {
         : t("Settings saved for this server."),
       result.warning ? "info" : "success",
     );
-    render();
+    // Rebuilding the Bot Profile page would drop its unapplied name and images.
+    if (page === "profile") updateSave();
+    else render();
   } catch (e) {
-    notice(e.message, "error");
+    if (e.status === 409 && seq === sequence) await rebaseDraft(id, seq);
+    else notice(e.message, "error");
   } finally {
     saving = false;
     updateSave();
   }
+}
+// Another manager saved first: carry this user's edited fields onto the latest
+// settings, so nothing they or the other manager saved is silently lost.
+async function rebaseDraft(id, seq) {
+  const before = JSON.parse(baseline);
+  const mine = draft;
+  let latest;
+  try {
+    latest = await api(`/api/guilds/${id}/server-settings`);
+  } catch (e) {
+    notice(e.message, "error");
+    return;
+  }
+  if (seq !== sequence) return;
+  const next = structuredClone(latest.settings);
+  for (const key of Object.keys(next)) {
+    if (key !== "revision" && JSON.stringify(mine[key]) !== JSON.stringify(before[key]))
+      next[key] = structuredClone(mine[key]);
+  }
+  model = latest;
+  model.settings = structuredClone(latest.settings);
+  baseline = JSON.stringify(latest.settings);
+  draft = next;
+  persistDraft();
+  render();
+  notice(t("Someone else saved these settings. Your changes were applied to the latest version; review them and save again."), "info");
 }
 function requestedServer() {
   return /^\/music\/([1-9][0-9]*)$/.exec(location.pathname)?.[1]
@@ -568,7 +659,12 @@ function stationLibrary(editor) {
     const cover = art(personal);
     cover.loading = "eager";
     const intro = el("div", undefined, "station-featured-copy");
-    intro.append(el("span", t("Personalized radio"), "station-featured-label"), el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
+    const label = el("span", t("Personalized radio"), "station-featured-label");
+    if (plansApply()) {
+      const locked = sharedMusicControlsLocked();
+      label.append(" ", planPill("premium", locked ? t("Premium required") : t("Premium"), locked));
+    }
+    intro.append(label, el("h2", personal.name), el("span", t("A mix shaped by the people in your call.")));
     const arrow = el("span", "→", "station-featured-arrow");
     arrow.setAttribute("aria-hidden", "true");
     featured.append(cover, intro, arrow);
@@ -767,6 +863,45 @@ function profileMiniature() {
   return link;
 }
 
+// The plan is resolved for this viewer on this server: "plus" is the viewer's own
+// plan, "premium" is the server's, and "free" means neither applies here.
+function planSummary() {
+  const plan = musicPlan();
+  const copy = {
+    premium: [t("Premium server"), t("Vozen Premium is active here"),
+      t("Everyone in this server gets My Station, call volume and the settings marked Premium.")],
+    plus: [t("Vozen Plus"), t("You have Vozen Plus"),
+      t("Skipping, better audio while you’re in the call and unlimited station changes come with you. Settings marked Premium need Vozen Premium on this server.")],
+    free: [t("Free"), t("Vozen Premium isn’t active here"),
+      t("All stations and the shared player are free. Vozen Plus adds skipping and better audio for you; Vozen Premium unlocks the settings marked Premium for everyone here.")],
+    unknown: [t("Plan unavailable"), t("Music couldn’t check the plan"), planUnknownText],
+  }[plan] || [];
+  const [badge, title, text] = copy;
+  const c = el("section", undefined, "music-card overview-plan");
+  c.dataset.plan = plan;
+  const head = el("div", undefined, "overview-plan-head");
+  head.append(el("h2", title), planPill(plan === "premium" ? "premium" : plan === "plus" ? "plus" : "free", badge));
+  c.append(head, el("p", text, "help"));
+  if (plan !== "premium" && plan !== "unknown")
+    c.append(premiumLink(plan === "plus" ? t("View Premium") : t("Compare plans")));
+  return c;
+}
+// Auto-join is a Premium setting; the Top.gg vote only gates 24/7.
+function radioModeHelp() {
+  if (!sharedMusicControlsLocked()) return "";
+  return model.music_access?.radio_vote
+    ? t("Auto-join needs Vozen Premium on this server. Switching to 24/7 needs a current Top.gg vote for Vozen Music; Vozen Plus doesn’t need one.")
+    : t("Auto-join needs Vozen Premium on this server.");
+}
+// Shown while the plan resolver does not answer: Premium settings stay locked.
+const planUnknownText = t("Premium settings stay locked until Music can check this server’s plan again. Other settings still save, and saved choices still apply.");
+// One line above locked settings, so each locked field only needs its badge.
+function premiumCallout(text) {
+  const c = el("div", undefined, "music-plan-callout");
+  c.append(el("p", text), premiumLink(t("View Premium")));
+  return c;
+}
+
 function renderOverview(editor) {
   const layout = el("div", undefined, "overview-layout");
   const choices = card(t("Your choices"));
@@ -791,7 +926,8 @@ function renderOverview(editor) {
   const skipAccess = draft.skip.access === "moderators" ? t("Moderators only") : t("Call members");
   const skipMode = draft.skip.mode === "majority" ? t("Majority vote") : t("One click");
   const summaries = {
-    playback: t("{station} · {volume}% · {mode}", { station: station(draft.default_station), volume: draft.volume, mode }),
+    // Locked volume is not applied: Music plays at 100% without Premium.
+    playback: t("{station} · {volume}% · {mode}", { station: station(draft.default_station), volume: sharedMusicControlsLocked() ? 100 : draft.volume, mode }),
     access: t("Skip · {access} · {mode}", { access: skipAccess, mode: skipMode }),
     community: draft.statistics ? t("Tracking allowed") : t("Tracking off"),
   };
@@ -805,6 +941,7 @@ function renderOverview(editor) {
     choices.append(section);
   }
   const side = el("div", undefined, "overview-side");
+  if (plansApply()) side.append(planSummary());
   side.append(choices, profileMiniature());
   layout.append(stationShortcut(), side);
   editor.append(live, layout);
@@ -890,6 +1027,16 @@ function renderSettings(editor) {
   const { playback, access, community } = sections;
   editor.append(nav, playback, access, community);
   showSettingsSection();
+  if (sharedMusicControlsLocked()) {
+    const plan = musicPlan();
+    const text = plan === "unknown"
+      ? planUnknownText
+      : plan === "plus"
+        ? t("Your Vozen Plus perks are personal. Settings marked Premium required need Vozen Premium on this server; their saved choices still apply.")
+        : t("Settings marked Premium required need Vozen Premium on this server. Their saved choices still apply.");
+    playback.append(premiumCallout(text));
+    access.append(premiumCallout(text));
+  }
 
   playback.append(
     group(
@@ -930,7 +1077,7 @@ function renderSettings(editor) {
       duration.reportValidity();
       return;
     }
-    const id = current;
+    const id = current, seq = sequence;
     const result = await api(`/api/guilds/${id}/playback`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -939,7 +1086,7 @@ function renderSettings(editor) {
         cancel,
       }),
     });
-    if (id === current) {
+    if (seq === sequence && id === current && draft) {
       if (model.session) model.session.sleep_until = result.sleep_until;
       notice(t("Sleep timer updated."), "success");
       render();
@@ -1098,6 +1245,8 @@ function profileTextError(text, policy) {
 function renderProfile(editor) {
   const c = card(t("Server profile"), t("Edit your profile below. Nothing changes in Discord until you apply."));
   c.classList.add("profile-editor-card");
+  if (sharedMusicControlsLocked())
+    c.append(premiumCallout(t("A custom avatar and banner need Vozen Premium on this server. The display name is free.")));
   const form = el("form"), surface = el("div", undefined, "discord-profile");
   const view = { form, saved: {}, uploads: {}, pending: 0, loading: true, fields: {}, clear: {} };
   profileView = view;
@@ -1116,6 +1265,7 @@ function renderProfile(editor) {
     wrap.append(lab, input, help);
     view.fields[key] = wrap;
     if (type === "file") {
+      if (sharedMusicControlsLocked()) wrap.dataset.musicPremiumLocked = "";
       lab.className = "profile-sr-only";
       const clear = button(t(key === "avatar" ? "Undo avatar selection" : "Undo banner selection"), () => { input.value = ""; delete view.uploads[key]; bindMusicText(input, "", "validity"); notice(""); updateProfilePreview(view); });
       clear.className = "profile-image-undo";
@@ -1326,12 +1476,14 @@ async function loadProfile(id, seq) {
     if (seq !== sequence || page !== "profile" || view !== profileView) return false;
     view.saved = p;
     $("profile-nick").value = p.nick || "";
-    for (const input of view.form.querySelectorAll("input,textarea,button")) input.disabled = !!view.saving;
+    for (const input of view.form.querySelectorAll("input,textarea,button")) {
+      input.disabled = !!view.saving || !!input.closest("[data-music-premium-locked]");
+    }
     view.loading = false; view.retry.hidden = true;
     updateProfilePreview(view);
     return true;
   } catch (e) {
-    if (id === current && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
+    if (seq === sequence && page === "profile" && view === profileView) { notice(e.message, "error"); view.retry.hidden = false; }
     return false;
   } finally {
     if (placeholder) {
@@ -1373,7 +1525,7 @@ async function saveProfile(reset) {
     }
   } finally {
     view.saving = false;
-    buttons.forEach((b) => (b.disabled = view.loading));
+    buttons.forEach((b) => (b.disabled = view.loading || !!b.closest("[data-music-premium-locked]")));
     updateProfilePreview(view);
   }
 }
@@ -1491,11 +1643,26 @@ async function loadServer(id) {
         validDraft(saved, data.settings)
       ) {
         draft = saved;
-        notice(t("Your unsaved draft was restored."));
-      } else if (saved)
+        let dropped = false;
+        if (sharedMusicControlsLocked()) {
+          // Locked Premium settings cannot be saved here: keep their saved values.
+          for (const key of [...premiumFields, "voice_rules", "text_rules"]) {
+            if (JSON.stringify(draft[key]) !== JSON.stringify(data.settings[key])) {
+              draft[key] = structuredClone(data.settings[key]);
+              dropped = true;
+            }
+          }
+        }
+        notice(dropped
+          ? t("Your unsaved draft was restored without its changes to Premium settings.")
+          : t("Your unsaved draft was restored."));
+      } else if (saved) {
         notice(
           t("An older browser draft exists. Server settings changed; it was not applied."),
         );
+        // Tell the user once; a refused draft would otherwise warn on every visit.
+        localStorage.removeItem(draftKey(id));
+      }
     } catch {
       notice(t("This browser could not restore your draft."));
     }

@@ -1,28 +1,18 @@
-use vozen_music::expansion::{Privacy, ServerSettings};
+use vozen_music::expansion::{Privacy, RadioMode, ServerSettings};
 static PROFILE_UPLOADS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
 
-async fn profile_upload_guard(
+/// Checks the session and CSRF token of a write before its JSON body is parsed,
+/// so signed-out callers get 401 rather than a body-parsing error.
+async fn login_before_body(
     State(state): State<Arc<Dashboard>>,
     request: axum::extract::Request,
     next: Next,
 ) -> Response {
-    let _permit = if request.method() == axum::http::Method::PUT {
-        if let Err(error) = state.login(request.headers(), true).await {
-            return error.into_response();
-        }
-        match PROFILE_UPLOADS.try_acquire() {
-            Ok(permit) => Some(permit),
-            Err(_) => {
-                return WebError(
-                    StatusCode::TOO_MANY_REQUESTS,
-                    "Profile uploads are busy. Try again shortly.",
-                )
-                .into_response();
-            }
-        }
-    } else {
-        None
-    };
+    if request.method() == axum::http::Method::PUT
+        && let Err(error) = state.login(request.headers(), true).await
+    {
+        return error.into_response();
+    }
     next.run(request).await
 }
 
@@ -134,6 +124,13 @@ async fn expanded_settings(
     let login = state.login(&headers, false).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
+    let access = state.music_access(guild, &login).await.ok();
+    let music_access = match access {
+        Some(access) => serde_json::json!({"plan":access.name(),"personal":access.personal(),
+            "shared":access.shared(),"radio_vote":state.bot.radio_vote_applies(access)}),
+        // The resolver did not answer: show the page, keep Premium controls locked.
+        None => serde_json::json!({"plan":"unknown","personal":false,"shared":false,"radio_vote":false}),
+    };
     let settings = state
         .bot
         .settings
@@ -155,7 +152,8 @@ async fn expanded_settings(
         .collect::<Vec<_>>();
     let session=state.bot.sessions.lock().await.get(&guild).map(|s|serde_json::json!({"station":state.bot.catalog.stations[s.station].id,"track":state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)].title,"active":s.active.load(Ordering::SeqCst),"paused":s.paused.load(Ordering::SeqCst),"volume":s.volume.load(Ordering::SeqCst),"sleep_until":s.sleep_until.load(Ordering::SeqCst)}));
     Ok(Json(
-        serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session}),
+        serde_json::json!({"settings":settings,"roles":roles,"channels":channels,"session":session,
+            "music_access":music_access}),
     ))
 }
 
@@ -168,6 +166,30 @@ async fn save_expanded(
     let login = state.login(&headers, true).await?;
     let guild = GuildId::new(parse_id(&value)?);
     let (server, member) = state.manager_member(guild, &login).await?;
+    // A failed plan lookup only blocks the changes that need a known plan.
+    let access = state.music_access(guild, &login).await.ok();
+    let shared = access.is_some_and(|a| a.shared());
+    let channels = guild
+        .channels(&state.http)
+        .await
+        .map_err(|_| unavailable())?;
+    let roles: std::collections::BTreeSet<u64> = server.roles.keys().map(|r| r.get()).collect();
+    let voice: std::collections::BTreeSet<u64> = channels
+        .values()
+        .filter(|c| c.kind == ChannelType::Voice)
+        .map(|c| c.id.get())
+        .collect();
+    let text: std::collections::BTreeSet<u64> = channels
+        .values()
+        .filter(|c| c.kind == ChannelType::Text)
+        .map(|c| c.id.get())
+        .collect();
+    let stations: std::collections::BTreeSet<String> =
+        state.bot.catalog.stations.iter().map(|s| s.id.clone()).collect();
+    // Roles and channels deleted in Discord are dropped, so a stale id in a
+    // locked Premium field cannot block every other save.
+    let (settings, auto_join_off) =
+        settings.without_missing_resources(&roles, &voice, &text, &stations);
     settings.validate(guild.get()).map_err(|_| {
         WebError(
             StatusCode::BAD_REQUEST,
@@ -186,11 +208,7 @@ async fn save_expanded(
             "Choose an available station.",
         ));
     }
-    let channels = guild
-        .channels(&state.http)
-        .await
-        .map_err(|_| unavailable())?;
-    settings.validate_resources(guild.get(),&server.roles.keys().map(|r|r.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Voice).map(|c|c.id.get()).collect(),&channels.values().filter(|c|c.kind==ChannelType::Text).map(|c|c.id.get()).collect(),&state.bot.catalog.stations.iter().map(|s|s.id.clone()).collect()).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
+    settings.validate_resources(guild.get(),&roles,&voice,&text,&stations).map_err(|_|WebError(StatusCode::BAD_REQUEST,"A selected channel, role or station is unavailable. Auto-join needs both a voice and text channel."))?;
     let visible = visible_channels(channels.values(), &member, |c, m| {
         server.user_permissions_in(c, m)
     })
@@ -211,6 +229,67 @@ async fn save_expanded(
             "Choose Auto-join and announcement channels you can view.",
         ));
     }
+    if stored.revision != settings.revision {
+        return Err(WebError(
+            StatusCode::CONFLICT,
+            "Settings changed. Reload before saving.",
+        ));
+    }
+    let (stored_live, _) = stored.without_missing_resources(&roles, &voice, &text, &stations);
+    if !shared && settings.changes_shared_music_controls(&stored_live) {
+        return Err(if access.is_none() {
+            WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Music plan access could not be checked. Try again.",
+            )
+        } else {
+            WebError(
+                StatusCode::FORBIDDEN,
+                "These server controls require Vozen Premium.",
+            )
+        });
+    }
+    if settings.radio_mode == RadioMode::AutoJoin
+        && stored.radio_mode != RadioMode::AutoJoin
+        && !shared
+    {
+        return Err(if access.is_none() {
+            WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                "Music plan access could not be checked. Try again.",
+            )
+        } else {
+            WebError(
+                StatusCode::FORBIDDEN,
+                "Auto-join needs Vozen Premium on this server.",
+            )
+        });
+    }
+    // The Top.gg vote only gates switching to 24/7; Auto-join is a Premium setting.
+    if settings.radio_mode == RadioMode::Always && stored.radio_mode != RadioMode::Always {
+        let Some(access) = access else {
+            return Err(WebError(
+                StatusCode::SERVICE_UNAVAILABLE,
+                crate::access::VOTE_UNAVAILABLE,
+            ));
+        };
+        if !state
+            .bot
+            .radio_vote_allowed(parse_id(&login.user.id)?, access)
+            .await
+            .map_err(|_| {
+                WebError(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    crate::access::VOTE_UNAVAILABLE,
+                )
+            })?
+        {
+            return Err(WebError(
+                StatusCode::FORBIDDEN,
+                crate::access::VOTE_REQUIRED,
+            ));
+        }
+    }
     // Match command lock order: session map, voice call, then settings storage.
     let sessions = state.bot.sessions.lock().await;
     let active = sessions.get(&guild).cloned();
@@ -225,13 +304,8 @@ async fn save_expanded(
         None
     };
     let mut store = state.bot.settings.lock().await;
-    if store
-        .db
-        .settings(guild.get())
-        .map_err(storage_error)?
-        .revision
-        != settings.revision
-    {
+    let previous = store.db.settings(guild.get()).map_err(storage_error)?;
+    if previous.revision != settings.revision {
         return Err(WebError(
             StatusCode::CONFLICT,
             "Settings changed. Reload before saving.",
@@ -242,7 +316,7 @@ async fn save_expanded(
     if let Some(s) = &active {
         *s.policy.lock().map_err(|_| unavailable())? = saved.skip.clone();
         s.reset_votes(s.generation.load(Ordering::SeqCst)).map_err(|_| unavailable())?;
-        if voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
+        if shared && voice_guard.is_some() && s.active.load(Ordering::SeqCst) {
             let track =
                 &state.bot.catalog.stations[s.station].tracks[s.current.load(Ordering::SeqCst)];
             if let Some(h) = s.handle.lock().map_err(|_| unavailable())?.as_ref()
@@ -254,8 +328,14 @@ async fn save_expanded(
                 );
             }
         }
-        s.volume.store(saved.volume as usize, Ordering::SeqCst);
+        // Without Premium the session keeps the fixed volume it started with.
+        if shared {
+            s.volume.store(saved.volume as usize, Ordering::SeqCst);
+        }
         s.tips.store(saved.tips, Ordering::SeqCst);
+    }
+    if auto_join_off {
+        warning = Some("Auto-join was turned off because its voice or text channel no longer exists.");
     }
     drop(store);
     drop(voice_guard);
@@ -565,7 +645,7 @@ fn animated_image(bytes: &[u8]) -> bool {
     false
 }
 
-fn profile_image(data: &str) -> Result<String, Error> {
+fn profile_image(data: &str, max_side: u32) -> Result<String, Error> {
     use base64::{Engine, engine::general_purpose::STANDARD};
     if data.len() > 2_800_000 {
         return Err("Image exceeds 2 MB.".into());
@@ -591,14 +671,31 @@ fn profile_image(data: &str) -> Result<String, Error> {
     limits.max_alloc = Some(64 * 1024 * 1024);
     reader.limits(limits);
     let decoded = reader.decode()?;
+    // Discord shows avatars and banners well below 4096 px: fit large uploads
+    // instead of rejecting photos whose lossless PNG would exceed 2 MB.
+    let decoded = if decoded.width() > max_side || decoded.height() > max_side {
+        decoded.resize(max_side, max_side, image::imageops::FilterType::Lanczos3)
+    } else {
+        decoded
+    };
     let mut png = std::io::Cursor::new(Vec::new());
     decoded.write_to(&mut png, image::ImageFormat::Png)?;
-    if png.get_ref().len() > 2 * 1024 * 1024 {
+    if png.get_ref().len() <= 2 * 1024 * 1024 {
+        return Ok(format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(png.into_inner())
+        ));
+    }
+    // Photos without transparency still fit as a high-quality JPEG.
+    let mut jpeg = std::io::Cursor::new(Vec::new());
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 90)
+        .encode_image(&decoded.to_rgb8())?;
+    if jpeg.get_ref().len() > 2 * 1024 * 1024 {
         return Err("The processed image exceeds 2 MB. Use a smaller image.".into());
     }
     Ok(format!(
-        "data:image/png;base64,{}",
-        STANDARD.encode(png.into_inner())
+        "data:image/jpeg;base64,{}",
+        STANDARD.encode(jpeg.into_inner())
     ))
 }
 async fn bot_profile(
@@ -634,6 +731,12 @@ async fn save_bot_profile(
     let login = state.login(&headers, true).await?;
     let g = GuildId::new(parse_id(&value)?);
     state.manager(g, &login).await?;
+    if edit.reset != Some(true)
+        && (edit.avatar.is_some() || edit.banner.is_some())
+        && !state.music_access(g, &login).await?.shared()
+    {
+        return Err(WebError(StatusCode::FORBIDDEN, "Custom bot artwork requires Vozen Premium."));
+    }
     validate_profile_text(&edit)?;
     let mut body = serde_json::Map::new();
     if edit.reset == Some(true) {
@@ -651,12 +754,25 @@ async fn save_bot_profile(
                 },
             );
         }
-        for (field, data) in [("avatar", edit.avatar), ("banner", edit.banner)] {
+        // The shared upload slot only covers decoding, after the manager and plan
+        // checks, and is released before the Discord request.
+        let permit = if edit.avatar.is_some() || edit.banner.is_some() {
+            Some(PROFILE_UPLOADS.try_acquire().map_err(|_| {
+                WebError(
+                    StatusCode::TOO_MANY_REQUESTS,
+                    "Profile uploads are busy. Try again shortly.",
+                )
+            })?)
+        } else {
+            None
+        };
+        for (field, data, max_side) in [("avatar", edit.avatar, 1024), ("banner", edit.banner, 2048)] {
             if let Some(data) = data {
-                let image=tokio::task::spawn_blocking(move||profile_image(&data)).await.map_err(|_|unavailable())?.map_err(|_|WebError(StatusCode::BAD_REQUEST,"Choose a valid static PNG, JPEG or WebP image up to 2 MB and 4096 pixels."))?;
+                let image=tokio::task::spawn_blocking(move||profile_image(&data, max_side)).await.map_err(|_|unavailable())?.map_err(|_|WebError(StatusCode::BAD_REQUEST,"Choose a valid static PNG, JPEG or WebP image up to 2 MB and 4096 pixels."))?;
                 body.insert(field.into(), image.into());
             }
         }
+        drop(permit);
     }
     let response = state
         .client
@@ -704,6 +820,8 @@ mod expansion_web_tests {
             http: state.http.clone(),
             settings: settings.clone(),
             voice: Weak::new(),
+            quality: Arc::default(),
+            quality_retry: Arc::default(),
         }));
         let session = Arc::new(session);
         let mut intent = vozen_music::expansion::PlaybackIntent {
@@ -865,6 +983,54 @@ mod expansion_web_tests {
         assert_eq!(r.status(), StatusCode::UNAUTHORIZED);
     }
     #[tokio::test]
+    async fn write_routes_check_the_session_before_parsing_json() {
+        use axum::{body::Body, http::Request};
+        for route in ["settings", "playback", "server-settings", "personal"] {
+            let response = router(super::tests::fixture())
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/music/api/guilds/1524199248248176751/{route}"))
+                        .method("PUT")
+                        .header("content-type", "application/json")
+                        .body(Body::from("not JSON"))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED, "{route}");
+        }
+    }
+    #[test]
+    fn large_photos_within_the_upload_limit_are_fitted_not_rejected() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        // Smooth gradients with light sensor-like noise, like a photo: small as a
+        // JPEG, several MB as a lossless PNG.
+        let photo = image::RgbImage::from_fn(2000, 2000, |x, y| {
+            let noise = (x.wrapping_mul(7919) ^ y.wrapping_mul(104729)).wrapping_mul(2654435761) >> 28;
+            let channel = |v: u32| (v.min(243) + noise) as u8;
+            image::Rgb([channel(x * 255 / 2000), channel(y * 255 / 2000), channel((x + y) * 255 / 4000)])
+        });
+        let mut jpeg = std::io::Cursor::new(Vec::new());
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 70)
+            .encode_image(&photo)
+            .unwrap();
+        let bytes = jpeg.into_inner();
+        assert!(bytes.len() <= 2 * 1024 * 1024, "fixture must be within the upload limit");
+        let mut lossless = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::ImageRgb8(photo)
+            .write_to(&mut lossless, image::ImageFormat::Png)
+            .unwrap();
+        assert!(
+            lossless.get_ref().len() > 2 * 1024 * 1024,
+            "fixture must reproduce the old rejection"
+        );
+        let input = format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes));
+        let output = profile_image(&input, 1024).unwrap();
+        let encoded = output.split_once(",").unwrap().1;
+        let decoded = image::load_from_memory(&STANDARD.decode(encoded).unwrap()).unwrap();
+        assert!(decoded.width() <= 1024 && decoded.height() <= 1024);
+    }
+    #[tokio::test]
     async fn profile_authentication_precedes_json_parsing() {
         use axum::{body::Body, http::Request};
         let app = router(super::tests::fixture());
@@ -894,13 +1060,13 @@ mod expansion_web_tests {
         commented.extend_from_slice(b"\xff\xfe\x00\x06ANIM");
         commented.extend_from_slice(&bytes[2..]);
         let input = format!("data:image/jpeg;base64,{}", STANDARD.encode(commented));
-        assert!(profile_image(&input).is_ok());
+        assert!(profile_image(&input, 1024).is_ok());
     }
     #[test]
     fn image_processing_rejects_urls_corrupt_and_oversized_data() {
-        assert!(profile_image("https://example.com/image.png").is_err());
-        assert!(profile_image("data:image/png;base64,YmFk").is_err());
-        assert!(profile_image(&"a".repeat(2_800_001)).is_err());
+        assert!(profile_image("https://example.com/image.png", 1024).is_err());
+        assert!(profile_image("data:image/png;base64,YmFk", 1024).is_err());
+        assert!(profile_image(&"a".repeat(2_800_001), 1024).is_err());
         use base64::{Engine, engine::general_purpose::STANDARD};
         let image = image::DynamicImage::new_rgb8(2, 2);
         let mut png = std::io::Cursor::new(Vec::new());
@@ -910,7 +1076,7 @@ mod expansion_web_tests {
             STANDARD.encode(png.into_inner())
         );
         assert!(
-            profile_image(&data)
+            profile_image(&data, 1024)
                 .unwrap()
                 .starts_with("data:image/png;base64,")
         );

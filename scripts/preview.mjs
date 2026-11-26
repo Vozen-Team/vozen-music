@@ -3,6 +3,26 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
+// VOZEN_PREVIEW_PLAN or --plan=unrestricted|free|plus|premium|unknown simulates
+// the viewer's Music plan, as the server reports it. "unrestricted" (the
+// default) is what Music sends while plan checks are not configured, and
+// "unknown" what it sends when the plan resolver does not answer. --vote=1 marks the
+// Top.gg vote as required for plans without Plus or Premium.
+const arg = (name) =>
+  process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
+const previewPlan = process.env.VOZEN_PREVIEW_PLAN || arg("plan") || "unrestricted";
+const previewVote = (process.env.VOZEN_PREVIEW_VOTE || arg("vote")) === "1";
+const previewAccess = () => {
+  const personal = ["plus", "premium", "unrestricted"].includes(previewPlan);
+  return {
+    music_access: {
+      plan: previewPlan,
+      personal,
+      shared: previewPlan === "premium" || previewPlan === "unrestricted",
+      radio_vote: previewVote && !personal,
+    },
+  };
+};
 const libraryRoot = process.env.VOZEN_PREVIEW_LIBRARY_ROOT || root;
 let settings = {
   revision: 0,
@@ -122,6 +142,7 @@ const server = http.createServer(async (req, res) => {
           { id: "5", name: "music", voice: false },
         ],
         session: null,
+        ...previewAccess(),
       });
     }
     if (action === "personal") {
@@ -156,7 +177,10 @@ const server = http.createServer(async (req, res) => {
             400,
           );
   }
-  if (p === "/music/auth/logout") return json({ saved: true });
+  if (p === "/music/auth/logout") {
+    res.writeHead(204, { "Cache-Control": "no-store" });
+    return res.end();
+  }
   const serverPath = /^\/music\/([1-9][0-9]*)$/.exec(p)?.[1];
   const mapping = {
     "/music": "web/dashboard.html",
@@ -215,7 +239,7 @@ const server = http.createServer(async (req, res) => {
   }
   res.end(bytes);
 });
-const port = Number(process.env.VOZEN_PREVIEW_PORT || 4783);
+const port = Number(process.env.VOZEN_PREVIEW_PORT || arg("port") || 4783);
 server.listen(port, "127.0.0.1", () =>
   console.log(`Music UI fixture: http://localhost:${port}/music`),
 );

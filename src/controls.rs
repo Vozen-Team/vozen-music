@@ -254,7 +254,14 @@ impl Bot {
             return Err("This version is limited to the development server.".into());
         }
         let config = self.authorize(ctx, guild, member, text, true).await?;
+        let access = self.music_access(member.user.id.get(), guild.get()).await?;
         let policy = self.settings.lock().await.get(guild.get());
+        // Starting a skip is a Plus or Premium perk. Without it, a member may only
+        // add a vote to a skip that a Plus or Premium listener already started.
+        let joins_only = !access.personal();
+        if joins_only && policy.mode != SkipMode::Majority {
+            return Err("Skipping requires Vozen Plus or an active Vozen Premium server.".into());
+        }
         let roles = member.roles.iter().map(|id| id.get()).collect::<Vec<_>>();
         let (manager_permission, moderator) = self.member_flags(ctx, guild, member)?;
         if member.user.bot || !policy.allows(manager_permission, moderator, &roles) {
@@ -306,15 +313,18 @@ impl Bot {
                 return Err("There is no previous recording in this session.".into());
             }
             if policy.mode == SkipMode::Majority {
-                session
+                let mut votes = session
                     .votes_for(previous)
                     .lock()
-                    .map_err(|_| "Skip votes are unavailable.")?
-                    .begin_request(
-                        member.user.id.get(),
-                        std::time::Instant::now(),
-                        &self.voice_ids(ctx, guild, channel)?,
-                    )?;
+                    .map_err(|_| "Skip votes are unavailable.")?;
+                if joins_only && !votes.open(session.generation.load(Ordering::SeqCst)) {
+                    return Err("Only Vozen Plus members can start a skip vote. You can add your vote once one starts.".into());
+                }
+                votes.begin_request(
+                    member.user.id.get(),
+                    std::time::Instant::now(),
+                    &self.voice_ids(ctx, guild, channel)?,
+                )?;
             }
             (
                 session.control_id,
@@ -453,10 +463,12 @@ impl Bot {
             generation: 0,
         };
         play_track(&mut locked, advance, next)?;
-        if let Some(r) = &replacement.runtime {
-            r.persist(&self.catalog, &replacement, true).await?;
-        }
         sessions.insert(guild, replacement.clone());
+        if let Some(r) = &replacement.runtime
+            && let Err(e) = r.persist(&self.catalog, &replacement, true).await
+        {
+            eprintln!("Could not persist playback: {e}");
+        }
         drop(locked);
         drop(sessions);
         player::refresh(&ctx.http, &self.catalog, &replacement, false).await;

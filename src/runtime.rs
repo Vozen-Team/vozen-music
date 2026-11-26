@@ -1,4 +1,5 @@
 use super::*;
+use crate::access::Access;
 use std::collections::BTreeSet;
 use vozen_music::expansion::{PlaybackIntent, Privacy, RadioMode, ServerSettings};
 
@@ -10,7 +11,102 @@ pub struct Runtime {
     pub http: Arc<Http>,
     pub settings: Arc<Mutex<SettingsStore>>,
     pub voice: Weak<songbird::Songbird>,
+    pub quality: Arc<Mutex<Option<VoiceQuality>>>,
+    pub quality_retry: Arc<std::sync::Mutex<QualityRetry>>,
 }
+
+/// When a failed plan lookup may be retried for this session's voice quality.
+#[derive(Default)]
+pub struct QualityRetry {
+    after: Option<std::time::Instant>,
+    failures: u32,
+}
+
+/// 5 s, 10 s, 20 s, 40 s, then 60 s, each with up to 1 s of jitter.
+fn quality_retry_delay(failures: u32) -> Duration {
+    let seconds = 5u64 << failures.saturating_sub(1).min(4);
+    Duration::from_secs(seconds.min(60)) + Duration::from_millis(rand::random::<u64>() % 1000)
+}
+
+#[cfg(test)]
+#[test]
+fn failed_quality_lookups_wait_longer_up_to_a_minute() {
+    for (failures, low) in [(1, 5), (2, 10), (3, 20), (4, 40), (5, 60), (30, 60)] {
+        let delay = quality_retry_delay(failures);
+        assert!(
+            delay >= Duration::from_secs(low) && delay < Duration::from_secs(low + 1),
+            "{failures}"
+        );
+    }
+}
+
+pub struct VoiceQuality {
+    members: BTreeSet<u64>,
+    checked: std::time::Instant,
+    bitrate: u32,
+}
+
+fn paid_voice(access: Access, subject: u64, members: &BTreeSet<u64>) -> bool {
+    access == Access::Premium || access == Access::Plus && members.contains(&subject)
+}
+
+/// Restarting the station that is already playing in the same channel picks a
+/// new recording, which is a skip. Only Plus or Premium members may do that.
+fn restart_is_free_skip(access: Access, active: bool, same_station: bool, same_channel: bool) -> bool {
+    !access.personal() && active && same_station && same_channel
+}
+
+#[cfg(test)]
+#[test]
+fn only_members_without_plus_are_stopped_from_restarting_the_current_station() {
+    assert!(restart_is_free_skip(Access::Free, true, true, true));
+    assert!(!restart_is_free_skip(Access::Plus, true, true, true));
+    assert!(!restart_is_free_skip(Access::Premium, true, true, true));
+    assert!(!restart_is_free_skip(Access::Unrestricted, true, true, true));
+    assert!(!restart_is_free_skip(Access::Free, false, true, true));
+    assert!(!restart_is_free_skip(Access::Free, true, false, true));
+    assert!(!restart_is_free_skip(Access::Free, true, true, false));
+}
+
+fn voice_bitrate(boosted: bool, cap: Option<u32>) -> u32 {
+    let target = if boosted { 128_000 } else { 64_000 };
+    target.min(cap.unwrap_or(target))
+}
+
+#[cfg(test)]
+#[test]
+fn plus_voice_depends_on_presence_and_respects_the_channel_cap() {
+    let members = BTreeSet::from([7]);
+    assert!(paid_voice(Access::Plus, 7, &members));
+    assert!(!paid_voice(Access::Plus, 9, &members));
+    assert!(!paid_voice(Access::Free, 7, &members));
+    assert!(paid_voice(Access::Premium, 9, &BTreeSet::new()));
+    assert_eq!(voice_bitrate(true, None), 128_000);
+    assert_eq!(voice_bitrate(true, Some(96_000)), 96_000);
+    assert_eq!(voice_bitrate(false, None), 64_000);
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn failed_plan_lookups_do_not_count_as_free_voice() {
+    let members = BTreeSet::from([5]);
+    let guild = GuildId::new(23);
+    let down = crate::test_bot(Some(crate::access::Entitlements::unreachable()));
+    assert_eq!(down.voice_boost(guild, 1, &members, None).await, None);
+    assert_eq!(
+        down.voice_boost(guild, 1, &members, Some((5, Access::Premium)))
+            .await,
+        Some(true)
+    );
+    let unconfigured = crate::test_bot(None);
+    assert_eq!(
+        unconfigured.voice_boost(guild, 1, &members, None).await,
+        Some(false)
+    );
+}
+
+/// Reply from `start_session` when an automatic start finds the radio already connected.
+pub const ALREADY_CONNECTED: &str = "Music is already connected.";
 
 pub const USER_PLAY_COOLDOWN: Duration = Duration::from_secs(3);
 pub const GUILD_PLAY_COOLDOWN: Duration = Duration::from_secs(2);
@@ -270,7 +366,20 @@ impl Runtime {
         session: &Session,
         active: bool,
     ) -> Result<(), Error> {
-        self.settings.lock().await.db.intent(&PlaybackIntent {
+        self.settings
+            .lock()
+            .await
+            .db
+            .intent(&self.playback_intent(catalog, session, active))
+    }
+
+    fn playback_intent(
+        &self,
+        catalog: &Catalog,
+        session: &Session,
+        active: bool,
+    ) -> PlaybackIntent {
+        PlaybackIntent {
             guild: self.guild.get(),
             channel: self.channel.get(),
             text_channel: self.text.get(),
@@ -283,11 +392,135 @@ impl Runtime {
                 0 => None,
                 v => Some(v as i64),
             },
-        })
+        }
     }
 }
 
 impl Bot {
+    /// `None` means a plan lookup failed and no paid member was confirmed, so
+    /// callers keep the current voice quality instead of treating it as Free.
+    async fn voice_boost(
+        &self,
+        guild: GuildId,
+        bot_id: u64,
+        members: &BTreeSet<u64>,
+        known: Option<(u64, Access)>,
+    ) -> Option<bool> {
+        if known.is_some_and(|(subject, access)| paid_voice(access, subject, members)) {
+            return Some(true);
+        }
+        let Some(client) = &self.entitlements else {
+            return Some(false);
+        };
+        tokio::time::timeout(Duration::from_secs(4), async {
+            let subjects = members
+                .iter()
+                .copied()
+                .chain(members.is_empty().then_some(bot_id))
+                .filter(|subject| known.is_none_or(|(id, _)| id != *subject));
+            let mut pending = tokio::task::JoinSet::new();
+            let mut complete = true;
+            let mut paid = |result| match result {
+                Ok((id, Ok(access))) => paid_voice(access, id, members),
+                Ok((_, Err(error))) => {
+                    crate::access::log_lookup_failure("plan", &error);
+                    complete = false;
+                    false
+                }
+                _ => {
+                    complete = false;
+                    false
+                }
+            };
+            for subject in subjects {
+                let client = client.clone();
+                pending.spawn(async move { (subject, client.resolve(subject, guild.get()).await) });
+                if pending.len() == 8
+                    && let Some(result) = pending.join_next().await
+                    && paid(result)
+                {
+                    return Some(true);
+                }
+            }
+            while let Some(result) = pending.join_next().await {
+                if paid(result) {
+                    return Some(true);
+                }
+            }
+            complete.then_some(false)
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+
+    fn refresh_voice_quality(&self, runtime: &Arc<Runtime>, members: BTreeSet<u64>) {
+        if runtime
+            .quality_retry
+            .lock()
+            .is_ok_and(|retry| retry.after.is_some_and(|at| at > std::time::Instant::now()))
+        {
+            return;
+        }
+        let Ok(mut quality) = runtime.quality.clone().try_lock_owned() else {
+            return;
+        };
+        if quality.as_ref().is_some_and(|last| {
+            last.members == members && last.checked.elapsed() < Duration::from_secs(30)
+        }) {
+            return;
+        }
+        let bot = self.clone();
+        let runtime = runtime.clone();
+        tokio::spawn(async move {
+            let bot_id = runtime.cache.current_user().id.get();
+            let Some(boosted) = bot.voice_boost(runtime.guild, bot_id, &members, None).await
+            else {
+                // A failed lookup must not downgrade paid audio; retry after a growing pause.
+                if let Ok(mut retry) = runtime.quality_retry.lock() {
+                    retry.failures = retry.failures.saturating_add(1);
+                    retry.after =
+                        Some(std::time::Instant::now() + quality_retry_delay(retry.failures));
+                }
+                return;
+            };
+            if let Ok(mut retry) = runtime.quality_retry.lock() {
+                *retry = QualityRetry::default();
+            }
+            let cap = runtime.cache.guild(runtime.guild).and_then(|g| {
+                g.channels
+                    .get(&runtime.channel)
+                    .and_then(|channel| channel.bitrate)
+            });
+            let bitrate = voice_bitrate(boosted, cap);
+            if quality.as_ref().is_none_or(|last| last.bitrate != bitrate) {
+                let sessions = bot.sessions.lock().await;
+                if !sessions.get(&runtime.guild).is_some_and(|s| {
+                    s.active.load(Ordering::SeqCst)
+                        && s.runtime.as_ref().is_some_and(|r| Arc::ptr_eq(r, &runtime))
+                }) {
+                    return;
+                }
+                let Some(call) = runtime.voice.upgrade().and_then(|v| v.get(runtime.guild)) else {
+                    return;
+                };
+                let mut call = call.lock().await;
+                if !call
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() == runtime.channel.get())
+                {
+                    return;
+                }
+                call.set_bitrate(songbird::driver::Bitrate::Bits(bitrate as i32));
+            }
+            *quality = Some(VoiceQuality {
+                members,
+                checked: std::time::Instant::now(),
+                bitrate,
+            });
+        });
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn start_session(
         &self,
@@ -299,9 +532,73 @@ impl Bot {
         control: u64,
         restore: Option<&str>,
         sleep: Option<i64>,
+        actor: Option<(u64, crate::access::Access)>,
     ) -> Result<String, Error> {
         if self.guild.is_some_and(|g| g != guild) {
             return Err("This version is limited to the development server.".into());
+        }
+        let bot_id = ctx.cache.current_user().id.get();
+        let known = match actor {
+            Some((_, access)) => Some(access),
+            None => self.automatic_access(bot_id, guild.get()).await,
+        };
+        // An automatic start with an unknown plan keeps the server's saved
+        // station and volume, but gets no paid audio until a lookup succeeds.
+        let keep_saved = known.is_none();
+        let access = known.unwrap_or(crate::access::Access::Free);
+        let (members, boost) = if self.entitlements.is_some() {
+            let members = humans(&ctx.cache, &ctx.http, guild, channel, false).await?;
+            let boost = self
+                .voice_boost(guild, bot_id, &members, actor.or(Some((bot_id, access))))
+                .await;
+            (members, boost)
+        } else {
+            (BTreeSet::new(), Some(false))
+        };
+        let boosted = boost.unwrap_or(false);
+        let queued_at = std::time::Instant::now();
+        let _slot = if self.entitlements.is_some() {
+            Some(self.playback_queue.acquire(boosted).await?)
+        } else {
+            None
+        };
+        // Measured before joining voice, which can take up to 15 s.
+        let fresh = queued_at.elapsed() < Duration::from_secs(1);
+        if queued_at.elapsed() >= Duration::from_secs(1) {
+            let current = match actor {
+                Some((user, _)) => Some(self.music_access(user, guild.get()).await?),
+                None => self.automatic_access(bot_id, guild.get()).await,
+            };
+            if known.is_some() && current.is_some() && current != known {
+                return Err("Music plan access changed while waiting. Try again.".into());
+            }
+        }
+        // Automatic starts on a server without Premium continue the last ordinary
+        // station instead of My Station, as /play does.
+        let station = if actor.is_none()
+            && !keep_saved
+            && !access.shared()
+            && self.catalog.stations[station].id == "my"
+        {
+            let last = self
+                .settings
+                .lock()
+                .await
+                .db
+                .last_playback_station(guild.get())?
+                .filter(|id| id != "my");
+            let id = last.as_deref().unwrap_or("lofi");
+            self.catalog
+                .stations
+                .iter()
+                .position(|s| s.id == id)
+                .unwrap_or(station)
+        } else {
+            station
+        };
+        let station_id = &self.catalog.stations[station].id;
+        if station_id == "my" && !access.shared() && !keep_saved {
+            return Err("My Station requires Vozen Premium on this server.".into());
         }
         let cfg = self.settings.lock().await.db.settings(guild.get())?;
         if !cfg.voice_rules.permits(channel.get())
@@ -310,7 +607,7 @@ impl Bot {
         {
             return Err("This channel is not allowed by the server's Music settings.".into());
         }
-        {
+        let channel_bitrate = {
             let server = ctx
                 .cache
                 .guild(guild)
@@ -329,25 +626,98 @@ impl Bot {
             {
                 return Err("Music needs View Channel, Connect and Speak.".into());
             }
-        }
+            c.bitrate
+        };
+        let bitrate = voice_bitrate(boosted, channel_bitrate);
         let manager = songbird::get(ctx)
             .await
             .ok_or("Voice service unavailable.")?;
         let mut sessions = self.sessions.lock().await;
-        if restore.is_some()
+        if let Some((user, _)) = actor {
+            let in_channel = ctx.cache.guild(guild).is_some_and(|server| {
+                server
+                    .voice_states
+                    .get(&UserId::new(user))
+                    .and_then(|state| state.channel_id)
+                    == Some(channel)
+            });
+            if !in_channel {
+                return Err("Join the voice channel before selecting a station.".into());
+            }
+            if let Some(call) = manager.get(guild)
+                && call
+                    .lock()
+                    .await
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() != channel.get())
+            {
+                return Err(
+                    "Join the same voice channel as Vozen Music to control the station.".into(),
+                );
+            }
+        }
+        if let Some((_, access)) = actor
+            && let Some(current) = sessions.get(&guild)
+        {
+            let same_channel = match manager.get(guild) {
+                Some(call) => call
+                    .lock()
+                    .await
+                    .current_channel()
+                    .is_some_and(|id| id.0.get() == channel.get()),
+                None => false,
+            };
+            if restart_is_free_skip(
+                access,
+                current.active.load(Ordering::SeqCst),
+                current.station == station,
+                same_channel,
+            ) {
+                let name = &self.catalog.stations[station].name;
+                return Ok(if current.paused.load(Ordering::SeqCst) {
+                    format!("{name} is paused here. Use /resume to continue.")
+                } else {
+                    format!("{name} is already playing here. Skipping needs Vozen Plus or an active Vozen Premium server.")
+                });
+            }
+        }
+        if actor.is_none()
             && sessions
                 .get(&guild)
                 .is_some_and(|s| s.active.load(Ordering::SeqCst))
             && let Some(call) = manager.get(guild)
             && call.lock().await.current_channel().is_some()
         {
-            return Ok("Music is already connected.".into());
+            return Ok(ALREADY_CONNECTED.into());
         }
+        let selection = if let Some((user, _)) = actor
+            && access != crate::access::Access::Unrestricted
+        {
+            self.playback_queue
+                .check_station_cooldown(guild.get(), user, access)?;
+            let day = chrono::Utc::now().timestamp().div_euclid(86_400);
+            let changes = self.settings.lock().await.db.station_changes(
+                guild.get(),
+                station_id,
+                day,
+                !access.personal(),
+            )?;
+            Some((day, changes, user))
+        } else {
+            None
+        };
         let call = tokio::time::timeout(Duration::from_secs(15), manager.join(guild, channel))
             .await
             .map_err(|_| "Voice connection timed out.")??;
         let mut s = Session::new(station, 0, control, cfg.skip, None);
-        s.volume.store(cfg.volume as usize, Ordering::SeqCst);
+        s.volume.store(
+            if access.shared() || keep_saved {
+                cfg.volume as usize
+            } else {
+                100
+            },
+            Ordering::SeqCst,
+        );
         s.tips.store(cfg.tips, Ordering::SeqCst);
         s.sleep_until
             .store(sleep.unwrap_or(0).max(0) as usize, Ordering::SeqCst);
@@ -359,14 +729,25 @@ impl Bot {
             http: ctx.http.clone(),
             settings: self.settings.clone(),
             voice: Arc::downgrade(&manager),
+            quality: Arc::new(Mutex::new(
+                (boost.is_some() && fresh).then_some(VoiceQuality {
+                    members,
+                    checked: queued_at,
+                    bitrate,
+                }),
+            )),
+            quality_retry: Arc::default(),
         }));
-        let index = if let Some(id) = restore {
+        let restored = restore.and_then(|id| {
             self.catalog.stations[station]
                 .tracks
                 .iter()
                 .position(|t| t.id == id)
-        } else {
-            s.runtime.as_ref().unwrap().next(&self.catalog, &s).await?
+        });
+        let index = match restored {
+            Some(index) => Some(index),
+            // New starts, and restores whose recording left the station, pick fresh.
+            None => s.runtime.as_ref().unwrap().next(&self.catalog, &s).await?,
         };
         let Some(index) = index else {
             let _ = manager.remove(guild).await;
@@ -388,16 +769,33 @@ impl Bot {
             }
         }
         let s = Arc::new(s);
-        s.runtime
+        let intent = s
+            .runtime
             .as_ref()
             .unwrap()
-            .persist(&self.catalog, &s, true)
-            .await?;
+            .playback_intent(&self.catalog, &s, true);
+        let recorded = self
+            .settings
+            .lock()
+            .await
+            .db
+            .start_playback(&intent, selection.map(|(day, changes, _)| (day, changes)));
+        if let Err(error) = recorded {
+            s.active.store(false, Ordering::SeqCst);
+            player::refresh(&ctx.http, &self.catalog, &s, true).await;
+            if !sessions.contains_key(&guild) {
+                let _ = manager.remove(guild).await;
+            }
+            return Err(error);
+        }
         let old = sessions.remove(&guild);
         if let Some(old) = &old {
             old.active.store(false, Ordering::SeqCst);
         }
         let mut locked = call.lock().await;
+        if access != crate::access::Access::Unrestricted {
+            locked.set_bitrate(songbird::driver::Bitrate::Bits(bitrate as i32));
+        }
         play_track(
             &mut locked,
             Advance {
@@ -411,6 +809,9 @@ impl Bot {
             index,
         )?;
         sessions.insert(guild, s);
+        if let Some((_, _, user)) = selection {
+            self.playback_queue.mark_station_command(guild.get(), user);
+        }
         drop(locked);
         drop(sessions);
         if let Some(old) = old {
@@ -470,11 +871,9 @@ impl Bot {
                     return Ok(());
                 }
                 let deadline = s.sleep_until.load(Ordering::SeqCst);
-                let empty = humans(&ctx.cache, &ctx.http, guild, r.channel, false)
-                    .await?
-                    .is_empty();
+                let members = humans(&ctx.cache, &ctx.http, guild, r.channel, false).await?;
                 if deadline > 0 && deadline <= chrono::Utc::now().timestamp() as usize
-                    || cfg.radio_mode != RadioMode::Always && empty
+                    || cfg.radio_mode != RadioMode::Always && members.is_empty()
                     || !cfg.voice_rules.permits(r.channel.get())
                     || cfg.voice_channel.is_some_and(|c| c != r.channel.get())
                 {
@@ -489,7 +888,9 @@ impl Bot {
                     } else {
                         false
                     };
-                    if !connected && s.recovery_attempts.fetch_add(1, Ordering::SeqCst) < 3 {
+                    if connected && self.entitlements.is_some() {
+                        self.refresh_voice_quality(r, members);
+                    } else if !connected && s.recovery_attempts.fetch_add(1, Ordering::SeqCst) < 3 {
                         let track = &self.catalog.stations[s.station].tracks
                             [s.current.load(Ordering::SeqCst)]
                         .id;
@@ -506,6 +907,7 @@ impl Bot {
                             } else {
                                 None
                             },
+                            None,
                         )
                         .await?;
                     }
@@ -539,9 +941,12 @@ impl Bot {
                         rand::random::<u64>().max(1),
                         None,
                         None,
+                        None,
                     )
                     .await?;
-                announce_auto_join(&ctx.http, ChannelId::new(text), message).await?;
+                if message != ALREADY_CONNECTED {
+                    announce_auto_join(&ctx.http, ChannelId::new(text), message).await?;
+                }
             }
         }
         Ok(())
@@ -600,6 +1005,7 @@ impl Bot {
                                 rand::random::<u64>().max(1),
                                 Some(&intent.track),
                                 intent.sleep_until,
+                                None,
                             )
                             .await
                             .is_ok()
@@ -628,7 +1034,8 @@ impl Bot {
                 if elapsed == 0 {
                     continue;
                 }
-                last = std::time::Instant::now();
+                // Carry the fraction over so slow passes do not lose listening time.
+                last += Duration::from_secs(elapsed);
                 let active: Vec<_> = bot
                     .sessions
                     .lock()
@@ -870,14 +1277,14 @@ impl Bot {
             if !self.member_flags(ctx, g, member)?.0 {
                 return Err("Manage Server is required.".into());
             }
-            let mut store = self.settings.lock().await;
-            let mut config = store.db.settings(g.get())?;
+            let mut config = self.settings.lock().await.db.settings(g.get())?;
             if command.data.options.is_empty() {
                 return Ok(Some(format!(
                     "Current radio mode: {:?}.",
                     config.radio_mode
                 )));
             }
+            let previous_mode = config.radio_mode;
             if let Some(mode) = option("mode").and_then(|v| v.as_str()) {
                 config.radio_mode = match mode {
                     "session" => RadioMode::Session,
@@ -885,6 +1292,28 @@ impl Bot {
                     "auto_join" => RadioMode::AutoJoin,
                     _ => return Err("Invalid radio mode.".into()),
                 };
+            }
+            let switching = config.radio_mode != previous_mode;
+            let enabling_auto_join = switching && config.radio_mode == RadioMode::AutoJoin;
+            let needs_vote = switching && config.radio_mode == RadioMode::Always;
+            if needs_vote || enabling_auto_join || option("channel").is_some() {
+                let access = self.music_access(u, g.get()).await?;
+                if option("channel").is_some() && !access.shared() {
+                    return Err(
+                        "A fixed voice channel requires Vozen Premium on this server.".into(),
+                    );
+                }
+                if enabling_auto_join && !access.shared() {
+                    return Err("Auto-join needs Vozen Premium on this server.".into());
+                }
+                if needs_vote
+                    && !self
+                        .radio_vote_allowed(u, access)
+                        .await
+                        .map_err(|_| crate::access::VOTE_UNAVAILABLE)?
+                {
+                    return Err(crate::access::VOTE_REQUIRED.into());
+                }
             }
             if let Some(channel) = option("channel").and_then(|v| v.as_channel_id()) {
                 config.voice_channel = Some(channel.get());
@@ -905,9 +1334,14 @@ impl Bot {
                     .map(|c| c.id.get())
                     .collect();
                 let stations = self.catalog.stations.iter().map(|s| s.id.clone()).collect();
+                config = config.without_missing_resources(&roles, &voice, &text, &stations).0;
                 config.validate_resources(g.get(), &roles, &voice, &text, &stations)?;
             }
             let mode = config.radio_mode;
+            let mut store = self.settings.lock().await;
+            if store.db.settings(g.get())?.revision != config.revision {
+                return Err("Settings changed. Try again.".into());
+            }
             store.save(g.get(), config)?;
             return Ok(Some(format!("Radio mode saved: {mode:?}.")));
         }
@@ -1052,6 +1486,8 @@ mod tests {
             http: Arc::new(Http::new("synthetic-token")),
             settings,
             voice: Weak::new(),
+            quality: Arc::default(),
+            quality_retry: Arc::default(),
         };
         assert!(!runtime.allows_recording("recording").await.unwrap());
         assert!(runtime.allows_recording("another").await.unwrap());

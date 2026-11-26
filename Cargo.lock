@@ -4805,6 +4805,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "fontdue",
+ "hmac 0.12.1",
  "image",
  "rand 0.9.5",
  "reqwest",
